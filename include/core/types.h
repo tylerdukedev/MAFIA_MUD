@@ -27,24 +27,29 @@ struct LocalTileCoord {
 
 enum class RegionId : uint8_t {
     None = 0,
-    Downtown,
-    Midtown,
-    Residential,
-    Commercial,
-    Industrial,
-    Waterfront,
-    Outskirts,
+    Ocean,
+    Coast,
+    Plains,
+    Forest,
+    Highlands,
+    Mountains,
+    Settlement,
     COUNT
 };
 
 enum class TerrainId : uint8_t {
     None = 0,
-    Water,
+    DeepWater,
+    ShallowWater,
+    River,
+    Beach,
+    Grassland,
+    Forest,
+    Hills,
+    Mountain,
+    Peak,
+    City,
     Road,
-    Building,
-    Park,
-    Plaza,
-    OpenLand,
     COUNT
 };
 

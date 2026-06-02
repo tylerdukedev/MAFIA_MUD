@@ -6,9 +6,9 @@ namespace Core {
 
 namespace {
 constexpr const char* DOCKSPACE_WINDOW_NAME = "CapitalViceDockSpace";
-constexpr const char* DOCKSPACE_HOST_ID = "CapitalViceDockSpaceHost";
+constexpr const char* DOCKSPACE_HOST_ID = "CapitalViceDockSpaceHostV2";
 constexpr const char* WINDOW_SIMULATION = "Simulation";
-constexpr const char* WINDOW_DISTRICTS = "Districts";
+constexpr const char* WINDOW_REGIONS = "Regions";
 constexpr const char* WINDOW_TILE_INSPECTOR = "Tile Inspector";
 constexpr const char* WINDOW_MAP_VIEWPORT = "Map Viewport";
 
@@ -21,7 +21,7 @@ void buildDefaultDockLayout(ImGuiID dockspaceId, const ImVec2& dockspaceSize) {
     ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Right, 0.24f, nullptr, &dockMainId);
     ImGuiID dockBottomId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Down, 0.28f, nullptr, &dockMainId);
     ImGui::DockBuilderDockWindow(WINDOW_SIMULATION, dockLeftId);
-    ImGui::DockBuilderDockWindow(WINDOW_DISTRICTS, dockRightId);
+    ImGui::DockBuilderDockWindow(WINDOW_REGIONS, dockRightId);
     ImGui::DockBuilderDockWindow(WINDOW_TILE_INSPECTOR, dockBottomId);
     ImGui::DockBuilderDockWindow(WINDOW_MAP_VIEWPORT, dockMainId);
     ImGui::DockBuilderFinish(dockspaceId);
