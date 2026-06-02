@@ -16,6 +16,10 @@ ImU32 scaleColor(ImU32 color, float factor) {
     return IM_COL32(clampedRed, clampedGreen, clampedBlue, 255);
 }
 
+float alignLineCoord(float value) {
+    return std::floor(value) + 0.5f;
+}
+
 ImU32 getBoroughColor(RegionId regionId) {
     switch (regionId) {
     case RegionId::Manhattan: return IM_COL32(86, 180, 80, 255);
@@ -94,10 +98,22 @@ void renderMapTiles(
                 continue;
             }
             drawList->AddRectFilled(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), tileColor);
+            if (tileSizePixels >= 4.0f && terrainId != TerrainId::Water) {
+                const float inset = std::min(1.0f, tileSizePixels * 0.14f);
+                const ImU32 highlightColor = scaleColor(tileColor, 1.10f);
+                drawList->AddRectFilled(
+                    ImVec2(screenMinX + inset, screenMinY + inset),
+                    ImVec2(screenMaxX - inset, screenMaxY - inset),
+                    highlightColor);
+            }
             if (tileSizePixels >= 3.5f && terrainId != TerrainId::Water) {
-                const ImU32 gridColor = IM_COL32(36, 40, 48, 95);
-                drawList->AddLine(ImVec2(screenMaxX, screenMinY), ImVec2(screenMaxX, screenMaxY), gridColor, 1.0f);
-                drawList->AddLine(ImVec2(screenMinX, screenMaxY), ImVec2(screenMaxX, screenMaxY), gridColor, 1.0f);
+                const ImU32 gridColor = IM_COL32(255, 255, 255, 24);
+                const float topY = alignLineCoord(screenMinY);
+                const float leftX = alignLineCoord(screenMinX);
+                const float rightX = alignLineCoord(screenMaxX);
+                const float bottomY = alignLineCoord(screenMaxY);
+                drawList->AddLine(ImVec2(leftX, topY), ImVec2(rightX, topY), gridColor, 1.0f);
+                drawList->AddLine(ImVec2(leftX, topY), ImVec2(leftX, bottomY), gridColor, 1.0f);
             }
         }
     }
