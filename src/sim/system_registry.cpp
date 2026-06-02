@@ -2,6 +2,23 @@
 
 namespace Core {
 
+uint64_t ISimSystem::getLastTickCount() const {
+    return lastTickCount;
+}
+
+const char* DebugSystem::getName() const {
+    return "DebugSystem";
+}
+
+void DebugSystem::onTick(uint64_t tickCount) {
+    lastTickCount = tickCount;
+    processedTickCount = tickCount;
+}
+
+uint64_t DebugSystem::getProcessedTickCount() const {
+    return processedTickCount;
+}
+
 SystemRegistry::SystemRegistry()
     : systemCount(0) {
     for (int32_t index = 0; index < 8; ++index) {
@@ -9,11 +26,9 @@ SystemRegistry::SystemRegistry()
     }
 }
 
-void SystemRegistry::initialize(const SimContext& simContext) {
+void SystemRegistry::initialize() {
     systemCount = 0;
     systems[systemCount++] = &debugSystem;
-    influenceSystem.bindContext(simContext);
-    systems[systemCount++] = &influenceSystem;
 }
 
 void SystemRegistry::runTick(uint64_t tickCount) {

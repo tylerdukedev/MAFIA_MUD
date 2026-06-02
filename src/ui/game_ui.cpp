@@ -12,9 +12,6 @@
 #include "ui/landmark_renderer.h"
 #include "world/landmark_table.h"
 #include "world/region_table.h"
-#include "world/district_grid.h"
-#include "world/district_store.h"
-#include "world/tile_field_store.h"
 #include "imgui.h"
 
 namespace Core {
@@ -27,19 +24,6 @@ constexpr float MIN_WINDOW_HEIGHT = 540.0f;
 constexpr float SPEED_OPTIONS[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
 constexpr int32_t SPEED_OPTION_COUNT = 5;
 constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
-
-void setDistrictPick(ViewportPickState& viewportPickState, const DistrictCoord& districtCoord, bool isSelection) {
-    const DistrictId districtId = DistrictGrid::districtCoordToId(districtCoord);
-    if (isSelection) {
-        viewportPickState.selectedDistrictCoord = districtCoord;
-        viewportPickState.selectedDistrictId = districtId;
-        viewportPickState.hasDistrictSelection = true;
-    } else {
-        viewportPickState.hoveredDistrictCoord = districtCoord;
-        viewportPickState.hoveredDistrictId = districtId;
-        viewportPickState.hasDistrictHover = true;
-    }
-}
 
 void renderCharacterCreationPreviewPanel(const CharacterDraft& characterDraft) {
     ImGui::BeginChild("CharacterPreviewPanel", ImVec2(0.0f, 0.0f), true);
@@ -264,8 +248,6 @@ void renderSimulationPanel(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
-    const DistrictStore& districtStore,
-    const TileFieldStore& tileFieldStore,
     const SystemRegistry& systemRegistry,
     uint64_t worldSeed,
     ContextHelpState& contextHelpState) {
@@ -328,16 +310,6 @@ void renderSimulationPanel(
         ImGui::Text("Chunks: %d x %d (%d total)", worldConfig.CHUNK_COUNT_X, worldConfig.CHUNK_COUNT_Y, chunkStore.getTotalChunkCount());
         ImGui::Text("Active chunks: %d", chunkStore.getActiveChunkCount());
         ImGui::Text("Boroughs: %d", RegionTable::getPlayableRegionCount());
-        ImGui::Text("District grid: %d x %d (%d cells)", DISTRICT_COUNT, DISTRICT_COUNT, DISTRICT_CELL_COUNT);
-        ImGui::Text(
-            "Districts active: %d | mean heat: %.3f | mean influence: %.3f",
-            districtStore.getDistrictCount(),
-            districtStore.getMeanHeat(),
-            districtStore.getMeanPlayerInfluence());
-        ImGui::Text(
-            "Tile fields | mean heat: %.3f | mean influence: %.3f",
-            tileFieldStore.getMeanHeat(),
-            tileFieldStore.getMeanInfluence());
         ImGui::Separator();
         char systemsLine[32];
         std::snprintf(systemsLine, sizeof(systemsLine), "Systems: %d", systemRegistry.getSystemCount());
@@ -586,74 +558,57 @@ void renderBoroughsPanel(ContextHelpState& contextHelpState) {
     ImGui::End();
 }
 
-void renderDistrictPanel(
-    const DistrictStore& districtStore,
-    const ViewportPickState& viewportPickState,
-    ContextHelpState& contextHelpState) {
+void renderDistrictPanel(const WorldConfig& worldConfig, const ChunkStore& chunkStore, const ViewportPickState& viewportPickState, ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, 220.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("District")) {
         contextHelpPanelTag("District Panel", "Stats for a selected map landmark district.", "district_panel", contextHelpState);
-        DistrictId activeDistrictId = INVALID_DISTRICT_ID;
-        const LandmarkDefinition* activeLandmark = nullptr;
-        if (viewportPickState.hasLandmarkSelection && viewportPickState.selectedLandmarkIndex >= 0) {
-            activeLandmark = getLandmarkDefinition(viewportPickState.selectedLandmarkIndex);
-            activeDistrictId = districtStore.findDistrictForLandmark(viewportPickState.selectedLandmarkIndex);
-        } else if (viewportPickState.hasDistrictSelection) {
-            activeDistrictId = viewportPickState.selectedDistrictId;
-        }
-        if (activeDistrictId == INVALID_DISTRICT_ID) {
-            ImGui::TextDisabled("Click a district cell or labeled landmark on the map.");
-            ImGui::TextWrapped("Districts are 16x16 tile cells. Landmarks anchor high-value control nodes within a cell.");
+        if (!viewportPickState.hasLandmarkSelection || viewportPickState.selectedLandmarkIndex < 0) {
+            ImGui::TextDisabled("Click a labeled district landmark on the map.");
+            ImGui::TextWrapped("Districts are high-value control nodes. They run hotter and are harder to take than ordinary tiles.");
         } else {
-            const DistrictRecord& district = districtStore.getDistrict(activeDistrictId);
-            const DistrictCoord districtCoord = DistrictGrid::districtIdToCoord(activeDistrictId);
-            if (activeLandmark != nullptr) {
+            const LandmarkDefinition* landmark = getLandmarkDefinition(viewportPickState.selectedLandmarkIndex);
+            if (landmark == nullptr) {
+                ImGui::TextDisabled("Invalid district selection.");
+            } else {
+                const WorldCoord coord{landmark->tileX, landmark->tileY};
                 contextHelpTextLine(
-                    activeLandmark->fullName,
+                    landmark->fullName,
                     "Full district name. Map labels may use a short form (e.g. LGA).",
                     "landmarks_overview",
                     contextHelpState);
-                ImGui::Text("Map label: %s", activeLandmark->mapLabel);
-            } else {
-                ImGui::Text("District cell: (%d, %d)", districtCoord.x, districtCoord.y);
-            }
-            ImGui::Text("District cell: (%d, %d)", districtCoord.x, districtCoord.y);
-            ImGui::Text("Dominant borough: %s", RegionTable::getRegionName(district.dominantRegionId).data());
-            ImGui::Text("Land tiles: %d | Water tiles: %d", district.landTileCount, district.waterTileCount);
-            if (activeLandmark != nullptr) {
-                ImGui::Text("Anchor tile: (%d, %d)", activeLandmark->tileX, activeLandmark->tileY);
-            }
-            ImGui::Separator();
-            contextHelpSectionHeader(
-                "District Simulation",
-                "Live influence and heat rolled up from micro tiles.",
-                "landmark_control",
-                contextHelpState);
-            contextHelpStatBar(
-                "Heat Index",
-                district.heat,
-                "District heat diffuses from tiles and landmark pressure.",
-                "landmark_control",
-                contextHelpState);
-            contextHelpStatBar(
-                "Player Influence",
-                district.playerInfluence,
-                "Aggregated player pressure across the district cell.",
-                "landmark_control",
-                contextHelpState);
-            contextHelpStatBar(
-                "Stability",
-                district.stability,
-                "Resistance to control shifts within the cell.",
-                "landmark_control",
-                contextHelpState);
-            if (district.landmarkIndex >= 0) {
+                ImGui::Text("Map label: %s", landmark->mapLabel);
+                if (worldConfig.isWithinWorldBounds(coord)) {
+                    const RegionId regionId = chunkStore.getRegionAt(coord);
+                    ImGui::Text("Borough: %s", RegionTable::getRegionName(regionId).data());
+                } else {
+                    ImGui::Text("Borough: out of bounds");
+                }
+                ImGui::Text("Tile: (%d, %d)", landmark->tileX, landmark->tileY);
+                ImGui::Separator();
+                contextHelpSectionHeader(
+                    "Foundational District Stats",
+                    "Placeholder values for future territory control.",
+                    "landmark_control",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Heat Index",
+                    LANDMARK_BASE_HEAT,
+                    "Districts stay hotter than surrounding tiles.",
+                    "landmark_control",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Control Difficulty",
+                    LANDMARK_CONTROL_DIFFICULTY,
+                    "Hardest class of tiles to capture and hold.",
+                    "landmark_control",
+                    contextHelpState);
                 ImGui::Text("Borough influence weight: %.1fx", LANDMARK_BOROUGH_INFLUENCE_WEIGHT);
                 if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Landmark districts contribute more to borough-wide metrics than ordinary cells.");
+                    ImGui::SetTooltip("District control will contribute more to borough-wide metrics than normal tiles.");
                 }
+                ImGui::Text("Control status: Unclaimed");
+                ImGui::TextDisabled("Gameplay control systems not yet wired.");
             }
-            ImGui::Text("Control status: Unclaimed");
         }
     }
     ImGui::End();
@@ -672,10 +627,6 @@ void renderTileInspectorPanel(
         } else {
             const WorldCoord coord = viewportPickState.hasSelection ? viewportPickState.selectedCoord : viewportPickState.hoveredCoord;
             ImGui::Text("Tile: (%d, %d)", coord.x, coord.y);
-            if (worldConfig.isWithinWorldBounds(coord)) {
-                const DistrictCoord districtCoord = DistrictGrid::worldToDistrictCoord(coord);
-                ImGui::Text("District cell: (%d, %d)", districtCoord.x, districtCoord.y);
-            }
             ImGui::Text("In bounds: %s", worldConfig.isWithinWorldBounds(coord) ? "yes" : "no");
             if (worldConfig.isWithinWorldBounds(coord)) {
                 const ChunkCoord chunkCoord = worldConfig.worldToChunkCoord(coord);
@@ -709,7 +660,6 @@ void updateViewportPickFromWorldCoord(ViewportPickState& viewportPickState, cons
 void renderMapViewportPanel(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
-    const DistrictStore& districtStore,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
     ContextHelpState& contextHelpState) {
@@ -718,7 +668,6 @@ void renderMapViewportPanel(
         contextHelpPanelTag("Map Viewport", "Pan, zoom, and pick tiles on the world map.", "map_viewport", contextHelpState);
         const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
-        const bool isDistrictView = mapCamera.pixelsPerTile <= DISTRICT_HEATMAP_MAX_PIXELS_PER_TILE;
         ImGui::InvisibleButton(
             "map_viewport_canvas",
             canvasSize,
@@ -746,8 +695,6 @@ void renderMapViewportPanel(
             } else {
                 viewportPickState.hasLandmarkHover = false;
                 viewportPickState.hoveredLandmarkIndex = -1;
-                viewportPickState.hasDistrictHover = false;
-                viewportPickState.hoveredDistrictId = INVALID_DISTRICT_ID;
                 const int32_t landmarkIndex = findLandmarkIndexAtScreenPoint(
                     mapCamera,
                     io.MousePos.x,
@@ -762,14 +709,11 @@ void renderMapViewportPanel(
                         viewportPickState.hoveredLandmarkIndex = landmarkIndex;
                         const WorldCoord landmarkCoord{landmark->tileX, landmark->tileY};
                         updateViewportPickFromWorldCoord(viewportPickState, worldConfig, landmarkCoord, false);
-                        const DistrictCoord districtCoord = DistrictGrid::worldToDistrictCoord(landmarkCoord);
-                        setDistrictPick(viewportPickState, districtCoord, false);
                         ImGui::SetTooltip("%s", getLandmarkTooltipText(landmarkIndex));
                         if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                             viewportPickState.hasLandmarkSelection = true;
                             viewportPickState.selectedLandmarkIndex = landmarkIndex;
                             updateViewportPickFromWorldCoord(viewportPickState, worldConfig, landmarkCoord, true);
-                            setDistrictPick(viewportPickState, districtCoord, true);
                         }
                     }
                 } else {
@@ -777,38 +721,22 @@ void renderMapViewportPanel(
                     float worldY = 0.0f;
                     mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
                     const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
-                    const DistrictCoord districtCoord = DistrictGrid::worldToDistrictCoord(coord);
-                    setDistrictPick(viewportPickState, districtCoord, false);
-                    if (isDistrictView) {
-                        if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                            viewportPickState.hasLandmarkSelection = false;
-                            viewportPickState.selectedLandmarkIndex = -1;
-                            setDistrictPick(viewportPickState, districtCoord, true);
-                        }
-                    } else {
-                        updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
-                        if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                            viewportPickState.hasLandmarkSelection = false;
-                            viewportPickState.selectedLandmarkIndex = -1;
-                            updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
-                            setDistrictPick(viewportPickState, districtCoord, true);
-                        }
+                    updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
+                    if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                        viewportPickState.hasLandmarkSelection = false;
+                        viewportPickState.selectedLandmarkIndex = -1;
+                        updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
                     }
                 }
             }
         } else {
             viewportPickState.hasHover = false;
-            viewportPickState.hasDistrictHover = false;
         }
         if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
-            if (isDistrictView) {
-                renderDistrictHeatmap(drawList, mapCamera, worldConfig, districtStore, canvasPos, canvasSize);
-            } else {
-                renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
-            }
+            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
             renderLandmarkOverlays(drawList, mapCamera, canvasPos, canvasSize, viewportPickState);
         }
-        if (viewportPickState.hasHover && !isDistrictView && mapCamera.pixelsPerTile >= 2.0f) {
+        if (viewportPickState.hasHover && mapCamera.pixelsPerTile >= 2.0f) {
             const WorldCoord hovered = viewportPickState.hoveredCoord;
             float hoverMinX = 0.0f;
             float hoverMinY = 0.0f;
@@ -818,41 +746,14 @@ void renderMapViewportPanel(
             mapCamera.tileToScreen(static_cast<float>(hovered.x + 1), static_cast<float>(hovered.y + 1), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMaxX, hoverMaxY);
             drawList->AddRect(ImVec2(hoverMinX, hoverMinY), ImVec2(hoverMaxX, hoverMaxY), IM_COL32(255, 255, 255, 235), 0.0f, 0, 2.0f);
         }
-        if (viewportPickState.hasDistrictHover && isDistrictView) {
-            const WorldCoord districtOrigin = DistrictGrid::districtToWorldOrigin(viewportPickState.hoveredDistrictCoord);
-            float hoverMinX = 0.0f;
-            float hoverMinY = 0.0f;
-            float hoverMaxX = 0.0f;
-            float hoverMaxY = 0.0f;
-            mapCamera.tileToScreen(
-                static_cast<float>(districtOrigin.x),
-                static_cast<float>(districtOrigin.y),
-                canvasPos.x,
-                canvasPos.y,
-                canvasSize.x,
-                canvasSize.y,
-                hoverMinX,
-                hoverMinY);
-            mapCamera.tileToScreen(
-                static_cast<float>(districtOrigin.x + DISTRICT_TILE_SIZE),
-                static_cast<float>(districtOrigin.y + DISTRICT_TILE_SIZE),
-                canvasPos.x,
-                canvasPos.y,
-                canvasSize.x,
-                canvasSize.y,
-                hoverMaxX,
-                hoverMaxY);
-            drawList->AddRect(ImVec2(hoverMinX, hoverMinY), ImVec2(hoverMaxX, hoverMaxY), IM_COL32(255, 255, 255, 235), 0.0f, 0, 2.0f);
-        }
         drawList->PopClipRect();
         if (isCanvasHovered) {
-            char overlayBuffer[128];
+            char overlayBuffer[96];
             std::snprintf(
                 overlayBuffer,
                 sizeof(overlayBuffer),
-                "Scroll: zoom | Drag: pan | Zoom: %.2f px/tile | View: %s",
-                mapCamera.pixelsPerTile,
-                isDistrictView ? "district heatmap" : "tile detail");
+                "Scroll: zoom | Drag: pan | Zoom: %.2f px/tile",
+                mapCamera.pixelsPerTile);
             const ImVec2 hintSize = ImGui::CalcTextSize(overlayBuffer);
             drawList->AddText(
                 ImVec2(canvasPos.x + 8.0f, canvasMax.y - hintSize.y - 8.0f),
@@ -861,7 +762,6 @@ void renderMapViewportPanel(
         }
     } else {
         viewportPickState.hasHover = false;
-        viewportPickState.hasDistrictHover = false;
     }
     ImGui::End();
 }
@@ -900,8 +800,6 @@ void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
-    const DistrictStore& districtStore,
-    const TileFieldStore& tileFieldStore,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
@@ -910,11 +808,11 @@ void renderGameUi(
     ContextHelpState& contextHelpState) {
     beginMainDockSpace();
     renderCharacterPanel(playerProfile, contextHelpState);
-    renderSimulationPanel(simClock, worldConfig, chunkStore, districtStore, tileFieldStore, systemRegistry, worldSeed, contextHelpState);
+    renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed, contextHelpState);
     renderBoroughsPanel(contextHelpState);
     renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState, contextHelpState);
-    renderDistrictPanel(districtStore, viewportPickState, contextHelpState);
-    renderMapViewportPanel(worldConfig, chunkStore, districtStore, mapCamera, viewportPickState, contextHelpState);
+    renderDistrictPanel(worldConfig, chunkStore, viewportPickState, contextHelpState);
+    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, contextHelpState);
 }
 
 } // namespace Core

@@ -70,16 +70,11 @@ set(CAPITAL_VICE_SOURCES
     src/main.cpp
     src/core/application.cpp
     src/core/sim_clock.cpp
-    src/sim/isim_system.cpp
     src/sim/system_registry.cpp
-    src/sim/influence_system.cpp
     src/procgen/world_generator.cpp
     src/utils/seed_hash.cpp
     src/world/world_config.cpp
     src/world/chunk_store.cpp
-    src/world/district_grid.cpp
-    src/world/district_store.cpp
-    src/world/tile_field_store.cpp
     src/world/region_table.cpp
     src/world/landmark_table.cpp
     src/persistence/save_game.cpp
@@ -122,15 +117,6 @@ include(CTest)
 include(Catch)
 catch_discover_tests(chunk_store_test)
 
-add_executable(district_grid_test
-    test/district_grid_test.cpp
-    src/world/district_grid.cpp
-    src/world/world_config.cpp
-)
-target_include_directories(district_grid_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(district_grid_test PRIVATE Catch2::Catch2WithMain)
-catch_discover_tests(district_grid_test)
-
 add_executable(landmark_table_test
     test/landmark_table_test.cpp
     src/world/landmark_table.cpp
@@ -166,11 +152,7 @@ add_executable(save_game_test
     src/utils/seed_hash.cpp
     src/world/world_config.cpp
     src/world/chunk_store.cpp
-    src/world/district_grid.cpp
-    src/world/district_store.cpp
-    src/world/tile_field_store.cpp
     src/world/region_table.cpp
-    src/world/landmark_table.cpp
     src/core/sim_clock.cpp
 )
 target_include_directories(save_game_test PRIVATE ${CMAKE_SOURCE_DIR}/include)

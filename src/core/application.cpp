@@ -216,8 +216,6 @@ void Application::renderFrame() {
             simClock,
             worldConfig,
             chunkStore,
-            districtStore,
-            tileFieldStore,
             systemRegistry,
             mapCamera,
             viewportPickState,
@@ -240,26 +238,15 @@ void Application::renderFrame() {
     glfwSwapBuffers(window);
 }
 
-void Application::initializeWorldLayers() {
-    districtStore.buildFromChunkStore(chunkStore);
-    tileFieldStore.reset();
-    tileFieldStore.seedFromDistrictStore(districtStore, chunkStore);
-    simContext.worldConfig = &worldConfig;
-    simContext.chunkStore = &chunkStore;
-    simContext.tileFieldStore = &tileFieldStore;
-    simContext.districtStore = &districtStore;
-    systemRegistry.initialize(simContext);
-}
-
 void Application::startNewSimulation() {
     playerProfile = buildPlayerProfile(characterDraft);
+    systemRegistry.initialize();
     WorldGenerator worldGenerator;
     worldGenerator.generate(worldConfig, chunkStore, worldSeed);
     mapCamera = MapCamera{};
     initializeMapCameraForStartingBorough(mapCamera, characterDraft.selectedBoroughIndex);
     viewportPickState = ViewportPickState{};
     simClock = SimClock(WorldConfig::DEFAULT_TICK_RATE_HZ);
-    initializeWorldLayers();
     isWorldReady = true;
 }
 
@@ -269,7 +256,7 @@ bool Application::saveCurrentGame() {
         return false;
     }
     SaveGameSnapshot snapshot{};
-    if (!buildSaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore, tileFieldStore, districtStore)) {
+    if (!buildSaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
     }
@@ -291,15 +278,11 @@ bool Application::loadSavedGame() {
         setSaveLoadStatusMessage("Load failed: save file is invalid or incompatible.");
         return false;
     }
-    if (!applySaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore, tileFieldStore, districtStore)) {
+    systemRegistry.initialize();
+    if (!applySaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
     }
-    simContext.worldConfig = &worldConfig;
-    simContext.chunkStore = &chunkStore;
-    simContext.tileFieldStore = &tileFieldStore;
-    simContext.districtStore = &districtStore;
-    systemRegistry.initialize(simContext);
     playerProfile = buildPlayerProfile(characterDraft);
     viewportPickState = ViewportPickState{};
     isWorldReady = true;
