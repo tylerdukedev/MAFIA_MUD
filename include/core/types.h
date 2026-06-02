@@ -33,6 +33,8 @@ enum class RegionId : uint8_t {
     Bronx,
     StatenIsland,
     NewJersey,
+    Westchester,
+    LongIsland,
     COUNT
 };
 

@@ -20,7 +20,7 @@ TEST_CASE("WorldGenerator determinism", "[procgen]") {
     REQUIRE(storeA.getElevationAt(sampleCoord) == storeB.getElevationAt(sampleCoord));
 }
 
-TEST_CASE("WorldGenerator builds all five boroughs and New Jersey", "[procgen]") {
+TEST_CASE("WorldGenerator builds boroughs surrounded by mainland and water", "[procgen]") {
     WorldConfig config;
     ChunkStore chunkStore(config);
     WorldGenerator generator;
@@ -30,6 +30,7 @@ TEST_CASE("WorldGenerator builds all five boroughs and New Jersey", "[procgen]")
     bool hasRoad = false;
     bool hasBuilding = false;
     bool hasPark = false;
+    bool hasMainland = false;
     for (int32_t y = 0; y < WorldConfig::WORLD_HEIGHT_TILES; ++y) {
         for (int32_t x = 0; x < WorldConfig::WORLD_WIDTH_TILES; ++x) {
             const WorldCoord coord{x, y};
@@ -39,6 +40,7 @@ TEST_CASE("WorldGenerator builds all five boroughs and New Jersey", "[procgen]")
             hasRoad = hasRoad || terrain == TerrainId::Road;
             hasBuilding = hasBuilding || terrain == TerrainId::Building;
             hasPark = hasPark || terrain == TerrainId::Park;
+            hasMainland = hasMainland || terrain == TerrainId::OpenLand;
         }
     }
     REQUIRE(seenRegion[static_cast<size_t>(RegionId::Manhattan)]);
@@ -47,25 +49,21 @@ TEST_CASE("WorldGenerator builds all five boroughs and New Jersey", "[procgen]")
     REQUIRE(seenRegion[static_cast<size_t>(RegionId::Bronx)]);
     REQUIRE(seenRegion[static_cast<size_t>(RegionId::StatenIsland)]);
     REQUIRE(seenRegion[static_cast<size_t>(RegionId::NewJersey)]);
+    REQUIRE(seenRegion[static_cast<size_t>(RegionId::Westchester)]);
+    REQUIRE(seenRegion[static_cast<size_t>(RegionId::LongIsland)]);
     REQUIRE(hasWater);
     REQUIRE(hasRoad);
     REQUIRE(hasBuilding);
     REQUIRE(hasPark);
+    REQUIRE(hasMainland);
     REQUIRE(chunkStore.getActiveChunkCount() == chunkStore.getTotalChunkCount());
 }
 
-TEST_CASE("WorldGenerator frames the map with water", "[procgen]") {
+TEST_CASE("WorldGenerator places the Atlantic along the south edge", "[procgen]") {
     WorldConfig config;
     ChunkStore chunkStore(config);
     WorldGenerator generator;
     generator.generate(config, chunkStore, DEFAULT_WORLD_SEED);
-    const WorldCoord corners[] = {
-        {1, 1},
-        {WorldConfig::WORLD_WIDTH_TILES - 2, 1},
-        {1, WorldConfig::WORLD_HEIGHT_TILES - 2},
-        {WorldConfig::WORLD_WIDTH_TILES - 2, WorldConfig::WORLD_HEIGHT_TILES - 2},
-    };
-    for (const WorldCoord& corner : corners) {
-        REQUIRE(chunkStore.getTerrainAt(corner) == TerrainId::Water);
-    }
+    const WorldCoord southCenter{WorldConfig::WORLD_WIDTH_TILES / 2, WorldConfig::WORLD_HEIGHT_TILES - 2};
+    REQUIRE(chunkStore.getTerrainAt(southCenter) == TerrainId::Water);
 }
