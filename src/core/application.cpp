@@ -94,9 +94,6 @@ bool Application::initializeImGui() {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-#if defined(CAPITALVICE_DEV_CONSOLE)
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-#endif
     io.IniFilename = IMGUI_INI_PATH;
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
@@ -238,14 +235,6 @@ void Application::renderFrame() {
     glViewport(0, 0, framebufferWidth, framebufferHeight);
     renderClearBackground();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-#if defined(CAPITALVICE_DEV_CONSOLE)
-    if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        GLFWwindow* backupContextWindow = glfwGetCurrentContext();
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-        glfwMakeContextCurrent(backupContextWindow);
-    }
-#endif
     glfwSwapBuffers(window);
 }
 

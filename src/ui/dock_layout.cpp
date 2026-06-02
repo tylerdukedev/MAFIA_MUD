@@ -45,7 +45,7 @@ void beginMainDockSpace() {
     ImGui::Begin(DOCKSPACE_WINDOW_NAME, nullptr, windowFlags);
     ImGui::PopStyleVar(3);
     ImGuiID dockspaceId = ImGui::GetID(DOCKSPACE_HOST_ID);
-    ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+    ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoUndocking;
     ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
     if (ImGui::DockBuilderGetNode(dockspaceId) == nullptr) {
         buildDefaultDockLayout(dockspaceId, viewport->WorkSize);
