@@ -77,6 +77,7 @@ set(CAPITAL_VICE_SOURCES
     src/ui/dock_layout.cpp
     src/ui/map_camera.cpp
     src/ui/map_renderer.cpp
+    src/ui/help_manual.cpp
     src/ui/game_ui.cpp
     ${CHARACTER_SOURCES}
 )

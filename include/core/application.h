@@ -5,6 +5,7 @@
 #include "core/sim_clock.h"
 #include "sim/system_registry.h"
 #include "ui/game_ui.h"
+#include "ui/help_manual.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
 #include "world/chunk_store.h"
@@ -39,6 +40,7 @@ private:
     ViewportPickState viewportPickState;
     CharacterDraft characterDraft;
     PlayerProfile playerProfile;
+    HelpManualState helpManualState;
     uint64_t worldSeed;
     FrontendScreen frontendScreen;
     bool isWorldReady;

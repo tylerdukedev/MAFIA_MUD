@@ -173,6 +173,23 @@ void Application::renderFrame() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     const bool hasSaveFile = saveFileExists(DEFAULT_SAVE_FILENAME);
+    ApplicationMenuBarParams menuBarParams{};
+    menuBarParams.screen = frontendScreen;
+    menuBarParams.simClock = frontendScreen == FrontendScreen::InGame ? &simClock : nullptr;
+    menuBarParams.hasSaveFile = hasSaveFile;
+    menuBarParams.isWorldReady = isWorldReady;
+    menuBarParams.helpManualState = &helpManualState;
+    ApplicationMenuBarEvents menuBarEvents = renderApplicationMenuBar(menuBarParams);
+    if (menuBarEvents.requestedExitGame) {
+        isRunning = false;
+    }
+    if (menuBarEvents.requestedLoadGame && frontendScreen == FrontendScreen::InGame) {
+        loadSavedGame();
+    }
+    if (menuBarEvents.requestedSaveGame && frontendScreen == FrontendScreen::InGame) {
+        saveCurrentGame();
+    }
+    renderHelpManualWindow(helpManualState);
     FrontendUiEvents frontendUiEvents = renderFrontendUi(frontendScreen, characterDraft, hasSaveFile);
     if (frontendUiEvents.requestedExitGame) {
         isRunning = false;
@@ -197,21 +214,14 @@ void Application::renderFrame() {
         if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
             saveCurrentGame();
         }
-        GameUiEvents gameUiEvents = renderGameUi(
+        renderGameUi(
             simClock,
             worldConfig,
             chunkStore,
             systemRegistry,
             mapCamera,
             viewportPickState,
-            worldSeed,
-            hasSaveFile);
-        if (gameUiEvents.requestedSaveGame) {
-            saveCurrentGame();
-        }
-        if (gameUiEvents.requestedLoadGame) {
-            loadSavedGame();
-        }
+            worldSeed);
     }
 #if defined(CAPITALVICE_DEV_CONSOLE)
     devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile);

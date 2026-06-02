@@ -1,5 +1,6 @@
 #include "ui/map_renderer.h"
 #include "ui/game_ui.h"
+#include "ui/help_manual.h"
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
 #include <cstdio>
@@ -170,44 +171,73 @@ const char* getTerrainName(TerrainId terrainId) {
     }
 }
 
-GameUiEvents renderInGameMenuBar(SimClock& simClock, bool hasSaveFile) {
-    GameUiEvents gameUiEvents{};
+} // namespace
+
+ApplicationMenuBarEvents renderApplicationMenuBar(const ApplicationMenuBarParams& params) {
+    ApplicationMenuBarEvents menuBarEvents{};
     if (!ImGui::BeginMainMenuBar()) {
-        return gameUiEvents;
+        return menuBarEvents;
     }
-    if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("Save Game", "Ctrl+S")) {
-            gameUiEvents.requestedSaveGame = true;
+    const bool isInGame = params.screen == FrontendScreen::InGame;
+    if (isInGame && params.simClock != nullptr) {
+        if (ImGui::BeginMenu("File")) {
+            if (!params.isWorldReady) {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::MenuItem("Save Game", "Ctrl+S")) {
+                menuBarEvents.requestedSaveGame = true;
+            }
+            if (!params.isWorldReady) {
+                ImGui::EndDisabled();
+            }
+            if (!params.hasSaveFile) {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::MenuItem("Load Game")) {
+                menuBarEvents.requestedLoadGame = true;
+            }
+            if (!params.hasSaveFile) {
+                ImGui::EndDisabled();
+            }
+            if (ImGui::MenuItem("Exit Game")) {
+                menuBarEvents.requestedExitGame = true;
+            }
+            ImGui::EndMenu();
         }
-        if (!hasSaveFile) {
-            ImGui::BeginDisabled();
+        if (ImGui::BeginMenu("Simulation")) {
+            if (ImGui::MenuItem(params.simClock->isPaused() ? "Resume" : "Pause", "Space")) {
+                params.simClock->togglePaused();
+            }
+            if (ImGui::MenuItem("Step One Tick", "S")) {
+                params.simClock->stepOneTick();
+            }
+            ImGui::EndMenu();
         }
-        if (ImGui::MenuItem("Load Game")) {
-            gameUiEvents.requestedLoadGame = true;
+        if (ImGui::BeginMenu("View")) {
+            if (ImGui::MenuItem("Reset Panel Layout")) {
+                resetDockLayout();
+            }
+            ImGui::EndMenu();
         }
-        if (!hasSaveFile) {
-            ImGui::EndDisabled();
-        }
-        ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Simulation")) {
-        if (ImGui::MenuItem(simClock.isPaused() ? "Resume" : "Pause", "Space")) {
-            simClock.togglePaused();
+    if (ImGui::BeginMenu("Help")) {
+        if (params.helpManualState != nullptr) {
+            const bool manualOpen = params.helpManualState->isOpen;
+            if (ImGui::MenuItem("Manual", nullptr, manualOpen)) {
+                params.helpManualState->isOpen = !manualOpen;
+            }
         }
-        if (ImGui::MenuItem("Step One Tick", "S")) {
-            simClock.stepOneTick();
-        }
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("View")) {
-        if (ImGui::MenuItem("Reset Panel Layout")) {
-            resetDockLayout();
-        }
+        ImGui::Separator();
+        ImGui::BeginDisabled();
+        ImGui::MenuItem("About Capital Vice");
+        ImGui::EndDisabled();
         ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
-    return gameUiEvents;
+    return menuBarEvents;
 }
+
+namespace {
 
 void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
@@ -421,22 +451,19 @@ FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterDraft
     return frontendUiEvents;
 }
 
-GameUiEvents renderGameUi(
+void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
-    uint64_t worldSeed,
-    bool hasSaveFile) {
-    GameUiEvents gameUiEvents = renderInGameMenuBar(simClock, hasSaveFile);
+    uint64_t worldSeed) {
     beginMainDockSpace();
     renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
     renderBoroughsPanel();
     renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState);
     renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState);
-    return gameUiEvents;
 }
 
 } // namespace Core
