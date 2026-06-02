@@ -34,11 +34,11 @@ void setupDefaultDockLayoutIfNeeded() {
 void beginMainDockSpace() {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking;
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowPos(viewport->WorkPos, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(viewport->WorkSize, ImGuiCond_Always);
     ImGui::SetNextWindowViewport(viewport->ID);
     windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoSavedSettings;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -49,6 +49,8 @@ void beginMainDockSpace() {
     ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
     if (ImGui::DockBuilderGetNode(dockspaceId) == nullptr) {
         buildDefaultDockLayout(dockspaceId, viewport->WorkSize);
+    } else {
+        ImGui::DockBuilderSetNodeSize(dockspaceId, viewport->WorkSize);
     }
     ImGui::End();
 }
