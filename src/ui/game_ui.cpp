@@ -15,6 +15,18 @@ constexpr float SPEED_OPTIONS[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
 constexpr int32_t SPEED_OPTION_COUNT = 5;
 constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
 
+const char* getTerrainName(TerrainId terrainId) {
+    switch (terrainId) {
+    case TerrainId::Water: return "Water";
+    case TerrainId::Road: return "Road";
+    case TerrainId::Building: return "Building";
+    case TerrainId::Park: return "Park";
+    case TerrainId::Plaza: return "Plaza";
+    case TerrainId::OpenLand: return "Open Land";
+    default: return "None";
+    }
+}
+
 void renderMainMenu(SimClock& simClock) {
     if (!ImGui::BeginMainMenuBar()) {
         return;
@@ -40,7 +52,7 @@ void renderMainMenu(SimClock& simClock) {
 void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Simulation")) {
-        ImGui::Text("Phase 4 — Map Renderer");
+        ImGui::Text("Phase 5 — Procedural Cities");
         ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
@@ -68,7 +80,7 @@ void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, c
         ImGui::Text("Chunk size: %d x %d", worldConfig.CHUNK_SIZE, worldConfig.CHUNK_SIZE);
         ImGui::Text("Chunks: %d x %d (%d total)", worldConfig.CHUNK_COUNT_X, worldConfig.CHUNK_COUNT_Y, chunkStore.getTotalChunkCount());
         ImGui::Text("Active chunks: %d", chunkStore.getActiveChunkCount());
-        ImGui::Text("Regions: %d", RegionTable::getPlayableRegionCount());
+        ImGui::Text("Districts: %d", RegionTable::getPlayableRegionCount());
         ImGui::Separator();
         ImGui::Text("Systems: %d", systemRegistry.getSystemCount());
         for (int32_t index = 0; index < systemRegistry.getSystemCount(); ++index) {
@@ -83,9 +95,9 @@ void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, c
     ImGui::End();
 }
 
-void renderRegionsPanel() {
+void renderDistrictsPanel() {
     ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("Regions")) {
+    if (ImGui::Begin("Districts")) {
         for (int32_t regionIndex = 1; regionIndex < static_cast<int32_t>(RegionId::COUNT); ++regionIndex) {
             const auto regionId = static_cast<RegionId>(regionIndex);
             ImGui::BulletText("%s (%s)", RegionTable::getRegionName(regionId).data(), RegionTable::getRegionShortName(regionId).data());
@@ -106,10 +118,11 @@ void renderTileInspectorPanel(const WorldConfig& worldConfig, const ChunkStore& 
             if (worldConfig.isWithinWorldBounds(coord)) {
                 const ChunkCoord chunkCoord = worldConfig.worldToChunkCoord(coord);
                 const LocalTileCoord localCoord = worldConfig.worldToLocalTileCoord(coord);
+                const TerrainId terrainId = chunkStore.getTerrainAt(coord);
                 ImGui::Text("Chunk: (%d, %d) index %d", chunkCoord.x, chunkCoord.y, worldConfig.chunkCoordToIndex(chunkCoord));
                 ImGui::Text("Local: (%u, %u)", localCoord.x, localCoord.y);
-                ImGui::Text("Region: %s", RegionTable::getRegionName(chunkStore.getRegionAt(coord)).data());
-                ImGui::Text("Terrain: %u", static_cast<unsigned>(chunkStore.getTerrainAt(coord)));
+                ImGui::Text("District: %s", RegionTable::getRegionName(chunkStore.getRegionAt(coord)).data());
+                ImGui::Text("Terrain: %s", getTerrainName(terrainId));
                 ImGui::Text("Elevation: %d", chunkStore.getElevationAt(coord));
                 ImGui::Text("Chunk active: %s", chunkStore.hasTileAt(coord) ? "yes" : "no");
             }
@@ -154,10 +167,8 @@ void renderMapViewportPanel(
         const ImVec2 canvasMax(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
         drawList->PushClipRect(canvasPos, canvasMax, true);
         drawList->AddRectFilled(canvasPos, canvasMax, IM_COL32(12, 14, 18, 255));
-        if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
-            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
-        }
-        drawList->PopClipRect();
+        bool showTilePreview = false;
+        WorldCoord previewCoord{};
         if (isCanvasHovered) {
             ImGuiIO& io = ImGui::GetIO();
             if (io.MouseWheel != 0.0f) {
@@ -178,19 +189,36 @@ void renderMapViewportPanel(
                 mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
                 const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
                 updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
+                if (worldConfig.isWithinWorldBounds(coord)) {
+                    showTilePreview = true;
+                    previewCoord = coord;
+                }
                 if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                     updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
                 }
             }
+        } else {
+            viewportPickState.hasHover = false;
+        }
+        if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
+            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
+            if (showTilePreview) {
+                renderHoveredTilePreview(drawList, worldConfig, chunkStore, previewCoord, canvasPos, canvasSize);
+            }
+        }
+        drawList->PopClipRect();
+        if (isCanvasHovered) {
             char overlayBuffer[96];
             std::snprintf(
                 overlayBuffer,
                 sizeof(overlayBuffer),
                 "Scroll: zoom | Drag: pan | Zoom: %.2f px/tile",
                 mapCamera.pixelsPerTile);
-            drawList->AddText(ImVec2(canvasPos.x + 8.0f, canvasPos.y + 8.0f), IM_COL32(220, 224, 232, 230), overlayBuffer);
-        } else if (!isCanvasHovered) {
-            viewportPickState.hasHover = false;
+            const ImVec2 hintSize = ImGui::CalcTextSize(overlayBuffer);
+            drawList->AddText(
+                ImVec2(canvasPos.x + 8.0f, canvasMax.y - hintSize.y - 8.0f),
+                IM_COL32(220, 224, 232, 230),
+                overlayBuffer);
         }
     } else {
         viewportPickState.hasHover = false;
@@ -210,7 +238,7 @@ void renderGameUi(
     renderMainMenu(simClock);
     beginMainDockSpace();
     renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
-    renderRegionsPanel();
+    renderDistrictsPanel();
     renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState);
     renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState);
 }

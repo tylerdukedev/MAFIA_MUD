@@ -19,41 +19,46 @@ TEST_CASE("WorldGenerator determinism", "[procgen]") {
     REQUIRE(storeA.getElevationAt(sampleCoord) == storeB.getElevationAt(sampleCoord));
 }
 
-TEST_CASE("WorldGenerator produces water and land", "[procgen]") {
+TEST_CASE("WorldGenerator produces city tile variety", "[procgen]") {
     WorldConfig config;
     ChunkStore chunkStore(config);
     WorldGenerator generator;
     generator.generate(config, chunkStore, DEFAULT_WORLD_SEED);
     bool hasWater = false;
-    bool hasLand = false;
-    bool hasRegion = false;
-    for (int32_t y = 0; y < WorldConfig::WORLD_HEIGHT_TILES; y += 32) {
-        for (int32_t x = 0; x < WorldConfig::WORLD_WIDTH_TILES; x += 32) {
+    bool hasRoad = false;
+    bool hasBuilding = false;
+    bool hasDistrict = false;
+    for (int32_t y = 17; y < WorldConfig::WORLD_HEIGHT_TILES; y += 17) {
+        for (int32_t x = 19; x < WorldConfig::WORLD_WIDTH_TILES; x += 17) {
             WorldCoord coord{x, y};
             const TerrainId terrain = chunkStore.getTerrainAt(coord);
             if (terrain == TerrainId::Water) {
                 hasWater = true;
             }
-            if (terrain == TerrainId::Land) {
-                hasLand = true;
+            if (terrain == TerrainId::Road) {
+                hasRoad = true;
+            }
+            if (terrain == TerrainId::Building) {
+                hasBuilding = true;
             }
             if (chunkStore.getRegionAt(coord) != RegionId::None) {
-                hasRegion = true;
+                hasDistrict = true;
             }
         }
     }
     REQUIRE(hasWater);
-    REQUIRE(hasLand);
-    REQUIRE(hasRegion);
+    REQUIRE(hasRoad);
+    REQUIRE(hasBuilding);
+    REQUIRE(hasDistrict);
     REQUIRE(chunkStore.getActiveChunkCount() == chunkStore.getTotalChunkCount());
 }
 
-TEST_CASE("WorldGenerator Manhattan region exists", "[procgen]") {
+TEST_CASE("WorldGenerator downtown core exists", "[procgen]") {
     WorldConfig config;
     ChunkStore chunkStore(config);
     WorldGenerator generator;
     generator.generate(config, chunkStore, DEFAULT_WORLD_SEED);
-    WorldCoord manhattanCoord{175, 210};
-    REQUIRE(chunkStore.getRegionAt(manhattanCoord) == RegionId::Manhattan);
-    REQUIRE(chunkStore.getTerrainAt(manhattanCoord) == TerrainId::Land);
+    WorldCoord downtownCoord{259, 261};
+    REQUIRE(chunkStore.getRegionAt(downtownCoord) == RegionId::Downtown);
+    REQUIRE(chunkStore.getTerrainAt(downtownCoord) == TerrainId::Building);
 }
