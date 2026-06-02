@@ -7,7 +7,6 @@ void ChunkTileData::initialize(int32_t tileCount) {
     terrainId.assign(static_cast<size_t>(tileCount), TerrainId::None);
     elevation.assign(static_cast<size_t>(tileCount), 0);
     flags.assign(static_cast<size_t>(tileCount), 0U);
-    landmark.assign(static_cast<size_t>(tileCount), LandmarkId::None);
 }
 
 bool ChunkTileData::isInitialized() const {
@@ -167,33 +166,6 @@ void ChunkStore::setTerrainAt(const WorldCoord& worldCoord, TerrainId terrainId)
     }
     const int32_t tileIndex = getTileIndexInChunk(worldCoord);
     chunk->tiles.terrainId[static_cast<size_t>(tileIndex)] = terrainId;
-}
-
-LandmarkId ChunkStore::getLandmarkAt(const WorldCoord& worldCoord) const {
-    if (!config.isWithinWorldBounds(worldCoord)) {
-        return LandmarkId::None;
-    }
-    const ChunkCoord chunkCoord = config.worldToChunkCoord(worldCoord);
-    const Chunk* chunk = getChunkAtCoord(chunkCoord);
-    if (chunk == nullptr) {
-        return LandmarkId::None;
-    }
-    const int32_t tileIndex = getTileIndexInChunk(worldCoord);
-    return chunk->tiles.landmark[static_cast<size_t>(tileIndex)];
-}
-
-void ChunkStore::setLandmarkAt(const WorldCoord& worldCoord, LandmarkId landmarkId) {
-    if (!config.isWithinWorldBounds(worldCoord)) {
-        return;
-    }
-    const ChunkCoord chunkCoord = config.worldToChunkCoord(worldCoord);
-    const ChunkId chunkId = getOrCreateChunk(chunkCoord);
-    Chunk* chunk = getChunk(chunkId);
-    if (chunk == nullptr) {
-        return;
-    }
-    const int32_t tileIndex = getTileIndexInChunk(worldCoord);
-    chunk->tiles.landmark[static_cast<size_t>(tileIndex)] = landmarkId;
 }
 
 ChunkId ChunkStore::allocateChunk(const ChunkCoord& chunkCoord) {

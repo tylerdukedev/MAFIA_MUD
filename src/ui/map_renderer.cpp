@@ -41,9 +41,6 @@ ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation) {
     if (terrainId == TerrainId::Plaza) {
         return IM_COL32(204, 200, 190, 255);
     }
-    if (terrainId == TerrainId::Airport) {
-        return IM_COL32(150, 110, 70, 255);
-    }
     if (terrainId == TerrainId::OpenLand) {
         return getBoroughColor(regionId);
     }

@@ -46,15 +46,6 @@ enum class TerrainId : uint8_t {
     Park,
     Plaza,
     OpenLand,
-    Airport,
-    COUNT
-};
-
-enum class LandmarkId : uint8_t {
-    None = 0,
-    CentralPark,
-    LaGuardiaAirport,
-    JfkAirport,
     COUNT
 };
 

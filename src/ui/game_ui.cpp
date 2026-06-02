@@ -3,9 +3,7 @@
 #include <cstdio>
 #include <cfloat>
 #include "ui/dock_layout.h"
-#include "ui/panel_manager.h"
 #include "world/region_table.h"
-#include "world/landmark_table.h"
 #include "imgui.h"
 
 namespace Core {
@@ -25,12 +23,11 @@ const char* getTerrainName(TerrainId terrainId) {
     case TerrainId::Park: return "Park";
     case TerrainId::Plaza: return "Plaza";
     case TerrainId::OpenLand: return "Land";
-    case TerrainId::Airport: return "Airport";
     default: return "None";
     }
 }
 
-void renderMainMenu(SimClock& simClock, PanelManager& panels) {
+void renderMainMenu(SimClock& simClock) {
     if (!ImGui::BeginMainMenuBar()) {
         return;
     }
@@ -43,11 +40,7 @@ void renderMainMenu(SimClock& simClock, PanelManager& panels) {
         }
         ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Window")) {
-        ImGui::TextDisabled("Open / Reopen Panels");
-        ImGui::Separator();
-        renderReopenItems(panels);
-        ImGui::Separator();
+    if (ImGui::BeginMenu("View")) {
         if (ImGui::MenuItem("Reset Panel Layout")) {
             resetDockLayout();
         }
@@ -56,85 +49,86 @@ void renderMainMenu(SimClock& simClock, PanelManager& panels) {
     ImGui::EndMainMenuBar();
 }
 
-void renderSimulationContent(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
-    ImGui::Text("Phase 6 — Landmarks");
-    ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
-    ImGui::Separator();
-    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::Text("Window: %.0f x %.0f", ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
-    ImGui::Text("Sim: %s", simClock.isPaused() ? "PAUSED" : "RUNNING");
-    ImGui::Text("Tick rate: %.0f Hz", simClock.getTickRateHz());
-    ImGui::Text("Speed: %.2fx", simClock.getSpeedMultiplier());
-    ImGui::Text("Tick count: %llu", static_cast<unsigned long long>(simClock.getTickCount()));
-    ImGui::Text("Ticks this frame: %d", simClock.getTicksThisFrame());
-    ImGui::Separator();
-    ImGui::Text("Speed multiplier");
-    for (int32_t index = 0; index < SPEED_OPTION_COUNT; ++index) {
-        const float speedOption = SPEED_OPTIONS[index];
-        char labelBuffer[16];
-        std::snprintf(labelBuffer, sizeof(labelBuffer), "%.2gx", speedOption);
-        if (ImGui::RadioButton(labelBuffer, simClock.getSpeedMultiplier() == static_cast<double>(speedOption))) {
-            simClock.setSpeedMultiplier(static_cast<double>(speedOption));
+void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
+    ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
+    if (ImGui::Begin("Simulation")) {
+        ImGui::Text("Phase 5 — Five Boroughs");
+        ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
+        ImGui::Separator();
+        ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+        ImGui::Text("Window: %.0f x %.0f", ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
+        ImGui::Text("Sim: %s", simClock.isPaused() ? "PAUSED" : "RUNNING");
+        ImGui::Text("Tick rate: %.0f Hz", simClock.getTickRateHz());
+        ImGui::Text("Speed: %.2fx", simClock.getSpeedMultiplier());
+        ImGui::Text("Tick count: %llu", static_cast<unsigned long long>(simClock.getTickCount()));
+        ImGui::Text("Ticks this frame: %d", simClock.getTicksThisFrame());
+        ImGui::Separator();
+        ImGui::Text("Speed multiplier");
+        for (int32_t index = 0; index < SPEED_OPTION_COUNT; ++index) {
+            const float speedOption = SPEED_OPTIONS[index];
+            char labelBuffer[16];
+            std::snprintf(labelBuffer, sizeof(labelBuffer), "%.2gx", speedOption);
+            if (ImGui::RadioButton(labelBuffer, simClock.getSpeedMultiplier() == static_cast<double>(speedOption))) {
+                simClock.setSpeedMultiplier(static_cast<double>(speedOption));
+            }
+            if (index + 1 < SPEED_OPTION_COUNT) {
+                ImGui::SameLine();
+            }
         }
-        if (index + 1 < SPEED_OPTION_COUNT) {
-            ImGui::SameLine();
+        ImGui::Separator();
+        ImGui::Text("World: %d x %d tiles", worldConfig.WORLD_WIDTH_TILES, worldConfig.WORLD_HEIGHT_TILES);
+        ImGui::Text("Chunk size: %d x %d", worldConfig.CHUNK_SIZE, worldConfig.CHUNK_SIZE);
+        ImGui::Text("Chunks: %d x %d (%d total)", worldConfig.CHUNK_COUNT_X, worldConfig.CHUNK_COUNT_Y, chunkStore.getTotalChunkCount());
+        ImGui::Text("Active chunks: %d", chunkStore.getActiveChunkCount());
+        ImGui::Text("Boroughs: %d", RegionTable::getPlayableRegionCount());
+        ImGui::Separator();
+        ImGui::Text("Systems: %d", systemRegistry.getSystemCount());
+        for (int32_t index = 0; index < systemRegistry.getSystemCount(); ++index) {
+            const ISimSystem* system = systemRegistry.getSystem(index);
+            if (system != nullptr) {
+                ImGui::BulletText("%s (tick %llu)", system->getName(), static_cast<unsigned long long>(system->getLastTickCount()));
+            }
         }
+        ImGui::Separator();
+        ImGui::TextDisabled("Space = pause/resume | S = step tick");
     }
-    ImGui::Separator();
-    ImGui::Text("World: %d x %d tiles", worldConfig.WORLD_WIDTH_TILES, worldConfig.WORLD_HEIGHT_TILES);
-    ImGui::Text("Chunk size: %d x %d", worldConfig.CHUNK_SIZE, worldConfig.CHUNK_SIZE);
-    ImGui::Text("Chunks: %d x %d (%d total)", worldConfig.CHUNK_COUNT_X, worldConfig.CHUNK_COUNT_Y, chunkStore.getTotalChunkCount());
-    ImGui::Text("Active chunks: %d", chunkStore.getActiveChunkCount());
-    ImGui::Text("Boroughs: %d", RegionTable::getPlayableRegionCount());
-    ImGui::Separator();
-    ImGui::Text("Systems: %d", systemRegistry.getSystemCount());
-    for (int32_t index = 0; index < systemRegistry.getSystemCount(); ++index) {
-        const ISimSystem* system = systemRegistry.getSystem(index);
-        if (system != nullptr) {
-            ImGui::BulletText("%s (tick %llu)", system->getName(), static_cast<unsigned long long>(system->getLastTickCount()));
-        }
-    }
-    ImGui::Separator();
-    ImGui::TextDisabled("Space = pause/resume | S = step | Double-click title = maximize");
+    ImGui::End();
 }
 
-void renderBoroughsContent() {
-    for (int32_t regionIndex = 1; regionIndex < static_cast<int32_t>(RegionId::COUNT); ++regionIndex) {
-        const auto regionId = static_cast<RegionId>(regionIndex);
-        ImGui::BulletText("%s (%s)", RegionTable::getRegionName(regionId).data(), RegionTable::getRegionShortName(regionId).data());
+void renderBoroughsPanel() {
+    ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
+    if (ImGui::Begin("Boroughs")) {
+        for (int32_t regionIndex = 1; regionIndex < static_cast<int32_t>(RegionId::COUNT); ++regionIndex) {
+            const auto regionId = static_cast<RegionId>(regionIndex);
+            ImGui::BulletText("%s (%s)", RegionTable::getRegionName(regionId).data(), RegionTable::getRegionShortName(regionId).data());
+        }
     }
-    ImGui::Separator();
-    ImGui::TextDisabled("Landmarks");
-    for (int32_t index = 0; index < LandmarkTable::getLandmarkCount(); ++index) {
-        const LandmarkRect& mark = LandmarkTable::getLandmark(index);
-        ImGui::BulletText("%s", LandmarkTable::getLandmarkName(mark.id).data());
-    }
+    ImGui::End();
 }
 
-void renderTileInspectorContent(const WorldConfig& worldConfig, const ChunkStore& chunkStore, const ViewportPickState& viewportPickState) {
-    if (!viewportPickState.hasHover && !viewportPickState.hasSelection) {
-        ImGui::TextDisabled("Hover or click the map viewport to inspect tiles.");
-        return;
+void renderTileInspectorPanel(const WorldConfig& worldConfig, const ChunkStore& chunkStore, const ViewportPickState& viewportPickState) {
+    ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 140.0f), ImVec2(FLT_MAX, FLT_MAX));
+    if (ImGui::Begin("Tile Inspector")) {
+        if (!viewportPickState.hasHover && !viewportPickState.hasSelection) {
+            ImGui::TextDisabled("Hover or click the map viewport to inspect tiles.");
+        } else {
+            const WorldCoord coord = viewportPickState.hasSelection ? viewportPickState.selectedCoord : viewportPickState.hoveredCoord;
+            ImGui::Text("Tile: (%d, %d)", coord.x, coord.y);
+            ImGui::Text("In bounds: %s", worldConfig.isWithinWorldBounds(coord) ? "yes" : "no");
+            if (worldConfig.isWithinWorldBounds(coord)) {
+                const ChunkCoord chunkCoord = worldConfig.worldToChunkCoord(coord);
+                const LocalTileCoord localCoord = worldConfig.worldToLocalTileCoord(coord);
+                const TerrainId terrainId = chunkStore.getTerrainAt(coord);
+                ImGui::Text("Chunk: (%d, %d) index %d", chunkCoord.x, chunkCoord.y, worldConfig.chunkCoordToIndex(chunkCoord));
+                ImGui::Text("Local: (%u, %u)", localCoord.x, localCoord.y);
+                ImGui::Text("Borough: %s", RegionTable::getRegionName(chunkStore.getRegionAt(coord)).data());
+                ImGui::Text("Terrain: %s", getTerrainName(terrainId));
+                ImGui::Text("Elevation: %d", chunkStore.getElevationAt(coord));
+                ImGui::Text("Chunk active: %s", chunkStore.hasTileAt(coord) ? "yes" : "no");
+            }
+        }
     }
-    const WorldCoord coord = viewportPickState.hasSelection ? viewportPickState.selectedCoord : viewportPickState.hoveredCoord;
-    ImGui::Text("Tile: (%d, %d)", coord.x, coord.y);
-    ImGui::Text("In bounds: %s", worldConfig.isWithinWorldBounds(coord) ? "yes" : "no");
-    if (!worldConfig.isWithinWorldBounds(coord)) {
-        return;
-    }
-    const ChunkCoord chunkCoord = worldConfig.worldToChunkCoord(coord);
-    const LocalTileCoord localCoord = worldConfig.worldToLocalTileCoord(coord);
-    const TerrainId terrainId = chunkStore.getTerrainAt(coord);
-    ImGui::Text("Chunk: (%d, %d) index %d", chunkCoord.x, chunkCoord.y, worldConfig.chunkCoordToIndex(chunkCoord));
-    ImGui::Text("Local: (%u, %u)", localCoord.x, localCoord.y);
-    ImGui::Text("Borough: %s", RegionTable::getRegionName(chunkStore.getRegionAt(coord)).data());
-    ImGui::Text("Terrain: %s", getTerrainName(terrainId));
-    const LandmarkId landmarkId = chunkStore.getLandmarkAt(coord);
-    if (landmarkId != LandmarkId::None) {
-        ImGui::Text("Landmark: %s", LandmarkTable::getLandmarkName(landmarkId).data());
-    }
-    ImGui::Text("Elevation: %d", chunkStore.getElevationAt(coord));
-    ImGui::Text("Chunk active: %s", chunkStore.hasTileAt(coord) ? "yes" : "no");
+    ImGui::End();
 }
 
 void updateViewportPickFromWorldCoord(ViewportPickState& viewportPickState, const WorldConfig& worldConfig, const WorldCoord& coord, bool isSelection) {
@@ -150,132 +144,87 @@ void updateViewportPickFromWorldCoord(ViewportPickState& viewportPickState, cons
     }
 }
 
-void renderMapViewportContent(
+void renderMapViewportPanel(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState) {
-    static bool isCameraInitialized = false;
-    const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
-    const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
-    if (!isCameraInitialized && canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
-        mapCamera.fitToWorld(worldConfig.WORLD_WIDTH_TILES, worldConfig.WORLD_HEIGHT_TILES, canvasSize.x, canvasSize.y);
-        isCameraInitialized = true;
-    }
-    ImGui::InvisibleButton(
-        "map_viewport_canvas",
-        canvasSize,
-        ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle | ImGuiButtonFlags_MouseButtonRight);
-    const bool isCanvasHovered = ImGui::IsItemHovered();
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    const ImVec2 canvasMax(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
-    drawList->PushClipRect(canvasPos, canvasMax, true);
-    drawList->AddRectFilled(canvasPos, canvasMax, IM_COL32(12, 14, 18, 255));
-    if (isCanvasHovered) {
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.MouseWheel != 0.0f) {
-            float focusWorldX = 0.0f;
-            float focusWorldY = 0.0f;
-            mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, focusWorldX, focusWorldY);
-            const float zoomFactor = io.MouseWheel > 0.0f ? ZOOM_WHEEL_FACTOR : (1.0f / ZOOM_WHEEL_FACTOR);
-            mapCamera.zoomAt(zoomFactor, focusWorldX, focusWorldY);
-        }
-        const bool isPanning = ImGui::IsMouseDragging(ImGuiMouseButton_Middle)
-            || ImGui::IsMouseDragging(ImGuiMouseButton_Right)
-            || ImGui::IsMouseDragging(ImGuiMouseButton_Left);
-        if (isPanning) {
-            mapCamera.panPixels(io.MouseDelta.x, io.MouseDelta.y);
-        } else {
-            float worldX = 0.0f;
-            float worldY = 0.0f;
-            mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
-            const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
-            updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
-            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
-            }
-        }
-    } else {
-        viewportPickState.hasHover = false;
-    }
-    if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
-        renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
-    }
-    if (viewportPickState.hasHover && mapCamera.pixelsPerTile >= 2.0f) {
-        const WorldCoord hovered = viewportPickState.hoveredCoord;
-        float hoverMinX = 0.0f;
-        float hoverMinY = 0.0f;
-        float hoverMaxX = 0.0f;
-        float hoverMaxY = 0.0f;
-        mapCamera.tileToScreen(static_cast<float>(hovered.x), static_cast<float>(hovered.y), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMinX, hoverMinY);
-        mapCamera.tileToScreen(static_cast<float>(hovered.x + 1), static_cast<float>(hovered.y + 1), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMaxX, hoverMaxY);
-        drawList->AddRect(ImVec2(hoverMinX, hoverMinY), ImVec2(hoverMaxX, hoverMaxY), IM_COL32(255, 255, 255, 235), 0.0f, 0, 2.0f);
-    }
-    drawList->PopClipRect();
-    if (isCanvasHovered) {
-        char overlayBuffer[96];
-        std::snprintf(
-            overlayBuffer,
-            sizeof(overlayBuffer),
-            "Scroll: zoom | Drag: pan | Zoom: %.2f px/tile",
-            mapCamera.pixelsPerTile);
-        const ImVec2 hintSize = ImGui::CalcTextSize(overlayBuffer);
-        drawList->AddText(
-            ImVec2(canvasPos.x + 8.0f, canvasMax.y - hintSize.y - 8.0f),
-            IM_COL32(220, 224, 232, 230),
-            overlayBuffer);
-    }
-}
-
-void renderSimulationPanel(PanelManager& panels, SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
-    if (!panels.open[PANEL_SIMULATION]) {
-        return;
-    }
-    ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (beginPanel(panels, PANEL_SIMULATION)) {
-        renderSimulationContent(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
-        renderPanelBodyContextMenu(panels, PANEL_SIMULATION);
-    }
-    endPanel();
-}
-
-void renderBoroughsPanel(PanelManager& panels) {
-    if (!panels.open[PANEL_BOROUGHS]) {
-        return;
-    }
-    ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (beginPanel(panels, PANEL_BOROUGHS)) {
-        renderBoroughsContent();
-        renderPanelBodyContextMenu(panels, PANEL_BOROUGHS);
-    }
-    endPanel();
-}
-
-void renderTileInspectorPanel(PanelManager& panels, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const ViewportPickState& viewportPickState) {
-    if (!panels.open[PANEL_TILE_INSPECTOR]) {
-        return;
-    }
-    ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 140.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (beginPanel(panels, PANEL_TILE_INSPECTOR)) {
-        renderTileInspectorContent(worldConfig, chunkStore, viewportPickState);
-        renderPanelBodyContextMenu(panels, PANEL_TILE_INSPECTOR);
-    }
-    endPanel();
-}
-
-void renderMapViewportPanel(PanelManager& panels, const WorldConfig& worldConfig, const ChunkStore& chunkStore, MapCamera& mapCamera, ViewportPickState& viewportPickState) {
-    if (!panels.open[PANEL_MAP_VIEWPORT]) {
-        viewportPickState.hasHover = false;
-        return;
-    }
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
-    if (beginPanel(panels, PANEL_MAP_VIEWPORT)) {
-        renderMapViewportContent(worldConfig, chunkStore, mapCamera, viewportPickState);
-        renderPanelBodyContextMenu(panels, PANEL_MAP_VIEWPORT);
+    if (ImGui::Begin("Map Viewport")) {
+        static bool isCameraInitialized = false;
+        const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+        const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
+        if (!isCameraInitialized && canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
+            mapCamera.fitToWorld(worldConfig.WORLD_WIDTH_TILES, worldConfig.WORLD_HEIGHT_TILES, canvasSize.x, canvasSize.y);
+            isCameraInitialized = true;
+        }
+        ImGui::InvisibleButton(
+            "map_viewport_canvas",
+            canvasSize,
+            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle | ImGuiButtonFlags_MouseButtonRight);
+        const bool isCanvasHovered = ImGui::IsItemHovered();
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImVec2 canvasMax(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
+        drawList->PushClipRect(canvasPos, canvasMax, true);
+        drawList->AddRectFilled(canvasPos, canvasMax, IM_COL32(12, 14, 18, 255));
+        if (isCanvasHovered) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (io.MouseWheel != 0.0f) {
+                float focusWorldX = 0.0f;
+                float focusWorldY = 0.0f;
+                mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, focusWorldX, focusWorldY);
+                const float zoomFactor = io.MouseWheel > 0.0f ? ZOOM_WHEEL_FACTOR : (1.0f / ZOOM_WHEEL_FACTOR);
+                mapCamera.zoomAt(zoomFactor, focusWorldX, focusWorldY);
+            }
+            const bool isPanning = ImGui::IsMouseDragging(ImGuiMouseButton_Middle)
+                || ImGui::IsMouseDragging(ImGuiMouseButton_Right)
+                || ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+            if (isPanning) {
+                mapCamera.panPixels(io.MouseDelta.x, io.MouseDelta.y);
+            } else {
+                float worldX = 0.0f;
+                float worldY = 0.0f;
+                mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
+                const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
+                updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                    updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
+                }
+            }
+        } else {
+            viewportPickState.hasHover = false;
+        }
+        if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
+            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
+        }
+        if (viewportPickState.hasHover && mapCamera.pixelsPerTile >= 2.0f) {
+            const WorldCoord hovered = viewportPickState.hoveredCoord;
+            float hoverMinX = 0.0f;
+            float hoverMinY = 0.0f;
+            float hoverMaxX = 0.0f;
+            float hoverMaxY = 0.0f;
+            mapCamera.tileToScreen(static_cast<float>(hovered.x), static_cast<float>(hovered.y), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMinX, hoverMinY);
+            mapCamera.tileToScreen(static_cast<float>(hovered.x + 1), static_cast<float>(hovered.y + 1), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMaxX, hoverMaxY);
+            drawList->AddRect(ImVec2(hoverMinX, hoverMinY), ImVec2(hoverMaxX, hoverMaxY), IM_COL32(255, 255, 255, 235), 0.0f, 0, 2.0f);
+        }
+        drawList->PopClipRect();
+        if (isCanvasHovered) {
+            char overlayBuffer[96];
+            std::snprintf(
+                overlayBuffer,
+                sizeof(overlayBuffer),
+                "Scroll: zoom | Drag: pan | Zoom: %.2f px/tile",
+                mapCamera.pixelsPerTile);
+            const ImVec2 hintSize = ImGui::CalcTextSize(overlayBuffer);
+            drawList->AddText(
+                ImVec2(canvasPos.x + 8.0f, canvasMax.y - hintSize.y - 8.0f),
+                IM_COL32(220, 224, 232, 230),
+                overlayBuffer);
+        }
     } else {
         viewportPickState.hasHover = false;
     }
-    endPanel();
+    ImGui::End();
 }
 } // namespace
 
@@ -287,13 +236,12 @@ void renderGameUi(
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
     uint64_t worldSeed) {
-    static PanelManager panels;
-    renderMainMenu(simClock, panels);
+    renderMainMenu(simClock);
     beginMainDockSpace();
-    renderSimulationPanel(panels, simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
-    renderBoroughsPanel(panels);
-    renderTileInspectorPanel(panels, worldConfig, chunkStore, viewportPickState);
-    renderMapViewportPanel(panels, worldConfig, chunkStore, mapCamera, viewportPickState);
+    renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
+    renderBoroughsPanel();
+    renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState);
+    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState);
 }
 
 } // namespace Core
