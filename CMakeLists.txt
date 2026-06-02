@@ -76,10 +76,12 @@ set(CAPITAL_VICE_SOURCES
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
+    src/world/landmark_table.cpp
     src/persistence/save_game.cpp
     src/ui/dock_layout.cpp
     src/ui/map_camera.cpp
     src/ui/map_renderer.cpp
+    src/ui/landmark_renderer.cpp
     src/ui/help_manual.cpp
     src/ui/context_help.cpp
     src/ui/game_ui.cpp
@@ -114,6 +116,14 @@ target_link_libraries(chunk_store_test PRIVATE Catch2::Catch2WithMain)
 include(CTest)
 include(Catch)
 catch_discover_tests(chunk_store_test)
+
+add_executable(landmark_table_test
+    test/landmark_table_test.cpp
+    src/world/landmark_table.cpp
+)
+target_include_directories(landmark_table_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(landmark_table_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(landmark_table_test)
 
 add_executable(world_generator_test
     test/world_generator_test.cpp

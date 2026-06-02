@@ -191,11 +191,29 @@ constexpr const char* P_PROCGEN[] = {
 };
 
 constexpr const char* P_MAP_VIEWPORT[] = {
-    "Scroll to zoom, drag to pan, hover to highlight, click to select a tile for the Tile Inspector.",
+    "Scroll to zoom, drag to pan, hover to highlight tiles, and click to inspect tiles or district landmarks.",
+    "Zoom in to see district labels. Landmarks show a marker and name; LaGuardia displays as LGA with the full name on hover.",
 };
 
 constexpr const char* P_TILE_INSPECTOR[] = {
     "Shows borough, terrain, chunk coords, and elevation for the hovered or selected map tile.",
+};
+
+constexpr const char* P_LANDMARKS_OVERVIEW[] = {
+    "District landmarks are fixed strategic nodes placed on specific map tiles across all boroughs.",
+    "Each landmark inherits its borough from the underlying tile region data. Add new entries in landmark_table.cpp.",
+    "Click a landmark on the map to open the District panel. Labels appear when zoomed in.",
+};
+
+constexpr const char* P_DISTRICT_PANEL[] = {
+    "The District panel opens when you click a landmark. It shows the full district name, borough, tile coords, and foundational stats.",
+    "LaGuardia Airport uses the map label LGA but the panel and hover tooltip show the full name.",
+};
+
+constexpr const char* P_LANDMARK_CONTROL[] = {
+    "Districts are designed as always-hot control nodes: higher baseline heat and the highest capture difficulty.",
+    "When territory systems ship, holding districts will weigh more toward borough-wide influence than ordinary tiles.",
+    "Current stats are placeholders; control status shows Unclaimed until gameplay systems connect.",
 };
 
 constexpr const char* P_BOROUGHS[] = {
@@ -286,8 +304,11 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
 
     {"world_data", "World and Map", "World Data", "512x512 ChunkStore", P_WORLD_DATA, 1},
     {"procgen", "World and Map", "World Generation", "Seed and borough mask", P_PROCGEN, 1},
-    {"map_viewport", "World and Map", "Map Viewport", "Pan zoom pick", P_MAP_VIEWPORT, 1},
+    {"map_viewport", "World and Map", "Map Viewport", "Pan zoom pick", P_MAP_VIEWPORT, 2},
     {"tile_inspector", "World and Map", "Tile Inspector", "Single tile details", P_TILE_INSPECTOR, 1},
+    {"landmarks_overview", "World and Map / Districts", "District Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
+    {"district_panel", "World and Map / Districts", "District Panel", "Landmark stats UI", P_DISTRICT_PANEL, 2},
+    {"landmark_control", "World and Map / Districts", "District Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
     {"boroughs", "World and Map", "Boroughs Panel", "Region list", P_BOROUGHS, 1},
 
     {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 1},
