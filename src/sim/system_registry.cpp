@@ -1,0 +1,53 @@
+#include "sim/system_registry.h"
+
+namespace Core {
+
+uint64_t ISimSystem::getLastTickCount() const {
+    return lastTickCount;
+}
+
+const char* DebugSystem::getName() const {
+    return "DebugSystem";
+}
+
+void DebugSystem::onTick(uint64_t tickCount) {
+    lastTickCount = tickCount;
+    processedTickCount = tickCount;
+}
+
+uint64_t DebugSystem::getProcessedTickCount() const {
+    return processedTickCount;
+}
+
+SystemRegistry::SystemRegistry()
+    : systemCount(0) {
+    for (int32_t index = 0; index < 8; ++index) {
+        systems[index] = nullptr;
+    }
+}
+
+void SystemRegistry::initialize() {
+    systemCount = 0;
+    systems[systemCount++] = &debugSystem;
+}
+
+void SystemRegistry::runTick(uint64_t tickCount) {
+    for (int32_t index = 0; index < systemCount; ++index) {
+        if (systems[index] != nullptr) {
+            systems[index]->onTick(tickCount);
+        }
+    }
+}
+
+int32_t SystemRegistry::getSystemCount() const {
+    return systemCount;
+}
+
+const ISimSystem* SystemRegistry::getSystem(int32_t index) const {
+    if (index < 0 || index >= systemCount) {
+        return nullptr;
+    }
+    return systems[index];
+}
+
+} // namespace Core

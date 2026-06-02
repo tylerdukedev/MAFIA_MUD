@@ -35,8 +35,10 @@ public:
     bool hasTileAt(const WorldCoord& worldCoord) const;
     RegionId getRegionAt(const WorldCoord& worldCoord) const;
     TerrainId getTerrainAt(const WorldCoord& worldCoord) const;
+    int16_t getElevationAt(const WorldCoord& worldCoord) const;
     void setRegionAt(const WorldCoord& worldCoord, RegionId regionId);
     void setTerrainAt(const WorldCoord& worldCoord, TerrainId terrainId);
+    void setElevationAt(const WorldCoord& worldCoord, int16_t elevation);
     int32_t getTileIndexInChunk(const WorldCoord& worldCoord) const;
 
 private:
