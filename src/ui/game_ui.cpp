@@ -2,6 +2,7 @@
 #include "ui/game_ui.h"
 #include <cstdio>
 #include <cfloat>
+#include <cstring>
 #include "ui/dock_layout.h"
 #include "world/region_table.h"
 #include "imgui.h"
@@ -14,6 +15,108 @@ constexpr float MIN_WINDOW_HEIGHT = 540.0f;
 constexpr float SPEED_OPTIONS[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
 constexpr int32_t SPEED_OPTION_COUNT = 5;
 constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
+
+
+constexpr const char* CHARACTER_BACKGROUNDS[] = {
+    "Street Hustler",
+    "Neighborhood Organizer",
+    "Bookkeeper"
+};
+constexpr int32_t CHARACTER_BACKGROUND_COUNT = 3;
+
+constexpr const char* STARTING_BOROUGH_PREFERENCES[] = {
+    "Manhattan",
+    "Brooklyn",
+    "Queens",
+    "The Bronx",
+    "Staten Island"
+};
+constexpr int32_t STARTING_BOROUGH_PREFERENCE_COUNT = 5;
+
+void initializeCharacterCreation(CharacterCreationState& characterCreationState) {
+    if (characterCreationState.hasInitializedDefaults) {
+        return;
+    }
+    const char* defaultName = "New Boss";
+    std::snprintf(characterCreationState.nameBuffer, sizeof(characterCreationState.nameBuffer), "%s", defaultName);
+    characterCreationState.selectedBackgroundIndex = 0;
+    characterCreationState.selectedBoroughIndex = 0;
+    characterCreationState.hasInitializedDefaults = true;
+}
+
+void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen) {
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ImVec2 panelSize(560.0f, 380.0f);
+    const ImVec2 panelPos(
+        viewport->WorkPos.x + (viewport->WorkSize.x - panelSize.x) * 0.5f,
+        viewport->WorkPos.y + (viewport->WorkSize.y - panelSize.y) * 0.5f);
+    ImGui::SetNextWindowPos(panelPos, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(panelSize, ImGuiCond_Always);
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    if (!ImGui::Begin("Main Menu", nullptr, windowFlags)) {
+        ImGui::End();
+        return;
+    }
+    ImGui::Dummy(ImVec2(0.0f, 8.0f));
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("CAPITAL VICE");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::Button("New Game", ImVec2(-1.0f, 0.0f))) {
+        frontendUiEvents.requestedNewGame = true;
+        frontendScreen = FrontendScreen::CharacterCreation;
+    }
+    if (ImGui::Button("Load Game", ImVec2(-1.0f, 0.0f))) {
+        frontendUiEvents.requestedLoadGame = true;
+    }
+    if (ImGui::Button("Options", ImVec2(-1.0f, 0.0f))) {
+    }
+    if (ImGui::Button("Exit Game", ImVec2(-1.0f, 0.0f))) {
+        frontendUiEvents.requestedExitGame = true;
+    }
+    ImGui::End();
+}
+
+void renderCharacterCreationScreen(CharacterCreationState& characterCreationState, FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen) {
+    initializeCharacterCreation(characterCreationState);
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ImVec2 panelSize(680.0f, 440.0f);
+    const ImVec2 panelPos(
+        viewport->WorkPos.x + (viewport->WorkSize.x - panelSize.x) * 0.5f,
+        viewport->WorkPos.y + (viewport->WorkSize.y - panelSize.y) * 0.5f);
+    ImGui::SetNextWindowPos(panelPos, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(panelSize, ImGuiCond_Always);
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    if (!ImGui::Begin("Character Creation", nullptr, windowFlags)) {
+        ImGui::End();
+        return;
+    }
+    ImGui::Text("Create your character");
+    ImGui::Separator();
+    ImGui::InputText("Name", characterCreationState.nameBuffer, sizeof(characterCreationState.nameBuffer));
+    ImGui::Combo(
+        "Background",
+        &characterCreationState.selectedBackgroundIndex,
+        CHARACTER_BACKGROUNDS,
+        CHARACTER_BACKGROUND_COUNT);
+    ImGui::Combo(
+        "Starting Borough Preference",
+        &characterCreationState.selectedBoroughIndex,
+        STARTING_BOROUGH_PREFERENCES,
+        STARTING_BOROUGH_PREFERENCE_COUNT);
+    ImGui::Spacing();
+    ImGui::Separator();
+    if (ImGui::Button("Start New Game", ImVec2(220.0f, 0.0f))) {
+        frontendUiEvents.requestedStartSimulation = true;
+        frontendScreen = FrontendScreen::InGame;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Back", ImVec2(120.0f, 0.0f))) {
+        frontendScreen = FrontendScreen::MainMenu;
+    }
+    ImGui::End();
+}
 
 const char* getTerrainName(TerrainId terrainId) {
     switch (terrainId) {
@@ -227,6 +330,23 @@ void renderMapViewportPanel(
     ImGui::End();
 }
 } // namespace
+
+FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreationState& characterCreationState) {
+    FrontendUiEvents frontendUiEvents{};
+    switch (frontendScreen) {
+    case FrontendScreen::MainMenu:
+        renderMainMenuScreen(frontendUiEvents, frontendScreen);
+        break;
+    case FrontendScreen::CharacterCreation:
+        renderCharacterCreationScreen(characterCreationState, frontendUiEvents, frontendScreen);
+        break;
+    case FrontendScreen::InGame:
+        break;
+    default:
+        break;
+    }
+    return frontendUiEvents;
+}
 
 void renderGameUi(
     SimClock& simClock,

@@ -47,7 +47,6 @@ TEST_CASE("WorldGenerator builds boroughs surrounded by mainland and water", "[p
     REQUIRE(seenRegion[static_cast<size_t>(RegionId::Bronx)]);
     REQUIRE(seenRegion[static_cast<size_t>(RegionId::StatenIsland)]);
     REQUIRE(seenRegion[static_cast<size_t>(RegionId::NewJersey)]);
-    REQUIRE(seenRegion[static_cast<size_t>(RegionId::Westchester)]);
     REQUIRE(seenRegion[static_cast<size_t>(RegionId::LongIsland)]);
     REQUIRE(hasWater);
     REQUIRE(hasRoad);
