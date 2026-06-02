@@ -4,12 +4,15 @@
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
 #include "sim/system_registry.h"
+#include "sim/sim_context.h"
 #include "ui/game_ui.h"
 #include "ui/help_manual.h"
 #include "ui/context_help.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
 #include "world/chunk_store.h"
+#include "world/district_store.h"
+#include "world/tile_field_store.h"
 #include "world/world_config.h"
 #include <GLFW/glfw3.h>
 #include <cstdint>
@@ -35,6 +38,9 @@ private:
     ImGuiContext* imguiContext;
     WorldConfig worldConfig;
     ChunkStore chunkStore;
+    DistrictStore districtStore;
+    TileFieldStore tileFieldStore;
+    SimContext simContext;
     SimClock simClock;
     SystemRegistry systemRegistry;
     MapCamera mapCamera;
@@ -62,6 +68,7 @@ private:
     void renderFrame();
     void renderClearBackground();
     void startNewSimulation();
+    void initializeWorldLayers();
     bool saveCurrentGame();
     bool loadSavedGame();
 };

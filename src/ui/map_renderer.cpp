@@ -1,4 +1,5 @@
 #include "ui/map_renderer.h"
+#include "world/district_grid.h"
 #include "imgui.h"
 #include <algorithm>
 #include <cmath>
@@ -99,6 +100,86 @@ void renderMapTiles(
                 drawList->AddLine(ImVec2(screenMaxX, screenMinY), ImVec2(screenMaxX, screenMaxY), gridColor, 1.0f);
                 drawList->AddLine(ImVec2(screenMinX, screenMaxY), ImVec2(screenMaxX, screenMaxY), gridColor, 1.0f);
             }
+        }
+    }
+}
+
+ImU32 getHeatColor(float heat, RegionId regionId) {
+    const ImU32 boroughColor = getBoroughColor(regionId);
+    const float red = static_cast<float>((boroughColor >> IM_COL32_R_SHIFT) & 0xFF);
+    const float green = static_cast<float>((boroughColor >> IM_COL32_G_SHIFT) & 0xFF);
+    const float blue = static_cast<float>((boroughColor >> IM_COL32_B_SHIFT) & 0xFF);
+    const float heatClamped = std::max(0.0f, std::min(1.0f, heat));
+    const float blendedRed = red * (1.0f - heatClamped * 0.35f) + 220.0f * heatClamped;
+    const float blendedGreen = green * (1.0f - heatClamped * 0.55f);
+    const float blendedBlue = blue * (1.0f - heatClamped * 0.65f);
+    return IM_COL32(
+        static_cast<int>(std::min(255.0f, blendedRed)),
+        static_cast<int>(std::min(255.0f, blendedGreen)),
+        static_cast<int>(std::min(255.0f, blendedBlue)),
+        255);
+}
+
+void renderDistrictHeatmap(
+    ImDrawList* drawList,
+    const MapCamera& camera,
+    const WorldConfig& worldConfig,
+    const DistrictStore& districtStore,
+    const ImVec2& canvasOrigin,
+    const ImVec2& canvasSize) {
+    const float canvasWidthPixels = canvasSize.x;
+    const float canvasHeightPixels = canvasSize.y;
+    if (canvasWidthPixels <= 1.0f || canvasHeightPixels <= 1.0f) {
+        return;
+    }
+    const float districtWorldSize = static_cast<float>(DISTRICT_TILE_SIZE);
+    const float halfWorldWidth = (canvasWidthPixels * 0.5f / camera.pixelsPerTile) + districtWorldSize;
+    const float halfWorldHeight = (canvasHeightPixels * 0.5f / camera.pixelsPerTile) + districtWorldSize;
+    const int32_t startDistrictX = static_cast<int32_t>(std::floor((camera.centerWorldX - halfWorldWidth) / districtWorldSize));
+    const int32_t endDistrictX = static_cast<int32_t>(std::ceil((camera.centerWorldX + halfWorldWidth) / districtWorldSize));
+    const int32_t startDistrictY = static_cast<int32_t>(std::floor((camera.centerWorldY - halfWorldHeight) / districtWorldSize));
+    const int32_t endDistrictY = static_cast<int32_t>(std::ceil((camera.centerWorldY + halfWorldHeight) / districtWorldSize));
+    const int32_t clampedStartX = std::max(0, startDistrictX);
+    const int32_t clampedEndX = std::min(DISTRICT_COUNT - 1, endDistrictX);
+    const int32_t clampedStartY = std::max(0, startDistrictY);
+    const int32_t clampedEndY = std::min(DISTRICT_COUNT - 1, endDistrictY);
+    for (int32_t districtY = clampedStartY; districtY <= clampedEndY; ++districtY) {
+        for (int32_t districtX = clampedStartX; districtX <= clampedEndX; ++districtX) {
+            const DistrictCoord districtCoord{districtX, districtY};
+            const DistrictId districtId = DistrictGrid::districtCoordToId(districtCoord);
+            const DistrictRecord& district = districtStore.getDistrict(districtId);
+            const WorldCoord origin = DistrictGrid::districtToWorldOrigin(districtCoord);
+            float screenMinX = 0.0f;
+            float screenMinY = 0.0f;
+            float screenMaxX = 0.0f;
+            float screenMaxY = 0.0f;
+            camera.tileToScreen(
+                static_cast<float>(origin.x),
+                static_cast<float>(origin.y),
+                canvasOrigin.x,
+                canvasOrigin.y,
+                canvasWidthPixels,
+                canvasHeightPixels,
+                screenMinX,
+                screenMinY);
+            camera.tileToScreen(
+                static_cast<float>(origin.x + DISTRICT_TILE_SIZE),
+                static_cast<float>(origin.y + DISTRICT_TILE_SIZE),
+                canvasOrigin.x,
+                canvasOrigin.y,
+                canvasWidthPixels,
+                canvasHeightPixels,
+                screenMaxX,
+                screenMaxY);
+            if (screenMaxX < canvasOrigin.x || screenMinX > canvasOrigin.x + canvasWidthPixels) {
+                continue;
+            }
+            if (screenMaxY < canvasOrigin.y || screenMinY > canvasOrigin.y + canvasHeightPixels) {
+                continue;
+            }
+            const ImU32 districtColor = getHeatColor(district.heat, district.dominantRegionId);
+            drawList->AddRectFilled(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), districtColor);
+            drawList->AddRect(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), IM_COL32(24, 28, 36, 180), 0.0f, 0, 1.0f);
         }
     }
 }

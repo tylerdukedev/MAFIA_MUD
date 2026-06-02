@@ -6,7 +6,7 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 2U;
+constexpr uint32_t SAVE_VERSION = 3U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -68,7 +68,9 @@ bool buildSaveSnapshot(
     const CharacterDraft& characterDraft,
     const SimClock& simClock,
     const MapCamera& mapCamera,
-    const ChunkStore& chunkStore) {
+    const ChunkStore& chunkStore,
+    const TileFieldStore& tileFieldStore,
+    const DistrictStore& districtStore) {
     outSnapshot.worldSeed = worldSeed;
     outSnapshot.characterDraft = characterDraft;
     outSnapshot.tickCount = simClock.getTickCount();
@@ -80,12 +82,27 @@ bool buildSaveSnapshot(
     outSnapshot.terrainIds.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
     outSnapshot.elevations.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0);
     outSnapshot.flags.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
-    return chunkStore.exportFullWorldTiles(
-        outSnapshot.regionIds.data(),
-        outSnapshot.terrainIds.data(),
-        outSnapshot.elevations.data(),
-        outSnapshot.flags.data(),
-        SAVE_GAME_TILE_COUNT);
+    outSnapshot.tileInfluence.assign(static_cast<size_t>(TILE_FIELD_COUNT), 0.0f);
+    outSnapshot.tileHeat.assign(static_cast<size_t>(TILE_FIELD_COUNT), 0.0f);
+    outSnapshot.districtHeat.assign(static_cast<size_t>(DISTRICT_CELL_COUNT), 0.0f);
+    outSnapshot.districtStability.assign(static_cast<size_t>(DISTRICT_CELL_COUNT), 0.0f);
+    outSnapshot.districtPlayerInfluence.assign(static_cast<size_t>(DISTRICT_CELL_COUNT), 0.0f);
+    if (!chunkStore.exportFullWorldTiles(
+            outSnapshot.regionIds.data(),
+            outSnapshot.terrainIds.data(),
+            outSnapshot.elevations.data(),
+            outSnapshot.flags.data(),
+            SAVE_GAME_TILE_COUNT)) {
+        return false;
+    }
+    if (!tileFieldStore.exportFields(outSnapshot.tileInfluence.data(), outSnapshot.tileHeat.data(), TILE_FIELD_COUNT)) {
+        return false;
+    }
+    return districtStore.exportSimFields(
+        outSnapshot.districtHeat.data(),
+        outSnapshot.districtStability.data(),
+        outSnapshot.districtPlayerInfluence.data(),
+        DISTRICT_CELL_COUNT);
 }
 
 bool applySaveSnapshot(
@@ -94,11 +111,18 @@ bool applySaveSnapshot(
     CharacterDraft& outCharacterDraft,
     SimClock& simClock,
     MapCamera& mapCamera,
-    ChunkStore& chunkStore) {
+    ChunkStore& chunkStore,
+    TileFieldStore& tileFieldStore,
+    DistrictStore& districtStore) {
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.terrainIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.elevations.size()) != SAVE_GAME_TILE_COUNT
-        || static_cast<int32_t>(snapshot.flags.size()) != SAVE_GAME_TILE_COUNT) {
+        || static_cast<int32_t>(snapshot.flags.size()) != SAVE_GAME_TILE_COUNT
+        || static_cast<int32_t>(snapshot.tileInfluence.size()) != TILE_FIELD_COUNT
+        || static_cast<int32_t>(snapshot.tileHeat.size()) != TILE_FIELD_COUNT
+        || static_cast<int32_t>(snapshot.districtHeat.size()) != DISTRICT_CELL_COUNT
+        || static_cast<int32_t>(snapshot.districtStability.size()) != DISTRICT_CELL_COUNT
+        || static_cast<int32_t>(snapshot.districtPlayerInfluence.size()) != DISTRICT_CELL_COUNT) {
         return false;
     }
     if (!chunkStore.importFullWorldTiles(
@@ -107,6 +131,17 @@ bool applySaveSnapshot(
             snapshot.elevations.data(),
             snapshot.flags.data(),
             SAVE_GAME_TILE_COUNT)) {
+        return false;
+    }
+    districtStore.buildFromChunkStore(chunkStore);
+    if (!districtStore.importSimFields(
+            snapshot.districtHeat.data(),
+            snapshot.districtStability.data(),
+            snapshot.districtPlayerInfluence.data(),
+            DISTRICT_CELL_COUNT)) {
+        return false;
+    }
+    if (!tileFieldStore.importFields(snapshot.tileInfluence.data(), snapshot.tileHeat.data(), TILE_FIELD_COUNT)) {
         return false;
     }
     outWorldSeed = snapshot.worldSeed;
@@ -150,7 +185,26 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     const bool terrainsWritten = writeAllBytes(fileHandle, snapshot.terrainIds.data(), snapshot.terrainIds.size());
     const bool elevationsWritten = writeAllBytes(fileHandle, snapshot.elevations.data(), snapshot.elevations.size() * sizeof(int16_t));
     const bool flagsWritten = writeAllBytes(fileHandle, snapshot.flags.data(), snapshot.flags.size() * sizeof(uint32_t));
-    const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten;
+    const bool tileInfluenceWritten = writeAllBytes(
+        fileHandle,
+        snapshot.tileInfluence.data(),
+        snapshot.tileInfluence.size() * sizeof(float));
+    const bool tileHeatWritten = writeAllBytes(fileHandle, snapshot.tileHeat.data(), snapshot.tileHeat.size() * sizeof(float));
+    const bool districtHeatWritten = writeAllBytes(
+        fileHandle,
+        snapshot.districtHeat.data(),
+        snapshot.districtHeat.size() * sizeof(float));
+    const bool districtStabilityWritten = writeAllBytes(
+        fileHandle,
+        snapshot.districtStability.data(),
+        snapshot.districtStability.size() * sizeof(float));
+    const bool districtInfluenceWritten = writeAllBytes(
+        fileHandle,
+        snapshot.districtPlayerInfluence.data(),
+        snapshot.districtPlayerInfluence.size() * sizeof(float));
+    const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
+        && tileInfluenceWritten && tileHeatWritten && districtHeatWritten && districtStabilityWritten
+        && districtInfluenceWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -200,11 +254,34 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     outSnapshot.terrainIds.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
     outSnapshot.elevations.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0);
     outSnapshot.flags.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.tileInfluence.assign(static_cast<size_t>(TILE_FIELD_COUNT), 0.0f);
+    outSnapshot.tileHeat.assign(static_cast<size_t>(TILE_FIELD_COUNT), 0.0f);
+    outSnapshot.districtHeat.assign(static_cast<size_t>(DISTRICT_CELL_COUNT), 0.0f);
+    outSnapshot.districtStability.assign(static_cast<size_t>(DISTRICT_CELL_COUNT), 0.0f);
+    outSnapshot.districtPlayerInfluence.assign(static_cast<size_t>(DISTRICT_CELL_COUNT), 0.0f);
     const bool regionsRead = readAllBytes(fileHandle, outSnapshot.regionIds.data(), outSnapshot.regionIds.size());
     const bool terrainsRead = readAllBytes(fileHandle, outSnapshot.terrainIds.data(), outSnapshot.terrainIds.size());
     const bool elevationsRead = readAllBytes(fileHandle, outSnapshot.elevations.data(), outSnapshot.elevations.size() * sizeof(int16_t));
     const bool flagsRead = readAllBytes(fileHandle, outSnapshot.flags.data(), outSnapshot.flags.size() * sizeof(uint32_t));
-    const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead;
+    const bool tileInfluenceRead = readAllBytes(
+        fileHandle,
+        outSnapshot.tileInfluence.data(),
+        outSnapshot.tileInfluence.size() * sizeof(float));
+    const bool tileHeatRead = readAllBytes(fileHandle, outSnapshot.tileHeat.data(), outSnapshot.tileHeat.size() * sizeof(float));
+    const bool districtHeatRead = readAllBytes(
+        fileHandle,
+        outSnapshot.districtHeat.data(),
+        outSnapshot.districtHeat.size() * sizeof(float));
+    const bool districtStabilityRead = readAllBytes(
+        fileHandle,
+        outSnapshot.districtStability.data(),
+        outSnapshot.districtStability.size() * sizeof(float));
+    const bool districtInfluenceRead = readAllBytes(
+        fileHandle,
+        outSnapshot.districtPlayerInfluence.data(),
+        outSnapshot.districtPlayerInfluence.size() * sizeof(float));
+    const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead && tileInfluenceRead && tileHeatRead
+        && districtHeatRead && districtStabilityRead && districtInfluenceRead;
     std::fclose(fileHandle);
     return didLoad;
 }

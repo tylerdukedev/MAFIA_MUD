@@ -4,6 +4,9 @@
 #include "core/sim_clock.h"
 #include "ui/map_camera.h"
 #include "world/chunk_store.h"
+#include "world/district_grid.h"
+#include "world/district_store.h"
+#include "world/tile_field_store.h"
 #include "world/world_config.h"
 #include <cstdint>
 #include <vector>
@@ -25,6 +28,11 @@ struct SaveGameSnapshot {
     std::vector<uint8_t> terrainIds;
     std::vector<int16_t> elevations;
     std::vector<uint32_t> flags;
+    std::vector<float> tileInfluence;
+    std::vector<float> tileHeat;
+    std::vector<float> districtHeat;
+    std::vector<float> districtStability;
+    std::vector<float> districtPlayerInfluence;
 };
 
 bool saveFileExists(const char* filePath);
@@ -34,14 +42,18 @@ bool buildSaveSnapshot(
     const CharacterDraft& characterDraft,
     const SimClock& simClock,
     const MapCamera& mapCamera,
-    const ChunkStore& chunkStore);
+    const ChunkStore& chunkStore,
+    const TileFieldStore& tileFieldStore,
+    const DistrictStore& districtStore);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,
     CharacterDraft& outCharacterDraft,
     SimClock& simClock,
     MapCamera& mapCamera,
-    ChunkStore& chunkStore);
+    ChunkStore& chunkStore,
+    TileFieldStore& tileFieldStore,
+    DistrictStore& districtStore);
 bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot);
 bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot);
 
