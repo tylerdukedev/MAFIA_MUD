@@ -1,6 +1,7 @@
 #include "core/application.h"
 #include "ui/game_ui.h"
 #include "procgen/world_generator.h"
+#include "persistence/save_game.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -156,15 +157,38 @@ void Application::renderFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    FrontendUiEvents frontendUiEvents = renderFrontendUi(frontendScreen, characterCreationState);
+    const bool hasSaveFile = saveFileExists(DEFAULT_SAVE_FILENAME);
+    FrontendUiEvents frontendUiEvents = renderFrontendUi(frontendScreen, characterCreationState, hasSaveFile);
     if (frontendUiEvents.requestedExitGame) {
         isRunning = false;
+    }
+    if (frontendUiEvents.requestedLoadGame) {
+        if (loadSavedGame()) {
+            frontendScreen = FrontendScreen::InGame;
+        }
     }
     if (frontendUiEvents.requestedStartSimulation && !isWorldReady) {
         startNewSimulation();
     }
     if (frontendScreen == FrontendScreen::InGame && isWorldReady) {
-        renderGameUi(simClock, worldConfig, chunkStore, systemRegistry, mapCamera, viewportPickState, worldSeed);
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
+            saveCurrentGame();
+        }
+        GameUiEvents gameUiEvents = renderGameUi(
+            simClock,
+            worldConfig,
+            chunkStore,
+            systemRegistry,
+            mapCamera,
+            viewportPickState,
+            worldSeed,
+            hasSaveFile);
+        if (gameUiEvents.requestedSaveGame) {
+            saveCurrentGame();
+        }
+        if (gameUiEvents.requestedLoadGame) {
+            loadSavedGame();
+        }
     }
     ImGui::Render();
     int framebufferWidth = 0;
@@ -184,6 +208,45 @@ void Application::startNewSimulation() {
     viewportPickState = ViewportPickState{};
     simClock = SimClock(WorldConfig::DEFAULT_TICK_RATE_HZ);
     isWorldReady = true;
+}
+
+bool Application::saveCurrentGame() {
+    if (!isWorldReady) {
+        setSaveLoadStatusMessage("Save failed: no active game.");
+        return false;
+    }
+    SaveGameSnapshot snapshot{};
+    if (!buildSaveSnapshot(snapshot, worldSeed, characterCreationState, simClock, mapCamera, chunkStore)) {
+        setSaveLoadStatusMessage("Save failed: could not capture world state.");
+        return false;
+    }
+    if (!saveGameToFile(DEFAULT_SAVE_FILENAME, snapshot)) {
+        setSaveLoadStatusMessage("Save failed: could not write save file.");
+        return false;
+    }
+    setSaveLoadStatusMessage("Game saved.");
+    return true;
+}
+
+bool Application::loadSavedGame() {
+    if (!saveFileExists(DEFAULT_SAVE_FILENAME)) {
+        setSaveLoadStatusMessage("Load failed: no save file found.");
+        return false;
+    }
+    SaveGameSnapshot snapshot{};
+    if (!loadGameFromFile(DEFAULT_SAVE_FILENAME, snapshot)) {
+        setSaveLoadStatusMessage("Load failed: save file is invalid or incompatible.");
+        return false;
+    }
+    systemRegistry.initialize();
+    if (!applySaveSnapshot(snapshot, worldSeed, characterCreationState, simClock, mapCamera, chunkStore)) {
+        setSaveLoadStatusMessage("Load failed: could not restore world state.");
+        return false;
+    }
+    viewportPickState = ViewportPickState{};
+    isWorldReady = true;
+    setSaveLoadStatusMessage("Game loaded.");
+    return true;
 }
 
 void Application::renderClearBackground() {

@@ -179,4 +179,80 @@ ChunkId ChunkStore::allocateChunk(const ChunkCoord& chunkCoord) {
     return chunk.id;
 }
 
+void ChunkStore::resetAll() {
+    for (Chunk& chunk : chunks) {
+        chunk.id = INVALID_CHUNK_ID;
+        chunk.coord = ChunkCoord{};
+        chunk.isActive = false;
+        chunk.tiles.regionId.clear();
+        chunk.tiles.terrainId.clear();
+        chunk.tiles.elevation.clear();
+        chunk.tiles.flags.clear();
+    }
+    activeChunkCount = 0;
+}
+
+bool ChunkStore::exportFullWorldTiles(
+    uint8_t* outRegionIds,
+    uint8_t* outTerrainIds,
+    int16_t* outElevations,
+    uint32_t* outFlags,
+    int32_t tileCount) const {
+    const int32_t expectedTileCount = config.WORLD_WIDTH_TILES * config.WORLD_HEIGHT_TILES;
+    if (tileCount != expectedTileCount || outRegionIds == nullptr || outTerrainIds == nullptr || outElevations == nullptr || outFlags == nullptr) {
+        return false;
+    }
+    int32_t writeIndex = 0;
+    for (int32_t tileY = 0; tileY < config.WORLD_HEIGHT_TILES; ++tileY) {
+        for (int32_t tileX = 0; tileX < config.WORLD_WIDTH_TILES; ++tileX) {
+            const WorldCoord coord{tileX, tileY};
+            outRegionIds[writeIndex] = static_cast<uint8_t>(getRegionAt(coord));
+            outTerrainIds[writeIndex] = static_cast<uint8_t>(getTerrainAt(coord));
+            outElevations[writeIndex] = getElevationAt(coord);
+            const ChunkCoord chunkCoord = config.worldToChunkCoord(coord);
+            const Chunk* chunk = getChunkAtCoord(chunkCoord);
+            if (chunk != nullptr) {
+                const int32_t tileIndex = getTileIndexInChunk(coord);
+                outFlags[writeIndex] = chunk->tiles.flags[static_cast<size_t>(tileIndex)];
+            } else {
+                outFlags[writeIndex] = 0U;
+            }
+            ++writeIndex;
+        }
+    }
+    return true;
+}
+
+bool ChunkStore::importFullWorldTiles(
+    const uint8_t* regionIds,
+    const uint8_t* terrainIds,
+    const int16_t* elevations,
+    const uint32_t* flags,
+    int32_t tileCount) {
+    const int32_t expectedTileCount = config.WORLD_WIDTH_TILES * config.WORLD_HEIGHT_TILES;
+    if (tileCount != expectedTileCount || regionIds == nullptr || terrainIds == nullptr || elevations == nullptr || flags == nullptr) {
+        return false;
+    }
+    resetAll();
+    int32_t readIndex = 0;
+    for (int32_t tileY = 0; tileY < config.WORLD_HEIGHT_TILES; ++tileY) {
+        for (int32_t tileX = 0; tileX < config.WORLD_WIDTH_TILES; ++tileX) {
+            const WorldCoord coord{tileX, tileY};
+            const ChunkCoord chunkCoord = config.worldToChunkCoord(coord);
+            const ChunkId chunkId = getOrCreateChunk(chunkCoord);
+            Chunk* chunk = getChunk(chunkId);
+            if (chunk == nullptr) {
+                return false;
+            }
+            const int32_t tileIndex = getTileIndexInChunk(coord);
+            chunk->tiles.regionId[static_cast<size_t>(tileIndex)] = static_cast<RegionId>(regionIds[readIndex]);
+            chunk->tiles.terrainId[static_cast<size_t>(tileIndex)] = static_cast<TerrainId>(terrainIds[readIndex]);
+            chunk->tiles.elevation[static_cast<size_t>(tileIndex)] = elevations[readIndex];
+            chunk->tiles.flags[static_cast<size_t>(tileIndex)] = flags[readIndex];
+            ++readIndex;
+        }
+    }
+    return true;
+}
+
 } // namespace Core

@@ -40,6 +40,19 @@ public:
     void setTerrainAt(const WorldCoord& worldCoord, TerrainId terrainId);
     void setElevationAt(const WorldCoord& worldCoord, int16_t elevation);
     int32_t getTileIndexInChunk(const WorldCoord& worldCoord) const;
+    void resetAll();
+    bool exportFullWorldTiles(
+        uint8_t* outRegionIds,
+        uint8_t* outTerrainIds,
+        int16_t* outElevations,
+        uint32_t* outFlags,
+        int32_t tileCount) const;
+    bool importFullWorldTiles(
+        const uint8_t* regionIds,
+        const uint8_t* terrainIds,
+        const int16_t* elevations,
+        const uint32_t* flags,
+        int32_t tileCount);
 
 private:
     const WorldConfig& config;

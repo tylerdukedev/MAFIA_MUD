@@ -66,6 +66,7 @@ set(CAPITAL_VICE_SOURCES
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
+    src/persistence/save_game.cpp
     src/ui/dock_layout.cpp
     src/ui/map_camera.cpp
     src/ui/map_renderer.cpp
@@ -113,3 +114,17 @@ add_executable(map_camera_test
 target_include_directories(map_camera_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(map_camera_test PRIVATE Catch2::Catch2WithMain imgui_lib)
 catch_discover_tests(map_camera_test)
+
+add_executable(save_game_test
+    test/save_game_test.cpp
+    src/persistence/save_game.cpp
+    src/procgen/world_generator.cpp
+    src/utils/seed_hash.cpp
+    src/world/world_config.cpp
+    src/world/chunk_store.cpp
+    src/world/region_table.cpp
+    src/core/sim_clock.cpp
+)
+target_include_directories(save_game_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(save_game_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(save_game_test)

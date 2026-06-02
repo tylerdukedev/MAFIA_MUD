@@ -18,6 +18,7 @@ public:
     uint64_t getTickCount() const;
     double getAccumulatorSeconds() const;
     int32_t getTicksThisFrame() const;
+    void restoreSnapshot(uint64_t inputTickCount, bool inputPaused, double inputSpeedMultiplier, double inputAccumulatorSeconds);
 
 private:
     double tickRateHz;

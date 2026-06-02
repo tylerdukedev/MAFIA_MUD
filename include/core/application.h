@@ -47,6 +47,8 @@ private:
     void renderFrame();
     void renderClearBackground();
     void startNewSimulation();
+    bool saveCurrentGame();
+    bool loadSavedGame();
 };
 
 } // namespace Core

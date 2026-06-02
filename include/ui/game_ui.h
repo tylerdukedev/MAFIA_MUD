@@ -30,15 +30,24 @@ struct FrontendUiEvents {
     bool requestedStartSimulation = false;
 };
 
-FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreationState& characterCreationState);
+struct GameUiEvents {
+    bool requestedSaveGame = false;
+    bool requestedLoadGame = false;
+};
 
-void renderGameUi(
+void setSaveLoadStatusMessage(const char* message);
+const char* getSaveLoadStatusMessage();
+
+FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreationState& characterCreationState, bool hasSaveFile);
+
+GameUiEvents renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
-    uint64_t worldSeed);
+    uint64_t worldSeed,
+    bool hasSaveFile);
 
 } // namespace Core

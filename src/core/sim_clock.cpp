@@ -79,4 +79,13 @@ void SimClock::advanceTick() {
     ++ticksThisFrame;
 }
 
+void SimClock::restoreSnapshot(uint64_t inputTickCount, bool inputPaused, double inputSpeedMultiplier, double inputAccumulatorSeconds) {
+    tickCount = inputTickCount;
+    paused = inputPaused;
+    speedMultiplier = inputSpeedMultiplier < 0.0 ? 0.0 : inputSpeedMultiplier;
+    accumulatorSeconds = inputAccumulatorSeconds < 0.0 ? 0.0 : inputAccumulatorSeconds;
+    stepRequested = false;
+    ticksThisFrame = 0;
+}
+
 } // namespace Core

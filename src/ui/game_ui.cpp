@@ -9,6 +9,8 @@
 
 namespace Core {
 
+char saveLoadStatusMessage[128]{};
+
 namespace {
 constexpr float MIN_WINDOW_WIDTH = 960.0f;
 constexpr float MIN_WINDOW_HEIGHT = 540.0f;
@@ -44,7 +46,7 @@ void initializeCharacterCreation(CharacterCreationState& characterCreationState)
     characterCreationState.hasInitializedDefaults = true;
 }
 
-void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen) {
+void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen, bool hasSaveFile) {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 panelSize(560.0f, 380.0f);
     const ImVec2 panelPos(
@@ -67,8 +69,15 @@ void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& fr
         frontendUiEvents.requestedNewGame = true;
         frontendScreen = FrontendScreen::CharacterCreation;
     }
+    if (!hasSaveFile) {
+        ImGui::BeginDisabled();
+    }
     if (ImGui::Button("Load Game", ImVec2(-1.0f, 0.0f))) {
         frontendUiEvents.requestedLoadGame = true;
+    }
+    if (!hasSaveFile) {
+        ImGui::EndDisabled();
+        ImGui::TextDisabled("No save file found.");
     }
     if (ImGui::Button("Options", ImVec2(-1.0f, 0.0f))) {
     }
@@ -130,9 +139,25 @@ const char* getTerrainName(TerrainId terrainId) {
     }
 }
 
-void renderMainMenu(SimClock& simClock) {
+GameUiEvents renderInGameMenuBar(SimClock& simClock, bool hasSaveFile) {
+    GameUiEvents gameUiEvents{};
     if (!ImGui::BeginMainMenuBar()) {
-        return;
+        return gameUiEvents;
+    }
+    if (ImGui::BeginMenu("File")) {
+        if (ImGui::MenuItem("Save Game", "Ctrl+S")) {
+            gameUiEvents.requestedSaveGame = true;
+        }
+        if (!hasSaveFile) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::MenuItem("Load Game")) {
+            gameUiEvents.requestedLoadGame = true;
+        }
+        if (!hasSaveFile) {
+            ImGui::EndDisabled();
+        }
+        ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Simulation")) {
         if (ImGui::MenuItem(simClock.isPaused() ? "Resume" : "Pause", "Space")) {
@@ -150,11 +175,16 @@ void renderMainMenu(SimClock& simClock) {
         ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
+    return gameUiEvents;
 }
 
 void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Simulation")) {
+        if (saveLoadStatusMessage[0] != '\0') {
+            ImGui::TextWrapped("%s", saveLoadStatusMessage);
+            ImGui::Separator();
+        }
         ImGui::Text("Phase 5 — Five Boroughs");
         ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
         ImGui::Separator();
@@ -331,11 +361,23 @@ void renderMapViewportPanel(
 }
 } // namespace
 
-FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreationState& characterCreationState) {
+void setSaveLoadStatusMessage(const char* message) {
+    if (message == nullptr) {
+        saveLoadStatusMessage[0] = '\0';
+        return;
+    }
+    std::snprintf(saveLoadStatusMessage, sizeof(saveLoadStatusMessage), "%s", message);
+}
+
+const char* getSaveLoadStatusMessage() {
+    return saveLoadStatusMessage;
+}
+
+FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreationState& characterCreationState, bool hasSaveFile) {
     FrontendUiEvents frontendUiEvents{};
     switch (frontendScreen) {
     case FrontendScreen::MainMenu:
-        renderMainMenuScreen(frontendUiEvents, frontendScreen);
+        renderMainMenuScreen(frontendUiEvents, frontendScreen, hasSaveFile);
         break;
     case FrontendScreen::CharacterCreation:
         renderCharacterCreationScreen(characterCreationState, frontendUiEvents, frontendScreen);
@@ -348,20 +390,22 @@ FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreat
     return frontendUiEvents;
 }
 
-void renderGameUi(
+GameUiEvents renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
-    uint64_t worldSeed) {
-    renderMainMenu(simClock);
+    uint64_t worldSeed,
+    bool hasSaveFile) {
+    GameUiEvents gameUiEvents = renderInGameMenuBar(simClock, hasSaveFile);
     beginMainDockSpace();
     renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
     renderBoroughsPanel();
     renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState);
     renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState);
+    return gameUiEvents;
 }
 
 } // namespace Core
