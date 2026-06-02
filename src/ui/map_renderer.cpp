@@ -95,15 +95,10 @@ void renderMapTiles(
                 continue;
             }
             drawList->AddRectFilled(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), tileColor);
-            if (tileSizePixels >= 6.0f && terrainId == TerrainId::Building) {
-                const float inset = std::min(tileSizePixels * 0.16f, 2.0f);
-                drawList->AddRect(
-                    ImVec2(screenMinX + inset, screenMinY + inset),
-                    ImVec2(screenMaxX - inset, screenMaxY - inset),
-                    scaleColor(tileColor, 0.78f),
-                    0.0f,
-                    0,
-                    1.0f);
+            if (tileSizePixels >= 3.5f && terrainId != TerrainId::Water) {
+                const ImU32 gridColor = IM_COL32(36, 40, 48, 95);
+                drawList->AddLine(ImVec2(screenMaxX, screenMinY), ImVec2(screenMaxX, screenMaxY), gridColor, 1.0f);
+                drawList->AddLine(ImVec2(screenMinX, screenMaxY), ImVec2(screenMaxX, screenMaxY), gridColor, 1.0f);
             }
         }
     }
