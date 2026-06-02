@@ -197,6 +197,16 @@ void renderMapViewportPanel(
         if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
             renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
         }
+        if (viewportPickState.hasHover && mapCamera.pixelsPerTile >= 2.0f) {
+            const WorldCoord hovered = viewportPickState.hoveredCoord;
+            float hoverMinX = 0.0f;
+            float hoverMinY = 0.0f;
+            float hoverMaxX = 0.0f;
+            float hoverMaxY = 0.0f;
+            mapCamera.tileToScreen(static_cast<float>(hovered.x), static_cast<float>(hovered.y), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMinX, hoverMinY);
+            mapCamera.tileToScreen(static_cast<float>(hovered.x + 1), static_cast<float>(hovered.y + 1), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMaxX, hoverMaxY);
+            drawList->AddRect(ImVec2(hoverMinX, hoverMinY), ImVec2(hoverMaxX, hoverMaxY), IM_COL32(255, 255, 255, 235), 0.0f, 0, 2.0f);
+        }
         drawList->PopClipRect();
         if (isCanvasHovered) {
             char overlayBuffer[96];
