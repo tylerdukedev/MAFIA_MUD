@@ -1,0 +1,74 @@
+# NYC Systems Sim — Cursor Rules
+
+## 1. Project Identity
+- **Genre**: Dwarf Fortress-style systems-heavy simulation; procedural map constrained to NYC (five boroughs) + parts of NJ.
+- **Stack**: Raw C++17, CMake, GLFW, OpenGL 3, Dear ImGui. No external game engines.
+- **UI philosophy**: Modern, minimal ImGui chrome over a map viewport. Simulation data never includes ImGui headers.
+
+## 2. Architecture Layers (build bottom-up; do not skip)
+1. **Platform** — Application loop, GLFW window, input, timing (`Core::Application`).
+2. **Presentation** — OpenGL map viewport + ImGui overlay panels (`src/ui/`).
+3. **World** — Chunked tile grid, SoA storage, region masks (`Core::World::*`).
+4. **Simulation** — Fixed tick clock, system scheduler, event queue (`Core::SimClock`, future `SystemRegistry`).
+5. **Gameplay** — Population, economy, crime, factions (only after layers 1–4 are stable).
+
+Refer to `docs/DEVELOPMENT_PLAN.md` for phase status and what to build next. **Do not implement gameplay systems before the current phase is complete.**
+
+## 3. Memory & Performance
+- **Data-oriented design**: SoA over AoS. Entity/tile links use flat numeric IDs (`uint32_t`), never raw or smart pointers between runtime entities.
+- **Chunked world**: Tiles live in fixed-size chunks (`ChunkStore`). Design for coarse single-scale first; keep coords extensible for future local-detail layers.
+- **Pre-allocation**: Use `reserve()` / fixed-size buffers at init and chunk creation boundaries.
+- **Hot path**: No heap allocation inside the simulation tick loop (`new`, `malloc`, `push_back`, string concat). Init, load, and ImGui layout code may allocate.
+- **UI text in sim panels**: Prefer `std::string_view` or static char buffers over per-frame `std::string` construction.
+
+## 4. Simulation Rules
+- **Fixed timestep**: Simulation advances via `Core::SimClock` at a configured tick rate (default 20 Hz). Rendering is decoupled.
+- **Determinism**: World generation and sim logic must be seed-driven (`uint64_t worldSeed`).
+- **Procgen is multi-pass**: geography → regions → terrain → details. Never one monolithic generator function.
+- **Chunk activation** (future): Only fully simulate active chunks; dormant chunks hold data only.
+
+## 5. Nomenclature
+| Style | Use for |
+|-------|---------|
+| PascalCase | Classes, structs, namespaces, enums |
+| camelCase | Functions, methods, variables, parameters |
+| ALL_CAPS | Macros, compile-time constants |
+| snake_case | Source files, directories, paths |
+| UPPERCASE | Environment variables |
+
+- Functions start with a verb (`initializeMap`, `getTileAt`).
+- Booleans use state prefixes (`isLoading`, `hasError`, `canExtort`, `isPaused`).
+- No magic numbers — use `constexpr` or scoped enums.
+- Allowed abbreviations: loop indices (`i`, `j`, `k`), `id`, `ctx`, `dt`, `io`, `err`.
+
+## 6. Code Style
+- **Single purpose**: One logical operation per function. Split when mixing abstraction levels (~30–40 lines soft limit; ImGui layout blocks are exempt).
+- **Flatten branches**: Early returns and guard clauses over deep nesting.
+- **Modern STL**: Prefer `std::find_if`, `std::transform` over hand-rolled nested loops.
+- **const by default**; `constexpr` where possible.
+- **Composition over inheritance** — plain structs and manager classes, no deep virtual hierarchies.
+- **RAII** for all resources (window, GL context, file handles).
+- **Exceptions** for unrecoverable startup failures only. Operational failures use error codes or `std::expected`.
+- **Validation** in constructors/factories; keep processing code free of redundant checks.
+
+## 7. Project Layout
+```
+include/   → public headers (.h)
+src/       → implementations (.cpp)
+lib/       → vendored dependencies (imgui, etc.)
+test/      → unit and integration tests
+docs/      → architecture and phase plan
+```
+- Declarations in `include/`, logic in `src/`. Never mix.
+- Game framework code lives in namespace `Core`. Generic helpers in `Utils`.
+
+## 8. Testing
+- Unit tests: Arrange–Act–Assert. Name inputs/outputs explicitly (`inputCoord`, `expectedRegion`, `actualRegion`).
+- Test every public utility in `Core::World` and `Core` sim types.
+- Integration tests: Given–When–Then structure.
+
+## 9. Agent Workflow
+- Read `docs/DEVELOPMENT_PLAN.md` before starting work. Update phase checkboxes when completing deliverables.
+- Match existing conventions in surrounding files before adding new patterns.
+- Minimize diff scope — solve the current phase deliverable, do not jump ahead.
+- Build and run tests before marking a phase complete.
