@@ -1,0 +1,13 @@
+build/
+.cache/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.exe
+imgui.ini
+imgui*.ini
+.vs/
+.vscode/
+.idea/
+.DS_Store
