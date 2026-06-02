@@ -5,13 +5,13 @@ namespace Core {
 std::string_view RegionTable::getRegionName(RegionId regionId) {
     switch (regionId) {
     case RegionId::None: return "None";
-    case RegionId::Downtown: return "Downtown";
-    case RegionId::Midtown: return "Midtown";
-    case RegionId::Residential: return "Residential";
-    case RegionId::Commercial: return "Commercial";
-    case RegionId::Industrial: return "Industrial";
-    case RegionId::Waterfront: return "Waterfront";
-    case RegionId::Outskirts: return "Outskirts";
+    case RegionId::Ocean: return "Ocean";
+    case RegionId::Coast: return "Coastland";
+    case RegionId::Plains: return "Plains";
+    case RegionId::Forest: return "Woodlands";
+    case RegionId::Highlands: return "Highlands";
+    case RegionId::Mountains: return "Mountains";
+    case RegionId::Settlement: return "Settlement";
     default: return "Unknown";
     }
 }
@@ -19,13 +19,13 @@ std::string_view RegionTable::getRegionName(RegionId regionId) {
 std::string_view RegionTable::getRegionShortName(RegionId regionId) {
     switch (regionId) {
     case RegionId::None: return "---";
-    case RegionId::Downtown: return "DTN";
-    case RegionId::Midtown: return "MID";
-    case RegionId::Residential: return "RES";
-    case RegionId::Commercial: return "COM";
-    case RegionId::Industrial: return "IND";
-    case RegionId::Waterfront: return "WTF";
-    case RegionId::Outskirts: return "OUT";
+    case RegionId::Ocean: return "OCN";
+    case RegionId::Coast: return "CST";
+    case RegionId::Plains: return "PLN";
+    case RegionId::Forest: return "WLD";
+    case RegionId::Highlands: return "HLD";
+    case RegionId::Mountains: return "MTN";
+    case RegionId::Settlement: return "STL";
     default: return "???";
     }
 }

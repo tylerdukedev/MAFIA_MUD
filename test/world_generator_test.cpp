@@ -5,6 +5,19 @@
 
 using namespace Core;
 
+namespace {
+bool isWaterTerrain(TerrainId terrainId) {
+    return terrainId == TerrainId::DeepWater || terrainId == TerrainId::ShallowWater;
+}
+bool isLandTerrain(TerrainId terrainId) {
+    return terrainId == TerrainId::Grassland || terrainId == TerrainId::Forest
+        || terrainId == TerrainId::Hills || terrainId == TerrainId::Beach;
+}
+bool isHighTerrain(TerrainId terrainId) {
+    return terrainId == TerrainId::Mountain || terrainId == TerrainId::Peak;
+}
+} // namespace
+
 TEST_CASE("WorldGenerator determinism", "[procgen]") {
     WorldConfig config;
     WorldGenerator generator;
@@ -19,46 +32,50 @@ TEST_CASE("WorldGenerator determinism", "[procgen]") {
     REQUIRE(storeA.getElevationAt(sampleCoord) == storeB.getElevationAt(sampleCoord));
 }
 
-TEST_CASE("WorldGenerator produces city tile variety", "[procgen]") {
+TEST_CASE("WorldGenerator produces overworld terrain variety", "[procgen]") {
     WorldConfig config;
     ChunkStore chunkStore(config);
     WorldGenerator generator;
     generator.generate(config, chunkStore, DEFAULT_WORLD_SEED);
     bool hasWater = false;
+    bool hasLand = false;
+    bool hasHighGround = false;
+    bool hasCity = false;
     bool hasRoad = false;
-    bool hasBuilding = false;
-    bool hasDistrict = false;
-    for (int32_t y = 17; y < WorldConfig::WORLD_HEIGHT_TILES; y += 17) {
-        for (int32_t x = 19; x < WorldConfig::WORLD_WIDTH_TILES; x += 17) {
-            WorldCoord coord{x, y};
-            const TerrainId terrain = chunkStore.getTerrainAt(coord);
-            if (terrain == TerrainId::Water) {
-                hasWater = true;
-            }
-            if (terrain == TerrainId::Road) {
-                hasRoad = true;
-            }
-            if (terrain == TerrainId::Building) {
-                hasBuilding = true;
-            }
-            if (chunkStore.getRegionAt(coord) != RegionId::None) {
-                hasDistrict = true;
-            }
+    bool hasRegion = false;
+    for (int32_t y = 0; y < WorldConfig::WORLD_HEIGHT_TILES; ++y) {
+        for (int32_t x = 0; x < WorldConfig::WORLD_WIDTH_TILES; ++x) {
+            const TerrainId terrain = chunkStore.getTerrainAt(WorldCoord{x, y});
+            hasWater = hasWater || isWaterTerrain(terrain);
+            hasLand = hasLand || isLandTerrain(terrain);
+            hasHighGround = hasHighGround || isHighTerrain(terrain);
+            hasCity = hasCity || terrain == TerrainId::City;
+            hasRoad = hasRoad || terrain == TerrainId::Road;
+            hasRegion = hasRegion || chunkStore.getRegionAt(WorldCoord{x, y}) != RegionId::None;
         }
     }
     REQUIRE(hasWater);
+    REQUIRE(hasLand);
+    REQUIRE(hasHighGround);
+    REQUIRE(hasCity);
     REQUIRE(hasRoad);
-    REQUIRE(hasBuilding);
-    REQUIRE(hasDistrict);
+    REQUIRE(hasRegion);
     REQUIRE(chunkStore.getActiveChunkCount() == chunkStore.getTotalChunkCount());
 }
 
-TEST_CASE("WorldGenerator downtown core exists", "[procgen]") {
+TEST_CASE("WorldGenerator surrounds the world with ocean", "[procgen]") {
     WorldConfig config;
     ChunkStore chunkStore(config);
     WorldGenerator generator;
     generator.generate(config, chunkStore, DEFAULT_WORLD_SEED);
-    WorldCoord downtownCoord{259, 261};
-    REQUIRE(chunkStore.getRegionAt(downtownCoord) == RegionId::Downtown);
-    REQUIRE(chunkStore.getTerrainAt(downtownCoord) == TerrainId::Building);
+    const WorldCoord corners[] = {
+        {0, 0},
+        {WorldConfig::WORLD_WIDTH_TILES - 1, 0},
+        {0, WorldConfig::WORLD_HEIGHT_TILES - 1},
+        {WorldConfig::WORLD_WIDTH_TILES - 1, WorldConfig::WORLD_HEIGHT_TILES - 1},
+    };
+    for (const WorldCoord& corner : corners) {
+        REQUIRE(isWaterTerrain(chunkStore.getTerrainAt(corner)));
+        REQUIRE(chunkStore.getRegionAt(corner) == RegionId::Ocean);
+    }
 }

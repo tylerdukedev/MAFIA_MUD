@@ -10,19 +10,14 @@ constexpr int32_t PREVIEW_TILE_RADIUS = 4;
 constexpr float PREVIEW_TILE_PIXELS = 30.0f;
 constexpr float PREVIEW_PERSPECTIVE_SKEW = 0.48f;
 
-ImU32 darkenColor(ImU32 color, float factor) {
-    const int red = static_cast<int>(static_cast<float>((color >> IM_COL32_R_SHIFT) & 0xFF) * factor);
-    const int green = static_cast<int>(static_cast<float>((color >> IM_COL32_G_SHIFT) & 0xFF) * factor);
-    const int blue = static_cast<int>(static_cast<float>((color >> IM_COL32_B_SHIFT) & 0xFF) * factor);
-    return IM_COL32(red, green, blue, 255);
-}
-
-ImU32 tintBuildingColor(ImU32 baseColor, int16_t elevation) {
-    const float heightFactor = std::min(static_cast<float>(elevation) / 60.0f, 1.0f);
-    const int red = static_cast<int>(static_cast<float>((baseColor >> IM_COL32_R_SHIFT) & 0xFF) * (0.72f + heightFactor * 0.28f));
-    const int green = static_cast<int>(static_cast<float>((baseColor >> IM_COL32_G_SHIFT) & 0xFF) * (0.72f + heightFactor * 0.28f));
-    const int blue = static_cast<int>(static_cast<float>((baseColor >> IM_COL32_B_SHIFT) & 0xFF) * (0.72f + heightFactor * 0.28f));
-    return IM_COL32(red, green, blue, 255);
+ImU32 scaleColor(ImU32 color, float factor) {
+    const float red = static_cast<float>((color >> IM_COL32_R_SHIFT) & 0xFF) * factor;
+    const float green = static_cast<float>((color >> IM_COL32_G_SHIFT) & 0xFF) * factor;
+    const float blue = static_cast<float>((color >> IM_COL32_B_SHIFT) & 0xFF) * factor;
+    const int clampedRed = static_cast<int>(std::min(255.0f, std::max(0.0f, red)));
+    const int clampedGreen = static_cast<int>(std::min(255.0f, std::max(0.0f, green)));
+    const int clampedBlue = static_cast<int>(std::min(255.0f, std::max(0.0f, blue)));
+    return IM_COL32(clampedRed, clampedGreen, clampedBlue, 255);
 }
 
 void drawPreviewTile(
@@ -39,26 +34,20 @@ void drawPreviewTile(
 } // namespace
 
 ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation) {
+    (void)regionId;
+    const float shade = 0.84f + std::min(static_cast<float>(elevation) / 255.0f, 1.0f) * 0.32f;
     switch (terrainId) {
-    case TerrainId::Water: return IM_COL32(72, 132, 188, 255);
-    case TerrainId::Road: return IM_COL32(48, 50, 56, 255);
-    case TerrainId::Park: return IM_COL32(72, 138, 72, 255);
-    case TerrainId::Plaza: return IM_COL32(168, 162, 148, 255);
-    case TerrainId::OpenLand: return IM_COL32(96, 112, 78, 255);
-    case TerrainId::Building: {
-        ImU32 districtColor = IM_COL32(92, 94, 102, 255);
-        switch (regionId) {
-        case RegionId::Downtown: districtColor = IM_COL32(68, 72, 88, 255); break;
-        case RegionId::Midtown: districtColor = IM_COL32(88, 92, 108, 255); break;
-        case RegionId::Residential: districtColor = IM_COL32(118, 102, 88, 255); break;
-        case RegionId::Commercial: districtColor = IM_COL32(108, 112, 128, 255); break;
-        case RegionId::Industrial: districtColor = IM_COL32(98, 88, 78, 255); break;
-        case RegionId::Waterfront: districtColor = IM_COL32(82, 98, 112, 255); break;
-        case RegionId::Outskirts: districtColor = IM_COL32(104, 108, 96, 255); break;
-        default: break;
-        }
-        return tintBuildingColor(districtColor, elevation);
-    }
+    case TerrainId::DeepWater: return IM_COL32(28, 56, 110, 255);
+    case TerrainId::ShallowWater: return IM_COL32(54, 104, 168, 255);
+    case TerrainId::River: return IM_COL32(64, 126, 196, 255);
+    case TerrainId::Beach: return IM_COL32(214, 200, 150, 255);
+    case TerrainId::Grassland: return scaleColor(IM_COL32(104, 156, 78, 255), shade);
+    case TerrainId::Forest: return scaleColor(IM_COL32(46, 98, 54, 255), shade);
+    case TerrainId::Hills: return scaleColor(IM_COL32(132, 138, 86, 255), shade);
+    case TerrainId::Mountain: return scaleColor(IM_COL32(126, 118, 108, 255), shade);
+    case TerrainId::Peak: return IM_COL32(232, 234, 240, 255);
+    case TerrainId::City: return IM_COL32(198, 178, 150, 255);
+    case TerrainId::Road: return IM_COL32(122, 96, 66, 255);
     default: return IM_COL32(64, 68, 76, 255);
     }
 }
@@ -106,27 +95,15 @@ void renderMapTiles(
                 continue;
             }
             drawList->AddRectFilled(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), tileColor);
-            if (tileSizePixels >= 5.0f && terrainId == TerrainId::Building) {
-                const float inset = std::min(tileSizePixels * 0.12f, 2.0f);
+            if (tileSizePixels >= 5.0f && terrainId == TerrainId::City) {
+                const float inset = std::min(tileSizePixels * 0.18f, 2.0f);
                 drawList->AddRect(
                     ImVec2(screenMinX + inset, screenMinY + inset),
                     ImVec2(screenMaxX - inset, screenMaxY - inset),
-                    darkenColor(tileColor, 0.65f),
+                    scaleColor(tileColor, 0.7f),
                     0.0f,
                     0,
                     1.0f);
-            }
-            if (tileSizePixels >= 4.0f) {
-                const TerrainId eastTerrain = tileX + 1 < worldConfig.WORLD_WIDTH_TILES
-                    ? chunkStore.getTerrainAt(WorldCoord{tileX + 1, tileY}) : terrainId;
-                const TerrainId southTerrain = tileY + 1 < worldConfig.WORLD_HEIGHT_TILES
-                    ? chunkStore.getTerrainAt(WorldCoord{tileX, tileY + 1}) : terrainId;
-                if (eastTerrain != terrainId) {
-                    drawList->AddLine(ImVec2(screenMaxX, screenMinY), ImVec2(screenMaxX, screenMaxY), IM_COL32(20, 22, 28, 160), 1.0f);
-                }
-                if (southTerrain != terrainId) {
-                    drawList->AddLine(ImVec2(screenMinX, screenMaxY), ImVec2(screenMaxX, screenMaxY), IM_COL32(20, 22, 28, 160), 1.0f);
-                }
             }
         }
     }
@@ -163,7 +140,7 @@ void renderHoveredTilePreview(
             const RegionId regionId = chunkStore.getRegionAt(coord);
             const int16_t elevation = chunkStore.getElevationAt(coord);
             const ImU32 fillColor = getTileColor(regionId, terrainId, elevation);
-            const ImU32 borderColor = darkenColor(fillColor, 0.55f);
+            const ImU32 borderColor = scaleColor(fillColor, 0.55f);
             const float depth = static_cast<float>(offsetY + PREVIEW_TILE_RADIUS);
             const float scale = 1.0f + (static_cast<float>(PREVIEW_TILE_RADIUS) - std::abs(static_cast<float>(offsetX))) * 0.04f
                 + (static_cast<float>(PREVIEW_TILE_RADIUS) - std::abs(static_cast<float>(offsetY))) * 0.06f;
