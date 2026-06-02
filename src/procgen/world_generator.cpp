@@ -1,5 +1,6 @@
 #include "procgen/world_generator.h"
 #include "procgen/borough_map_data.h"
+#include "world/landmark_table.h"
 #include "utils/seed_hash.h"
 #include <cstdint>
 
@@ -33,6 +34,7 @@ void WorldGenerator::generate(const WorldConfig& worldConfig, ChunkStore& chunkS
     decodeBakedMap();
     passBoroughs(chunkStore);
     passStreets(chunkStore);
+    passLandmarks(chunkStore);
     passElevation(chunkStore);
 }
 
@@ -93,6 +95,23 @@ void WorldGenerator::passStreets(ChunkStore& chunkStore) {
 
 
 
+void WorldGenerator::passLandmarks(ChunkStore& chunkStore) {
+    for (int32_t index = 0; index < LandmarkTable::getLandmarkCount(); ++index) {
+        const LandmarkRect& mark = LandmarkTable::getLandmark(index);
+        for (int32_t y = mark.minY; y <= mark.maxY; ++y) {
+            for (int32_t x = mark.minX; x <= mark.maxX; ++x) {
+                const WorldCoord coord{x, y};
+                if (mark.manhattanOnly && chunkStore.getRegionAt(coord) != RegionId::Manhattan) {
+                    continue;
+                }
+                chunkStore.setTerrainAt(coord, mark.terrain);
+                chunkStore.setRegionAt(coord, mark.region);
+                chunkStore.setLandmarkAt(coord, mark.id);
+            }
+        }
+    }
+}
+
 void WorldGenerator::passElevation(ChunkStore& chunkStore) {
     for (int32_t y = 0; y < worldHeight; ++y) {
         for (int32_t x = 0; x < worldWidth; ++x) {
@@ -108,6 +127,10 @@ void WorldGenerator::passElevation(ChunkStore& chunkStore) {
             }
             if (terrainId == TerrainId::Park || terrainId == TerrainId::Plaza) {
                 chunkStore.setElevationAt(coord, 4);
+                continue;
+            }
+            if (terrainId == TerrainId::Airport) {
+                chunkStore.setElevationAt(coord, 3);
                 continue;
             }
             if (terrainId == TerrainId::Road) {
