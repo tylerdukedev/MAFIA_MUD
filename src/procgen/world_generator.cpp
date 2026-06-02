@@ -2,6 +2,7 @@
 #include "procgen/borough_map_data.h"
 #include "utils/seed_hash.h"
 #include <cstdint>
+#include <vector>
 
 namespace Core {
 
@@ -12,10 +13,40 @@ constexpr uint8_t CODE_NEW_JERSEY = 6;
 constexpr uint8_t CODE_LONG_ISLAND = 8;
 constexpr int32_t AVENUE_SPACING = 11;
 constexpr int32_t STREET_SPACING = 5;
-constexpr int32_t ROCKAWAY_QUEENS_FIX_MIN_X = 420;
-constexpr int32_t ROCKAWAY_QUEENS_FIX_MAX_X = 452;
 constexpr int32_t ROCKAWAY_QUEENS_FIX_MIN_Y = 304;
-constexpr int32_t ROCKAWAY_QUEENS_FIX_MAX_Y = 344;
+
+bool isInsideBakedCell(int32_t x, int32_t y) {
+    return x >= 0 && y >= 0 && x < BOROUGH_MAP_SIZE && y < BOROUGH_MAP_SIZE;
+}
+
+uint8_t readBakedCell(const std::vector<uint8_t>& bakedRegion, int32_t x, int32_t y) {
+    return bakedRegion[static_cast<size_t>(y) * BOROUGH_MAP_SIZE + x];
+}
+
+bool isBakedCellAdjacentToCode(const std::vector<uint8_t>& bakedRegion, int32_t x, int32_t y, uint8_t code) {
+    const int32_t neighborOffsets[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    for (int32_t offsetIndex = 0; offsetIndex < 4; ++offsetIndex) {
+        const int32_t neighborX = x + neighborOffsets[offsetIndex][0];
+        const int32_t neighborY = y + neighborOffsets[offsetIndex][1];
+        if (!isInsideBakedCell(neighborX, neighborY)) {
+            continue;
+        }
+        if (readBakedCell(bakedRegion, neighborX, neighborY) == code) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void enqueueLongIslandBakedCell(std::vector<WorldCoord>& queue, const std::vector<uint8_t>& bakedRegion, int32_t x, int32_t y) {
+    if (!isInsideBakedCell(x, y)) {
+        return;
+    }
+    if (readBakedCell(bakedRegion, x, y) != CODE_LONG_ISLAND) {
+        return;
+    }
+    queue.push_back(WorldCoord{x, y});
+}
 
 RegionId regionForCode(uint8_t code) {
     switch (code) {
@@ -66,13 +97,33 @@ uint8_t WorldGenerator::sampleBakedCode(int32_t x, int32_t y) const {
 }
 
 void WorldGenerator::applyBoroughMaskCorrections() {
-    for (int32_t y = ROCKAWAY_QUEENS_FIX_MIN_Y; y <= ROCKAWAY_QUEENS_FIX_MAX_Y; ++y) {
-        for (int32_t x = ROCKAWAY_QUEENS_FIX_MIN_X; x <= ROCKAWAY_QUEENS_FIX_MAX_X; ++x) {
-            const size_t index = static_cast<size_t>(y) * BOROUGH_MAP_SIZE + x;
-            if (bakedRegion[index] == CODE_LONG_ISLAND) {
-                bakedRegion[index] = CODE_QUEENS;
+    std::vector<WorldCoord> fillQueue;
+    fillQueue.reserve(6144);
+    for (int32_t y = ROCKAWAY_QUEENS_FIX_MIN_Y; y < BOROUGH_MAP_SIZE; ++y) {
+        for (int32_t x = 0; x < BOROUGH_MAP_SIZE; ++x) {
+            if (readBakedCell(bakedRegion, x, y) != CODE_LONG_ISLAND) {
+                continue;
             }
+            if (!isBakedCellAdjacentToCode(bakedRegion, x, y, CODE_QUEENS)) {
+                continue;
+            }
+            fillQueue.push_back(WorldCoord{x, y});
         }
+    }
+    for (size_t queueIndex = 0; queueIndex < fillQueue.size(); ++queueIndex) {
+        const WorldCoord cell = fillQueue[queueIndex];
+        if (cell.y < ROCKAWAY_QUEENS_FIX_MIN_Y) {
+            continue;
+        }
+        const size_t index = static_cast<size_t>(cell.y) * BOROUGH_MAP_SIZE + cell.x;
+        if (bakedRegion[index] != CODE_LONG_ISLAND) {
+            continue;
+        }
+        bakedRegion[index] = CODE_QUEENS;
+        enqueueLongIslandBakedCell(fillQueue, bakedRegion, cell.x + 1, cell.y);
+        enqueueLongIslandBakedCell(fillQueue, bakedRegion, cell.x - 1, cell.y);
+        enqueueLongIslandBakedCell(fillQueue, bakedRegion, cell.x, cell.y + 1);
+        enqueueLongIslandBakedCell(fillQueue, bakedRegion, cell.x, cell.y - 1);
     }
 }
 
