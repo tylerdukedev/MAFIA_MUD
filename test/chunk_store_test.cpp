@@ -67,17 +67,17 @@ TEST_CASE("ChunkStore lazy allocation", "[world][chunk]") {
     }
     SECTION("Tile read/write respects world coordinates") {
         WorldCoord inputCoord{40, 40};
-        chunkStore.setRegionAt(inputCoord, RegionId::Settlement);
-        chunkStore.setTerrainAt(inputCoord, TerrainId::City);
+        chunkStore.setRegionAt(inputCoord, RegionId::Manhattan);
+        chunkStore.setTerrainAt(inputCoord, TerrainId::Building);
         const RegionId actualRegion = chunkStore.getRegionAt(inputCoord);
         const TerrainId actualTerrain = chunkStore.getTerrainAt(inputCoord);
-        REQUIRE(actualRegion == RegionId::Settlement);
-        REQUIRE(actualTerrain == TerrainId::City);
+        REQUIRE(actualRegion == RegionId::Manhattan);
+        REQUIRE(actualTerrain == TerrainId::Building);
         REQUIRE(chunkStore.getActiveChunkCount() == 1);
     }
     SECTION("Out-of-bounds access is safe") {
         WorldCoord outOfBounds{WorldConfig::WORLD_WIDTH_TILES, 0};
-        chunkStore.setRegionAt(outOfBounds, RegionId::Plains);
+        chunkStore.setRegionAt(outOfBounds, RegionId::Brooklyn);
         const RegionId actualRegion = chunkStore.getRegionAt(outOfBounds);
         REQUIRE(actualRegion == RegionId::None);
         ChunkCoord invalidChunk{WorldConfig::CHUNK_COUNT_X, 0};
@@ -86,7 +86,7 @@ TEST_CASE("ChunkStore lazy allocation", "[world][chunk]") {
 }
 
 TEST_CASE("RegionTable names", "[world][region]") {
-    REQUIRE(RegionTable::getRegionName(RegionId::Plains) == "Plains");
-    REQUIRE(RegionTable::getRegionShortName(RegionId::Mountains) == "MTN");
-    REQUIRE(RegionTable::getPlayableRegionCount() == 7);
+    REQUIRE(RegionTable::getRegionName(RegionId::Manhattan) == "Manhattan");
+    REQUIRE(RegionTable::getRegionShortName(RegionId::NewJersey) == "NJ");
+    REQUIRE(RegionTable::getPlayableRegionCount() == 6);
 }

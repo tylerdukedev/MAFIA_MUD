@@ -27,29 +27,23 @@ struct LocalTileCoord {
 
 enum class RegionId : uint8_t {
     None = 0,
-    Ocean,
-    Coast,
-    Plains,
-    Forest,
-    Highlands,
-    Mountains,
-    Settlement,
+    Manhattan,
+    Brooklyn,
+    Queens,
+    Bronx,
+    StatenIsland,
+    NewJersey,
     COUNT
 };
 
 enum class TerrainId : uint8_t {
     None = 0,
-    DeepWater,
-    ShallowWater,
-    River,
-    Beach,
-    Grassland,
-    Forest,
-    Hills,
-    Mountain,
-    Peak,
-    City,
+    Water,
     Road,
+    Building,
+    Park,
+    Plaza,
+    OpenLand,
     COUNT
 };
 

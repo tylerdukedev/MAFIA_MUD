@@ -4,14 +4,13 @@ namespace Core {
 
 std::string_view RegionTable::getRegionName(RegionId regionId) {
     switch (regionId) {
-    case RegionId::None: return "None";
-    case RegionId::Ocean: return "Ocean";
-    case RegionId::Coast: return "Coastland";
-    case RegionId::Plains: return "Plains";
-    case RegionId::Forest: return "Woodlands";
-    case RegionId::Highlands: return "Highlands";
-    case RegionId::Mountains: return "Mountains";
-    case RegionId::Settlement: return "Settlement";
+    case RegionId::None: return "Water";
+    case RegionId::Manhattan: return "Manhattan";
+    case RegionId::Brooklyn: return "Brooklyn";
+    case RegionId::Queens: return "Queens";
+    case RegionId::Bronx: return "The Bronx";
+    case RegionId::StatenIsland: return "Staten Island";
+    case RegionId::NewJersey: return "New Jersey";
     default: return "Unknown";
     }
 }
@@ -19,13 +18,12 @@ std::string_view RegionTable::getRegionName(RegionId regionId) {
 std::string_view RegionTable::getRegionShortName(RegionId regionId) {
     switch (regionId) {
     case RegionId::None: return "---";
-    case RegionId::Ocean: return "OCN";
-    case RegionId::Coast: return "CST";
-    case RegionId::Plains: return "PLN";
-    case RegionId::Forest: return "WLD";
-    case RegionId::Highlands: return "HLD";
-    case RegionId::Mountains: return "MTN";
-    case RegionId::Settlement: return "STL";
+    case RegionId::Manhattan: return "MAN";
+    case RegionId::Brooklyn: return "BKL";
+    case RegionId::Queens: return "QNS";
+    case RegionId::Bronx: return "BRX";
+    case RegionId::StatenIsland: return "SI";
+    case RegionId::NewJersey: return "NJ";
     default: return "???";
     }
 }
