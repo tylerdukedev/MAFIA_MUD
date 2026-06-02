@@ -667,7 +667,6 @@ void renderMapViewportPanel(
     if (ImGui::Begin("Map Viewport")) {
         contextHelpPanelTag("Map Viewport", "Pan, zoom, and pick tiles on the world map.", "map_viewport", contextHelpState);
         static bool isCameraInitialized = false;
-        static LandmarkSnapState landmarkSnapState{};
         const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
         if (!isCameraInitialized && canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
@@ -697,28 +696,17 @@ void renderMapViewportPanel(
                 || ImGui::IsMouseDragging(ImGuiMouseButton_Right)
                 || ImGui::IsMouseDragging(ImGuiMouseButton_Left));
             if (isPanning) {
-                resetLandmarkSnapState(landmarkSnapState);
                 mapCamera.panPixels(io.MouseDelta.x, io.MouseDelta.y);
             } else {
-                if (contextHelpState.isInspectMode) {
-                    resetLandmarkSnapState(landmarkSnapState);
-                }
                 viewportPickState.hasLandmarkHover = false;
                 viewportPickState.hoveredLandmarkIndex = -1;
-                const LandmarkSnapPick snapPick = updateLandmarkSnapPick(
-                    landmarkSnapState,
+                const int32_t landmarkIndex = findLandmarkIndexAtScreenPoint(
+                    mapCamera,
                     io.MousePos.x,
                     io.MousePos.y,
-                    io.MouseDelta.x,
-                    io.MouseDelta.y,
-                    io.DeltaTime,
-                    mapCamera,
                     canvasPos,
-                    canvasSize);
-                if (snapPick.shouldSetMousePos) {
-                    applyLandmarkSnapCursor(snapPick);
-                }
-                const int32_t landmarkIndex = snapPick.landmarkIndex;
+                    canvasSize,
+                    LANDMARK_HIT_RADIUS_PIXELS);
                 if (landmarkIndex >= 0) {
                     const LandmarkDefinition* landmark = getLandmarkDefinition(landmarkIndex);
                     if (landmark != nullptr) {
@@ -736,7 +724,7 @@ void renderMapViewportPanel(
                 } else {
                     float worldX = 0.0f;
                     float worldY = 0.0f;
-                    mapCamera.screenToWorld(snapPick.screenX, snapPick.screenY, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
+                    mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
                     const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
                     updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
                     if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -748,7 +736,6 @@ void renderMapViewportPanel(
             }
         } else {
             viewportPickState.hasHover = false;
-            resetLandmarkSnapState(landmarkSnapState);
         }
         if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
             renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);

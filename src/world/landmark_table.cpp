@@ -8,7 +8,7 @@ namespace {
 constexpr LandmarkDefinition LANDMARK_DEFINITIONS[] = {
     {"financial_district", 229, 248, "Financial District", "Financial District"},
     {"lower_manhattan", 235, 234, "Lower Manhattan", "Lower Manhattan"},
-    {"soho", 234, 235, "Soho", "Soho"},
+    {"soho", 234, 232, "Soho", "Soho"},
     {"midtown_manhattan", 243, 208, "Midtown Manhattan", "Midtown Manhattan"},
     {"times_square", 234, 192, "Times Square", "Times Square"},
     {"upper_east_side", 271, 181, "Upper East Side", "Upper East Side"},
