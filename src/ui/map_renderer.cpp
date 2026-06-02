@@ -16,9 +16,7 @@ ImU32 scaleColor(ImU32 color, float factor) {
     return IM_COL32(clampedRed, clampedGreen, clampedBlue, 255);
 }
 
-float alignLineCoord(float value) {
-    return std::floor(value) + 0.5f;
-}
+constexpr float ROAD_COLOR_SCALE = 0.84f;
 
 ImU32 getBoroughColor(RegionId regionId) {
     switch (regionId) {
@@ -49,7 +47,7 @@ ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation) {
     }
     const ImU32 boroughColor = getBoroughColor(regionId);
     if (terrainId == TerrainId::Road) {
-        return scaleColor(boroughColor, 0.60f);
+        return scaleColor(boroughColor, ROAD_COLOR_SCALE);
     }
     const float tint = 0.88f + std::min(static_cast<float>(elevation) / 255.0f, 1.0f) * 0.22f;
     return scaleColor(boroughColor, tint);
@@ -77,7 +75,6 @@ void renderMapTiles(
     const int32_t clampedEndX = std::min(worldConfig.WORLD_WIDTH_TILES - 1, endX);
     const int32_t clampedStartY = std::max(0, startY);
     const int32_t clampedEndY = std::min(worldConfig.WORLD_HEIGHT_TILES - 1, endY);
-    const float tileSizePixels = std::max(camera.pixelsPerTile, 1.0f);
     for (int32_t tileY = clampedStartY; tileY <= clampedEndY; ++tileY) {
         for (int32_t tileX = clampedStartX; tileX <= clampedEndX; ++tileX) {
             WorldCoord coord{tileX, tileY};
@@ -98,23 +95,6 @@ void renderMapTiles(
                 continue;
             }
             drawList->AddRectFilled(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), tileColor);
-            if (tileSizePixels >= 4.0f && terrainId != TerrainId::Water) {
-                const float inset = std::min(1.0f, tileSizePixels * 0.14f);
-                const ImU32 highlightColor = scaleColor(tileColor, 1.10f);
-                drawList->AddRectFilled(
-                    ImVec2(screenMinX + inset, screenMinY + inset),
-                    ImVec2(screenMaxX - inset, screenMaxY - inset),
-                    highlightColor);
-            }
-            if (tileSizePixels >= 3.5f && terrainId != TerrainId::Water) {
-                const ImU32 gridColor = IM_COL32(255, 255, 255, 24);
-                const float topY = alignLineCoord(screenMinY);
-                const float leftX = alignLineCoord(screenMinX);
-                const float rightX = alignLineCoord(screenMaxX);
-                const float bottomY = alignLineCoord(screenMaxY);
-                drawList->AddLine(ImVec2(leftX, topY), ImVec2(rightX, topY), gridColor, 1.0f);
-                drawList->AddLine(ImVec2(leftX, topY), ImVec2(leftX, bottomY), gridColor, 1.0f);
-            }
         }
     }
 }

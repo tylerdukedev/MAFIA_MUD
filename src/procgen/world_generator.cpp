@@ -7,9 +7,15 @@ namespace Core {
 
 namespace {
 constexpr uint8_t CODE_WATER = 0;
+constexpr uint8_t CODE_QUEENS = 3;
 constexpr uint8_t CODE_NEW_JERSEY = 6;
+constexpr uint8_t CODE_LONG_ISLAND = 8;
 constexpr int32_t AVENUE_SPACING = 11;
 constexpr int32_t STREET_SPACING = 5;
+constexpr int32_t ROCKAWAY_QUEENS_FIX_MIN_X = 420;
+constexpr int32_t ROCKAWAY_QUEENS_FIX_MAX_X = 452;
+constexpr int32_t ROCKAWAY_QUEENS_FIX_MIN_Y = 304;
+constexpr int32_t ROCKAWAY_QUEENS_FIX_MAX_Y = 344;
 
 RegionId regionForCode(uint8_t code) {
     switch (code) {
@@ -31,6 +37,7 @@ void WorldGenerator::generate(const WorldConfig& worldConfig, ChunkStore& chunkS
     worldWidth = worldConfig.WORLD_WIDTH_TILES;
     worldHeight = worldConfig.WORLD_HEIGHT_TILES;
     decodeBakedMap();
+    applyBoroughMaskCorrections();
     passBoroughs(chunkStore);
     passStreets(chunkStore);
     passElevation(chunkStore);
@@ -56,6 +63,17 @@ uint8_t WorldGenerator::sampleBakedCode(int32_t x, int32_t y) const {
     const int32_t clampedX = cellX < 0 ? 0 : (cellX >= BOROUGH_MAP_SIZE ? BOROUGH_MAP_SIZE - 1 : cellX);
     const int32_t clampedY = cellY < 0 ? 0 : (cellY >= BOROUGH_MAP_SIZE ? BOROUGH_MAP_SIZE - 1 : cellY);
     return bakedRegion[static_cast<size_t>(clampedY) * BOROUGH_MAP_SIZE + clampedX];
+}
+
+void WorldGenerator::applyBoroughMaskCorrections() {
+    for (int32_t y = ROCKAWAY_QUEENS_FIX_MIN_Y; y <= ROCKAWAY_QUEENS_FIX_MAX_Y; ++y) {
+        for (int32_t x = ROCKAWAY_QUEENS_FIX_MIN_X; x <= ROCKAWAY_QUEENS_FIX_MAX_X; ++x) {
+            const size_t index = static_cast<size_t>(y) * BOROUGH_MAP_SIZE + x;
+            if (bakedRegion[index] == CODE_LONG_ISLAND) {
+                bakedRegion[index] = CODE_QUEENS;
+            }
+        }
+    }
 }
 
 void WorldGenerator::passBoroughs(ChunkStore& chunkStore) {
