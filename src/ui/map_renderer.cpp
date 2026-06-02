@@ -6,10 +6,6 @@
 namespace Core {
 
 namespace {
-constexpr int32_t PREVIEW_TILE_RADIUS = 4;
-constexpr float PREVIEW_TILE_PIXELS = 30.0f;
-constexpr float PREVIEW_PERSPECTIVE_SKEW = 0.48f;
-
 ImU32 scaleColor(ImU32 color, float factor) {
     const float red = static_cast<float>((color >> IM_COL32_R_SHIFT) & 0xFF) * factor;
     const float green = static_cast<float>((color >> IM_COL32_G_SHIFT) & 0xFF) * factor;
@@ -20,36 +16,35 @@ ImU32 scaleColor(ImU32 color, float factor) {
     return IM_COL32(clampedRed, clampedGreen, clampedBlue, 255);
 }
 
-void drawPreviewTile(
-    ImDrawList* drawList,
-    const ImVec2& topLeft,
-    const ImVec2& topRight,
-    const ImVec2& bottomRight,
-    const ImVec2& bottomLeft,
-    ImU32 fillColor,
-    ImU32 borderColor) {
-    drawList->AddQuadFilled(topLeft, topRight, bottomRight, bottomLeft, fillColor);
-    drawList->AddQuad(topLeft, topRight, bottomRight, bottomLeft, borderColor, 1.5f);
+ImU32 getBoroughColor(RegionId regionId) {
+    switch (regionId) {
+    case RegionId::Manhattan: return IM_COL32(86, 180, 80, 255);
+    case RegionId::Brooklyn: return IM_COL32(240, 220, 70, 255);
+    case RegionId::Queens: return IM_COL32(242, 140, 46, 255);
+    case RegionId::Bronx: return IM_COL32(224, 66, 60, 255);
+    case RegionId::StatenIsland: return IM_COL32(158, 98, 184, 255);
+    case RegionId::NewJersey: return IM_COL32(212, 190, 150, 255);
+    default: return IM_COL32(120, 124, 132, 255);
+    }
 }
 } // namespace
 
 ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation) {
-    (void)regionId;
-    const float shade = 0.84f + std::min(static_cast<float>(elevation) / 255.0f, 1.0f) * 0.32f;
-    switch (terrainId) {
-    case TerrainId::DeepWater: return IM_COL32(28, 56, 110, 255);
-    case TerrainId::ShallowWater: return IM_COL32(54, 104, 168, 255);
-    case TerrainId::River: return IM_COL32(64, 126, 196, 255);
-    case TerrainId::Beach: return IM_COL32(214, 200, 150, 255);
-    case TerrainId::Grassland: return scaleColor(IM_COL32(104, 156, 78, 255), shade);
-    case TerrainId::Forest: return scaleColor(IM_COL32(46, 98, 54, 255), shade);
-    case TerrainId::Hills: return scaleColor(IM_COL32(132, 138, 86, 255), shade);
-    case TerrainId::Mountain: return scaleColor(IM_COL32(126, 118, 108, 255), shade);
-    case TerrainId::Peak: return IM_COL32(232, 234, 240, 255);
-    case TerrainId::City: return IM_COL32(198, 178, 150, 255);
-    case TerrainId::Road: return IM_COL32(122, 96, 66, 255);
-    default: return IM_COL32(64, 68, 76, 255);
+    if (terrainId == TerrainId::Water) {
+        return IM_COL32(148, 204, 232, 255);
     }
+    if (terrainId == TerrainId::Park) {
+        return IM_COL32(84, 160, 76, 255);
+    }
+    if (terrainId == TerrainId::Plaza) {
+        return IM_COL32(204, 200, 190, 255);
+    }
+    const ImU32 boroughColor = getBoroughColor(regionId);
+    if (terrainId == TerrainId::Road) {
+        return scaleColor(boroughColor, 0.60f);
+    }
+    const float tint = 0.88f + std::min(static_cast<float>(elevation) / 255.0f, 1.0f) * 0.22f;
+    return scaleColor(boroughColor, tint);
 }
 
 void renderMapTiles(
@@ -95,72 +90,15 @@ void renderMapTiles(
                 continue;
             }
             drawList->AddRectFilled(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), tileColor);
-            if (tileSizePixels >= 5.0f && terrainId == TerrainId::City) {
-                const float inset = std::min(tileSizePixels * 0.18f, 2.0f);
+            if (tileSizePixels >= 6.0f && terrainId == TerrainId::Building) {
+                const float inset = std::min(tileSizePixels * 0.16f, 2.0f);
                 drawList->AddRect(
                     ImVec2(screenMinX + inset, screenMinY + inset),
                     ImVec2(screenMaxX - inset, screenMaxY - inset),
-                    scaleColor(tileColor, 0.7f),
+                    scaleColor(tileColor, 0.78f),
                     0.0f,
                     0,
                     1.0f);
-            }
-        }
-    }
-}
-
-void renderHoveredTilePreview(
-    ImDrawList* drawList,
-    const WorldConfig& worldConfig,
-    const ChunkStore& chunkStore,
-    const WorldCoord& centerCoord,
-    const ImVec2& canvasOrigin,
-    const ImVec2& canvasSize) {
-    if (!worldConfig.isWithinWorldBounds(centerCoord)) {
-        return;
-    }
-    const float previewWidth = std::min(canvasSize.x * 0.48f, 340.0f);
-    const float previewHeight = std::min(canvasSize.y * 0.52f, 360.0f);
-    const ImVec2 previewOrigin(canvasOrigin.x + 12.0f, canvasOrigin.y + 12.0f);
-    const ImVec2 previewMax(previewOrigin.x + previewWidth, previewOrigin.y + previewHeight);
-    drawList->AddRectFilled(previewOrigin, previewMax, IM_COL32(16, 18, 24, 230));
-    drawList->AddRect(previewOrigin, previewMax, IM_COL32(220, 224, 232, 200), 0.0f, 0, 2.0f);
-    const float gridWidth = static_cast<float>(PREVIEW_TILE_RADIUS * 2 + 1) * PREVIEW_TILE_PIXELS;
-    const float gridHeight = gridWidth * (1.0f - PREVIEW_PERSPECTIVE_SKEW * 0.25f);
-    const ImVec2 gridOrigin(
-        previewOrigin.x + (previewWidth - gridWidth) * 0.5f,
-        previewOrigin.y + (previewHeight - gridHeight) * 0.52f);
-    for (int32_t offsetY = -PREVIEW_TILE_RADIUS; offsetY <= PREVIEW_TILE_RADIUS; ++offsetY) {
-        for (int32_t offsetX = -PREVIEW_TILE_RADIUS; offsetX <= PREVIEW_TILE_RADIUS; ++offsetX) {
-            WorldCoord coord{centerCoord.x + offsetX, centerCoord.y + offsetY};
-            if (!worldConfig.isWithinWorldBounds(coord)) {
-                continue;
-            }
-            const TerrainId terrainId = chunkStore.getTerrainAt(coord);
-            const RegionId regionId = chunkStore.getRegionAt(coord);
-            const int16_t elevation = chunkStore.getElevationAt(coord);
-            const ImU32 fillColor = getTileColor(regionId, terrainId, elevation);
-            const ImU32 borderColor = scaleColor(fillColor, 0.55f);
-            const float depth = static_cast<float>(offsetY + PREVIEW_TILE_RADIUS);
-            const float scale = 1.0f + (static_cast<float>(PREVIEW_TILE_RADIUS) - std::abs(static_cast<float>(offsetX))) * 0.04f
-                + (static_cast<float>(PREVIEW_TILE_RADIUS) - std::abs(static_cast<float>(offsetY))) * 0.06f;
-            const float tilePixels = PREVIEW_TILE_PIXELS * scale;
-            const float skewShift = depth * PREVIEW_TILE_PIXELS * PREVIEW_PERSPECTIVE_SKEW;
-            const float baseX = gridOrigin.x + static_cast<float>(offsetX + PREVIEW_TILE_RADIUS) * PREVIEW_TILE_PIXELS + skewShift;
-            const float baseY = gridOrigin.y + depth * PREVIEW_TILE_PIXELS * (1.0f - PREVIEW_PERSPECTIVE_SKEW * 0.35f);
-            const ImVec2 topLeft(baseX, baseY);
-            const ImVec2 topRight(baseX + tilePixels, baseY - tilePixels * PREVIEW_PERSPECTIVE_SKEW * 0.15f);
-            const ImVec2 bottomLeft(baseX + tilePixels * PREVIEW_PERSPECTIVE_SKEW * 0.12f, baseY + tilePixels);
-            const ImVec2 bottomRight(baseX + tilePixels, baseY + tilePixels * (1.0f - PREVIEW_PERSPECTIVE_SKEW * 0.12f));
-            drawPreviewTile(drawList, topLeft, topRight, bottomRight, bottomLeft, fillColor, borderColor);
-            if (offsetX == 0 && offsetY == 0) {
-                drawList->AddQuad(
-                    topLeft,
-                    topRight,
-                    bottomRight,
-                    bottomLeft,
-                    IM_COL32(255, 255, 255, 240),
-                    2.5f);
             }
         }
     }

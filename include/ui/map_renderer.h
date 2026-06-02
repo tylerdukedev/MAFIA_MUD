@@ -16,14 +16,6 @@ void renderMapTiles(
     const ImVec2& canvasOrigin,
     const ImVec2& canvasSize);
 
-void renderHoveredTilePreview(
-    ImDrawList* drawList,
-    const WorldConfig& worldConfig,
-    const ChunkStore& chunkStore,
-    const WorldCoord& centerCoord,
-    const ImVec2& canvasOrigin,
-    const ImVec2& canvasSize);
-
 ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation);
 
 } // namespace Core

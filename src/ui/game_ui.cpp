@@ -17,17 +17,12 @@ constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
 
 const char* getTerrainName(TerrainId terrainId) {
     switch (terrainId) {
-    case TerrainId::DeepWater: return "Deep Water";
-    case TerrainId::ShallowWater: return "Shallow Water";
-    case TerrainId::River: return "River";
-    case TerrainId::Beach: return "Beach";
-    case TerrainId::Grassland: return "Grassland";
-    case TerrainId::Forest: return "Forest";
-    case TerrainId::Hills: return "Hills";
-    case TerrainId::Mountain: return "Mountain";
-    case TerrainId::Peak: return "Peak";
-    case TerrainId::City: return "City";
+    case TerrainId::Water: return "Water";
     case TerrainId::Road: return "Road";
+    case TerrainId::Building: return "Building";
+    case TerrainId::Park: return "Park";
+    case TerrainId::Plaza: return "Plaza";
+    case TerrainId::OpenLand: return "Open Land";
     default: return "None";
     }
 }
@@ -57,7 +52,7 @@ void renderMainMenu(SimClock& simClock) {
 void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Simulation")) {
-        ImGui::Text("Phase 5 — Overworld Map");
+        ImGui::Text("Phase 5 — Five Boroughs");
         ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
@@ -85,7 +80,7 @@ void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, c
         ImGui::Text("Chunk size: %d x %d", worldConfig.CHUNK_SIZE, worldConfig.CHUNK_SIZE);
         ImGui::Text("Chunks: %d x %d (%d total)", worldConfig.CHUNK_COUNT_X, worldConfig.CHUNK_COUNT_Y, chunkStore.getTotalChunkCount());
         ImGui::Text("Active chunks: %d", chunkStore.getActiveChunkCount());
-        ImGui::Text("Regions: %d", RegionTable::getPlayableRegionCount());
+        ImGui::Text("Boroughs: %d", RegionTable::getPlayableRegionCount());
         ImGui::Separator();
         ImGui::Text("Systems: %d", systemRegistry.getSystemCount());
         for (int32_t index = 0; index < systemRegistry.getSystemCount(); ++index) {
@@ -100,9 +95,9 @@ void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, c
     ImGui::End();
 }
 
-void renderRegionsPanel() {
+void renderBoroughsPanel() {
     ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("Regions")) {
+    if (ImGui::Begin("Boroughs")) {
         for (int32_t regionIndex = 1; regionIndex < static_cast<int32_t>(RegionId::COUNT); ++regionIndex) {
             const auto regionId = static_cast<RegionId>(regionIndex);
             ImGui::BulletText("%s (%s)", RegionTable::getRegionName(regionId).data(), RegionTable::getRegionShortName(regionId).data());
@@ -126,7 +121,7 @@ void renderTileInspectorPanel(const WorldConfig& worldConfig, const ChunkStore& 
                 const TerrainId terrainId = chunkStore.getTerrainAt(coord);
                 ImGui::Text("Chunk: (%d, %d) index %d", chunkCoord.x, chunkCoord.y, worldConfig.chunkCoordToIndex(chunkCoord));
                 ImGui::Text("Local: (%u, %u)", localCoord.x, localCoord.y);
-                ImGui::Text("Region: %s", RegionTable::getRegionName(chunkStore.getRegionAt(coord)).data());
+                ImGui::Text("Borough: %s", RegionTable::getRegionName(chunkStore.getRegionAt(coord)).data());
                 ImGui::Text("Terrain: %s", getTerrainName(terrainId));
                 ImGui::Text("Elevation: %d", chunkStore.getElevationAt(coord));
                 ImGui::Text("Chunk active: %s", chunkStore.hasTileAt(coord) ? "yes" : "no");
@@ -172,8 +167,6 @@ void renderMapViewportPanel(
         const ImVec2 canvasMax(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
         drawList->PushClipRect(canvasPos, canvasMax, true);
         drawList->AddRectFilled(canvasPos, canvasMax, IM_COL32(12, 14, 18, 255));
-        bool showTilePreview = false;
-        WorldCoord previewCoord{};
         if (isCanvasHovered) {
             ImGuiIO& io = ImGui::GetIO();
             if (io.MouseWheel != 0.0f) {
@@ -194,10 +187,6 @@ void renderMapViewportPanel(
                 mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
                 const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
                 updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
-                if (worldConfig.isWithinWorldBounds(coord)) {
-                    showTilePreview = true;
-                    previewCoord = coord;
-                }
                 if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                     updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
                 }
@@ -207,9 +196,6 @@ void renderMapViewportPanel(
         }
         if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
             renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
-            if (showTilePreview) {
-                renderHoveredTilePreview(drawList, worldConfig, chunkStore, previewCoord, canvasPos, canvasSize);
-            }
         }
         drawList->PopClipRect();
         if (isCanvasHovered) {
@@ -243,7 +229,7 @@ void renderGameUi(
     renderMainMenu(simClock);
     beginMainDockSpace();
     renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
-    renderRegionsPanel();
+    renderBoroughsPanel();
     renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState);
     renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState);
 }

@@ -2,21 +2,9 @@
 #include "world/chunk_store.h"
 #include "world/world_config.h"
 #include <catch2/catch_test_macros.hpp>
+#include <array>
 
 using namespace Core;
-
-namespace {
-bool isWaterTerrain(TerrainId terrainId) {
-    return terrainId == TerrainId::DeepWater || terrainId == TerrainId::ShallowWater;
-}
-bool isLandTerrain(TerrainId terrainId) {
-    return terrainId == TerrainId::Grassland || terrainId == TerrainId::Forest
-        || terrainId == TerrainId::Hills || terrainId == TerrainId::Beach;
-}
-bool isHighTerrain(TerrainId terrainId) {
-    return terrainId == TerrainId::Mountain || terrainId == TerrainId::Peak;
-}
-} // namespace
 
 TEST_CASE("WorldGenerator determinism", "[procgen]") {
     WorldConfig config;
@@ -32,50 +20,52 @@ TEST_CASE("WorldGenerator determinism", "[procgen]") {
     REQUIRE(storeA.getElevationAt(sampleCoord) == storeB.getElevationAt(sampleCoord));
 }
 
-TEST_CASE("WorldGenerator produces overworld terrain variety", "[procgen]") {
+TEST_CASE("WorldGenerator builds all five boroughs and New Jersey", "[procgen]") {
     WorldConfig config;
     ChunkStore chunkStore(config);
     WorldGenerator generator;
     generator.generate(config, chunkStore, DEFAULT_WORLD_SEED);
+    std::array<bool, static_cast<size_t>(RegionId::COUNT)> seenRegion{};
     bool hasWater = false;
-    bool hasLand = false;
-    bool hasHighGround = false;
-    bool hasCity = false;
     bool hasRoad = false;
-    bool hasRegion = false;
+    bool hasBuilding = false;
+    bool hasPark = false;
     for (int32_t y = 0; y < WorldConfig::WORLD_HEIGHT_TILES; ++y) {
         for (int32_t x = 0; x < WorldConfig::WORLD_WIDTH_TILES; ++x) {
-            const TerrainId terrain = chunkStore.getTerrainAt(WorldCoord{x, y});
-            hasWater = hasWater || isWaterTerrain(terrain);
-            hasLand = hasLand || isLandTerrain(terrain);
-            hasHighGround = hasHighGround || isHighTerrain(terrain);
-            hasCity = hasCity || terrain == TerrainId::City;
+            const WorldCoord coord{x, y};
+            const TerrainId terrain = chunkStore.getTerrainAt(coord);
+            seenRegion[static_cast<size_t>(chunkStore.getRegionAt(coord))] = true;
+            hasWater = hasWater || terrain == TerrainId::Water;
             hasRoad = hasRoad || terrain == TerrainId::Road;
-            hasRegion = hasRegion || chunkStore.getRegionAt(WorldCoord{x, y}) != RegionId::None;
+            hasBuilding = hasBuilding || terrain == TerrainId::Building;
+            hasPark = hasPark || terrain == TerrainId::Park;
         }
     }
+    REQUIRE(seenRegion[static_cast<size_t>(RegionId::Manhattan)]);
+    REQUIRE(seenRegion[static_cast<size_t>(RegionId::Brooklyn)]);
+    REQUIRE(seenRegion[static_cast<size_t>(RegionId::Queens)]);
+    REQUIRE(seenRegion[static_cast<size_t>(RegionId::Bronx)]);
+    REQUIRE(seenRegion[static_cast<size_t>(RegionId::StatenIsland)]);
+    REQUIRE(seenRegion[static_cast<size_t>(RegionId::NewJersey)]);
     REQUIRE(hasWater);
-    REQUIRE(hasLand);
-    REQUIRE(hasHighGround);
-    REQUIRE(hasCity);
     REQUIRE(hasRoad);
-    REQUIRE(hasRegion);
+    REQUIRE(hasBuilding);
+    REQUIRE(hasPark);
     REQUIRE(chunkStore.getActiveChunkCount() == chunkStore.getTotalChunkCount());
 }
 
-TEST_CASE("WorldGenerator surrounds the world with ocean", "[procgen]") {
+TEST_CASE("WorldGenerator frames the map with water", "[procgen]") {
     WorldConfig config;
     ChunkStore chunkStore(config);
     WorldGenerator generator;
     generator.generate(config, chunkStore, DEFAULT_WORLD_SEED);
     const WorldCoord corners[] = {
-        {0, 0},
-        {WorldConfig::WORLD_WIDTH_TILES - 1, 0},
-        {0, WorldConfig::WORLD_HEIGHT_TILES - 1},
-        {WorldConfig::WORLD_WIDTH_TILES - 1, WorldConfig::WORLD_HEIGHT_TILES - 1},
+        {1, 1},
+        {WorldConfig::WORLD_WIDTH_TILES - 2, 1},
+        {1, WorldConfig::WORLD_HEIGHT_TILES - 2},
+        {WorldConfig::WORLD_WIDTH_TILES - 2, WorldConfig::WORLD_HEIGHT_TILES - 2},
     };
     for (const WorldCoord& corner : corners) {
-        REQUIRE(isWaterTerrain(chunkStore.getTerrainAt(corner)));
-        REQUIRE(chunkStore.getRegionAt(corner) == RegionId::Ocean);
+        REQUIRE(chunkStore.getTerrainAt(corner) == TerrainId::Water);
     }
 }
