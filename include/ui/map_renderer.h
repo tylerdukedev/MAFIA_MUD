@@ -24,6 +24,6 @@ void renderHoveredTilePreview(
     const ImVec2& canvasOrigin,
     const ImVec2& canvasSize);
 
-ImU32 getRegionColor(RegionId regionId, TerrainId terrainId);
+ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation);
 
 } // namespace Core

@@ -17,6 +17,14 @@ ImU32 darkenColor(ImU32 color, float factor) {
     return IM_COL32(red, green, blue, 255);
 }
 
+ImU32 tintBuildingColor(ImU32 baseColor, int16_t elevation) {
+    const float heightFactor = std::min(static_cast<float>(elevation) / 60.0f, 1.0f);
+    const int red = static_cast<int>(static_cast<float>((baseColor >> IM_COL32_R_SHIFT) & 0xFF) * (0.72f + heightFactor * 0.28f));
+    const int green = static_cast<int>(static_cast<float>((baseColor >> IM_COL32_G_SHIFT) & 0xFF) * (0.72f + heightFactor * 0.28f));
+    const int blue = static_cast<int>(static_cast<float>((baseColor >> IM_COL32_B_SHIFT) & 0xFF) * (0.72f + heightFactor * 0.28f));
+    return IM_COL32(red, green, blue, 255);
+}
+
 void drawPreviewTile(
     ImDrawList* drawList,
     const ImVec2& topLeft,
@@ -30,23 +38,29 @@ void drawPreviewTile(
 }
 } // namespace
 
-ImU32 getRegionColor(RegionId regionId, TerrainId terrainId) {
-    if (terrainId == TerrainId::Water) {
-        return IM_COL32(148, 204, 232, 255);
+ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation) {
+    switch (terrainId) {
+    case TerrainId::Water: return IM_COL32(72, 132, 188, 255);
+    case TerrainId::Road: return IM_COL32(48, 50, 56, 255);
+    case TerrainId::Park: return IM_COL32(72, 138, 72, 255);
+    case TerrainId::Plaza: return IM_COL32(168, 162, 148, 255);
+    case TerrainId::OpenLand: return IM_COL32(96, 112, 78, 255);
+    case TerrainId::Building: {
+        ImU32 districtColor = IM_COL32(92, 94, 102, 255);
+        switch (regionId) {
+        case RegionId::Downtown: districtColor = IM_COL32(68, 72, 88, 255); break;
+        case RegionId::Midtown: districtColor = IM_COL32(88, 92, 108, 255); break;
+        case RegionId::Residential: districtColor = IM_COL32(118, 102, 88, 255); break;
+        case RegionId::Commercial: districtColor = IM_COL32(108, 112, 128, 255); break;
+        case RegionId::Industrial: districtColor = IM_COL32(98, 88, 78, 255); break;
+        case RegionId::Waterfront: districtColor = IM_COL32(82, 98, 112, 255); break;
+        case RegionId::Outskirts: districtColor = IM_COL32(104, 108, 96, 255); break;
+        default: break;
+        }
+        return tintBuildingColor(districtColor, elevation);
     }
-    switch (regionId) {
-    case RegionId::Manhattan: return IM_COL32(96, 188, 88, 255);
-    case RegionId::Brooklyn: return IM_COL32(238, 216, 62, 255);
-    case RegionId::Queens: return IM_COL32(238, 128, 42, 255);
-    case RegionId::Bronx: return IM_COL32(218, 62, 58, 255);
-    case RegionId::StatenIsland: return IM_COL32(152, 102, 182, 255);
-    case RegionId::NewJersey: return IM_COL32(208, 188, 148, 255);
-    default: return IM_COL32(120, 124, 132, 255);
+    default: return IM_COL32(64, 68, 76, 255);
     }
-}
-
-ImU32 getRegionBorderColor(RegionId regionId, TerrainId terrainId) {
-    return darkenColor(getRegionColor(regionId, terrainId), 0.55f);
 }
 
 void renderMapTiles(
@@ -77,7 +91,8 @@ void renderMapTiles(
             WorldCoord coord{tileX, tileY};
             const TerrainId terrainId = chunkStore.getTerrainAt(coord);
             const RegionId regionId = chunkStore.getRegionAt(coord);
-            const ImU32 tileColor = getRegionColor(regionId, terrainId);
+            const int16_t elevation = chunkStore.getElevationAt(coord);
+            const ImU32 tileColor = getTileColor(regionId, terrainId, elevation);
             float screenMinX = 0.0f;
             float screenMinY = 0.0f;
             float screenMaxX = 0.0f;
@@ -91,16 +106,26 @@ void renderMapTiles(
                 continue;
             }
             drawList->AddRectFilled(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), tileColor);
+            if (tileSizePixels >= 5.0f && terrainId == TerrainId::Building) {
+                const float inset = std::min(tileSizePixels * 0.12f, 2.0f);
+                drawList->AddRect(
+                    ImVec2(screenMinX + inset, screenMinY + inset),
+                    ImVec2(screenMaxX - inset, screenMaxY - inset),
+                    darkenColor(tileColor, 0.65f),
+                    0.0f,
+                    0,
+                    1.0f);
+            }
             if (tileSizePixels >= 4.0f) {
-                const RegionId eastRegion = tileX + 1 < worldConfig.WORLD_WIDTH_TILES
-                    ? chunkStore.getRegionAt(WorldCoord{tileX + 1, tileY}) : regionId;
-                const RegionId southRegion = tileY + 1 < worldConfig.WORLD_HEIGHT_TILES
-                    ? chunkStore.getRegionAt(WorldCoord{tileX, tileY + 1}) : regionId;
-                if (eastRegion != regionId || terrainId != chunkStore.getTerrainAt(WorldCoord{tileX + 1, tileY})) {
-                    drawList->AddLine(ImVec2(screenMaxX, screenMinY), ImVec2(screenMaxX, screenMaxY), IM_COL32(30, 34, 40, 180), 1.0f);
+                const TerrainId eastTerrain = tileX + 1 < worldConfig.WORLD_WIDTH_TILES
+                    ? chunkStore.getTerrainAt(WorldCoord{tileX + 1, tileY}) : terrainId;
+                const TerrainId southTerrain = tileY + 1 < worldConfig.WORLD_HEIGHT_TILES
+                    ? chunkStore.getTerrainAt(WorldCoord{tileX, tileY + 1}) : terrainId;
+                if (eastTerrain != terrainId) {
+                    drawList->AddLine(ImVec2(screenMaxX, screenMinY), ImVec2(screenMaxX, screenMaxY), IM_COL32(20, 22, 28, 160), 1.0f);
                 }
-                if (southRegion != regionId || terrainId != chunkStore.getTerrainAt(WorldCoord{tileX, tileY + 1})) {
-                    drawList->AddLine(ImVec2(screenMinX, screenMaxY), ImVec2(screenMaxX, screenMaxY), IM_COL32(30, 34, 40, 180), 1.0f);
+                if (southTerrain != terrainId) {
+                    drawList->AddLine(ImVec2(screenMinX, screenMaxY), ImVec2(screenMaxX, screenMaxY), IM_COL32(20, 22, 28, 160), 1.0f);
                 }
             }
         }
@@ -136,8 +161,9 @@ void renderHoveredTilePreview(
             }
             const TerrainId terrainId = chunkStore.getTerrainAt(coord);
             const RegionId regionId = chunkStore.getRegionAt(coord);
-            const ImU32 fillColor = getRegionColor(regionId, terrainId);
-            const ImU32 borderColor = getRegionBorderColor(regionId, terrainId);
+            const int16_t elevation = chunkStore.getElevationAt(coord);
+            const ImU32 fillColor = getTileColor(regionId, terrainId, elevation);
+            const ImU32 borderColor = darkenColor(fillColor, 0.55f);
             const float depth = static_cast<float>(offsetY + PREVIEW_TILE_RADIUS);
             const float scale = 1.0f + (static_cast<float>(PREVIEW_TILE_RADIUS) - std::abs(static_cast<float>(offsetX))) * 0.04f
                 + (static_cast<float>(PREVIEW_TILE_RADIUS) - std::abs(static_cast<float>(offsetY))) * 0.06f;

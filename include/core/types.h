@@ -27,19 +27,24 @@ struct LocalTileCoord {
 
 enum class RegionId : uint8_t {
     None = 0,
-    Manhattan,
-    Brooklyn,
-    Queens,
-    Bronx,
-    StatenIsland,
-    NewJersey,
+    Downtown,
+    Midtown,
+    Residential,
+    Commercial,
+    Industrial,
+    Waterfront,
+    Outskirts,
     COUNT
 };
 
 enum class TerrainId : uint8_t {
     None = 0,
     Water,
-    Land,
+    Road,
+    Building,
+    Park,
+    Plaza,
+    OpenLand,
     COUNT
 };
 

@@ -6,224 +6,246 @@
 namespace Core {
 
 namespace {
-constexpr float WORLD_NORMALIZER = 511.0f;
-
-struct RegionAnchor {
-    RegionId regionId;
-    float normalizedX;
-    float normalizedY;
-};
-
-constexpr RegionAnchor REGION_ANCHORS[] = {
-    {RegionId::Manhattan, 0.350f, 0.45f},
-    {RegionId::Brooklyn, 0.445f, 0.32f},
-    {RegionId::Queens, 0.555f, 0.42f},
-    {RegionId::Bronx, 0.400f, 0.665f},
-    {RegionId::StatenIsland, 0.235f, 0.125f},
-    {RegionId::NewJersey, 0.185f, 0.42f},
-};
-constexpr int32_t REGION_ANCHOR_COUNT = 6;
-
-float getHudsonEdge(float normalizedY) {
-    return 0.292f + 0.006f * std::sin(normalizedY * 14.0f);
-}
-
-float getEastRiverWestEdge(float normalizedY) {
-    return 0.358f + 0.004f * std::sin(normalizedY * 11.0f);
-}
-
-float getEastRiverEastEdge(float normalizedY) {
-    return 0.382f + 0.004f * std::cos(normalizedY * 10.0f);
-}
-
-bool isInsideManhattan(float normalizedX, float normalizedY) {
-    if (normalizedY < 0.18f || normalizedY > 0.72f) {
-        return false;
-    }
-    const float centerX = 0.350f + 0.004f * std::sin(normalizedY * 9.0f);
-    const float halfWidth = 0.014f + 0.006f * std::sin((normalizedY - 0.18f) * 6.0f);
-    return std::abs(normalizedX - centerX) <= halfWidth;
-}
-
-bool isInsideStatenIsland(float normalizedX, float normalizedY) {
-    const float deltaX = (normalizedX - 0.235f) / 0.075f;
-    const float deltaY = (normalizedY - 0.125f) / 0.055f;
-    return (deltaX * deltaX + deltaY * deltaY) <= 1.0f;
-}
-
-bool isInsideBronx(float normalizedX, float normalizedY) {
-    if (normalizedY < 0.56f || normalizedY > 0.82f) {
-        return false;
-    }
-    if (normalizedX < 0.335f || normalizedX > 0.54f) {
-        return false;
-    }
-    const float southEdge = 0.56f + 0.015f * std::sin(normalizedX * 12.0f);
-    return normalizedY >= southEdge;
-}
-
-bool isInsideBrooklyn(float normalizedX, float normalizedY) {
-    if (normalizedY < 0.14f || normalizedY > 0.46f) {
-        return false;
-    }
-    if (normalizedX < getEastRiverEastEdge(normalizedY) || normalizedX > 0.54f) {
-        return false;
-    }
-    const float northBay = 0.44f - 0.04f * std::sin(normalizedX * 8.0f);
-    return normalizedY <= northBay;
-}
-
-bool isInsideQueens(float normalizedX, float normalizedY) {
-    if (normalizedY < 0.24f || normalizedY > 0.62f) {
-        return false;
-    }
-    if (normalizedX < 0.415f || normalizedX > 0.70f) {
-        return false;
-    }
-    if (isInsideBrooklyn(normalizedX, normalizedY)) {
-        return false;
-    }
-    if (isInsideBronx(normalizedX, normalizedY)) {
-        return false;
-    }
-    return true;
-}
-
-bool isInsideNewJersey(float normalizedX, float normalizedY) {
-    if (normalizedX >= getHudsonEdge(normalizedY)) {
-        return false;
-    }
-    if (normalizedY < 0.05f || normalizedY > 0.92f) {
-        return false;
-    }
-    return normalizedX >= 0.10f;
-}
+constexpr int32_t AVENUE_SPACING = 8;
+constexpr int32_t STREET_SPACING = 4;
+constexpr int32_t BOULEVARD_SPACING = 32;
+constexpr float DISTANCE_NORMALIZER = 256.0f;
 } // namespace
+
+void WorldGenerator::deriveLayoutParams() {
+    const uint32_t seedMixA = Utils::hashSeedMix(worldSeed, 11, 29);
+    const uint32_t seedMixB = Utils::hashSeedMix(worldSeed, 47, 83);
+    const uint32_t seedMixC = Utils::hashSeedMix(worldSeed, 101, 157);
+    layoutParams.cityCenterX = 248.0f + static_cast<float>(seedMixA % 24U);
+    layoutParams.cityCenterY = 248.0f + static_cast<float>(seedMixB % 24U);
+    layoutParams.cityRadius = 220.0f + static_cast<float>(seedMixC % 30U);
+    layoutParams.verticalRiverX = 132 + static_cast<int32_t>(seedMixA % 28U);
+    layoutParams.eastRiverWestX = 308 + static_cast<int32_t>(seedMixB % 18U);
+    layoutParams.eastRiverEastX = layoutParams.eastRiverWestX + 18 + static_cast<int32_t>(seedMixC % 8U);
+    layoutParams.harborNorthY = 72 + static_cast<int32_t>(seedMixA % 28U);
+    layoutParams.parkCenterX = static_cast<int32_t>(layoutParams.cityCenterX) - 8 + static_cast<int32_t>(seedMixB % 16U);
+    layoutParams.parkCenterY = static_cast<int32_t>(layoutParams.cityCenterY) - 72 + static_cast<int32_t>(seedMixC % 16U);
+    layoutParams.parkHalfWidth = 30 + static_cast<int32_t>(seedMixA % 10U);
+    layoutParams.parkHalfHeight = 20 + static_cast<int32_t>(seedMixB % 8U);
+}
 
 void WorldGenerator::generate(const WorldConfig& worldConfig, ChunkStore& chunkStore, uint64_t inputSeed) {
     worldSeed = inputSeed;
+    deriveLayoutParams();
     passGeography(worldConfig, chunkStore);
-    passRegions(worldConfig, chunkStore);
-    passTerrain(worldConfig, chunkStore);
+    passUrbanFootprint(worldConfig, chunkStore);
+    passStreetGrid(worldConfig, chunkStore);
+    passDistricts(worldConfig, chunkStore);
+    passCityBlocks(worldConfig, chunkStore);
 }
 
-bool WorldGenerator::isWaterTile(float normalizedX, float normalizedY) const {
-    if (normalizedX > 0.695f + 0.035f * std::sin(normalizedY * 7.0f)) {
+bool WorldGenerator::isWaterTile(int32_t x, int32_t y) const {
+    if (x < 8 || x > 503 || y < 8 || y > 503) {
         return true;
     }
-    if (normalizedX < 0.08f) {
+    if (y < layoutParams.harborNorthY && x > layoutParams.verticalRiverX + 40 && x < layoutParams.eastRiverEastX + 90) {
         return true;
     }
-    const float hudsonEdge = getHudsonEdge(normalizedY);
-    if (normalizedX < hudsonEdge && normalizedY > 0.04f && normalizedY < 0.93f) {
+    if (x < layoutParams.verticalRiverX) {
         return true;
     }
-    const float eastRiverWest = getEastRiverWestEdge(normalizedY);
-    const float eastRiverEast = getEastRiverEastEdge(normalizedY);
-    if (normalizedX > eastRiverWest && normalizedX < eastRiverEast && normalizedY > 0.12f && normalizedY < 0.74f) {
+    if (x > layoutParams.eastRiverWestX && x < layoutParams.eastRiverEastX && y > layoutParams.harborNorthY && y < 430) {
         return true;
     }
-    if (normalizedY < 0.105f && normalizedX > 0.26f && normalizedX < 0.62f) {
-        return true;
-    }
-    if (normalizedY < 0.19f && normalizedX > 0.30f && normalizedX < 0.44f) {
-        return true;
-    }
-    if (isInsideStatenIsland(normalizedX, normalizedY)) {
-        return false;
-    }
-    if (isInsideManhattan(normalizedX, normalizedY)) {
-        return false;
-    }
-    if (normalizedY < 0.22f && normalizedX > 0.24f && normalizedX < 0.34f) {
-        const float deltaX = normalizedX - 0.235f;
-        const float deltaY = normalizedY - 0.125f;
-        const float distanceSquared = deltaX * deltaX + deltaY * deltaY;
-        if (distanceSquared > 0.003f) {
-            return true;
-        }
-    }
-    if (normalizedX > 0.58f && normalizedY > 0.50f && normalizedY < 0.72f) {
+    const float deltaX = static_cast<float>(x) - layoutParams.cityCenterX;
+    const float deltaY = static_cast<float>(y) - (layoutParams.cityCenterY + 120.0f);
+    if ((deltaX * deltaX) / 3600.0f + (deltaY * deltaY) / 1600.0f < 1.0f && y > 360) {
         return true;
     }
     return false;
 }
 
-RegionId WorldGenerator::pickRegionForLand(float normalizedX, float normalizedY) const {
-    if (isInsideManhattan(normalizedX, normalizedY)) {
-        return RegionId::Manhattan;
+bool WorldGenerator::isUrbanTile(int32_t x, int32_t y) const {
+    if (isWaterTile(x, y)) {
+        return false;
     }
-    if (isInsideStatenIsland(normalizedX, normalizedY)) {
-        return RegionId::StatenIsland;
+    const float deltaX = static_cast<float>(x) - layoutParams.cityCenterX;
+    const float deltaY = static_cast<float>(y) - layoutParams.cityCenterY;
+    const float distance = std::sqrt(deltaX * deltaX + deltaY * deltaY);
+    const uint32_t edgeHash = Utils::hashSeedMix(worldSeed, x, y);
+    const float edgeNoise = static_cast<float>(edgeHash % 1000U) / 1000.0f * 28.0f;
+    if (distance <= layoutParams.cityRadius + edgeNoise) {
+        return true;
     }
-    if (isInsideBronx(normalizedX, normalizedY)) {
-        return RegionId::Bronx;
+    if (x > layoutParams.verticalRiverX && x < layoutParams.eastRiverWestX && y > layoutParams.harborNorthY && y < 420) {
+        return true;
     }
-    if (isInsideBrooklyn(normalizedX, normalizedY)) {
-        return RegionId::Brooklyn;
+    return false;
+}
+
+bool WorldGenerator::isRoadTile(int32_t x, int32_t y) const {
+    if (!isUrbanTile(x, y)) {
+        return false;
     }
-    if (isInsideQueens(normalizedX, normalizedY)) {
-        return RegionId::Queens;
+    if (x % BOULEVARD_SPACING == 0 || y % BOULEVARD_SPACING == 0) {
+        return true;
     }
-    if (isInsideNewJersey(normalizedX, normalizedY)) {
-        return RegionId::NewJersey;
+    if (x % AVENUE_SPACING == 0 || y % STREET_SPACING == 0) {
+        return true;
     }
-    RegionId closestRegion = RegionId::None;
-    float closestDistanceSquared = 999.0f;
-    for (int32_t index = 0; index < REGION_ANCHOR_COUNT; ++index) {
-        const RegionAnchor& anchor = REGION_ANCHORS[index];
-        const float deltaX = normalizedX - anchor.normalizedX;
-        const float deltaY = normalizedY - anchor.normalizedY;
-        const float distanceSquared = deltaX * deltaX + deltaY * deltaY;
-        if (distanceSquared < closestDistanceSquared) {
-            closestDistanceSquared = distanceSquared;
-            closestRegion = anchor.regionId;
-        }
+    if (y == layoutParams.harborNorthY + 2 && x > layoutParams.verticalRiverX && x < layoutParams.eastRiverEastX + 40) {
+        return true;
     }
-    return closestRegion;
+    return false;
+}
+
+bool WorldGenerator::isCentralParkTile(int32_t x, int32_t y) const {
+    const int32_t deltaX = x - layoutParams.parkCenterX;
+    const int32_t deltaY = y - layoutParams.parkCenterY;
+    return std::abs(deltaX) <= layoutParams.parkHalfWidth && std::abs(deltaY) <= layoutParams.parkHalfHeight;
+}
+
+bool WorldGenerator::isMajorPlazaTile(int32_t x, int32_t y) const {
+    if (!isUrbanTile(x, y)) {
+        return false;
+    }
+    const bool isBoulevardCrossing = (x % BOULEVARD_SPACING == 0) && (y % BOULEVARD_SPACING == 0);
+    if (!isBoulevardCrossing) {
+        return false;
+    }
+    const uint32_t plazaHash = Utils::hashSeedMix(worldSeed, x / BOULEVARD_SPACING, y / BOULEVARD_SPACING);
+    return (plazaHash % 5U) == 0U;
+}
+
+RegionId WorldGenerator::pickDistrict(int32_t x, int32_t y) const {
+    const float deltaX = static_cast<float>(x) - layoutParams.cityCenterX;
+    const float deltaY = static_cast<float>(y) - layoutParams.cityCenterY;
+    const float distance = std::sqrt(deltaX * deltaX + deltaY * deltaY) / DISTANCE_NORMALIZER;
+    if (isWaterTile(x + 1, y) || isWaterTile(x - 1, y) || isWaterTile(x, y + 1) || isWaterTile(x, y - 1)) {
+        return RegionId::Waterfront;
+    }
+    if (distance < 0.16f) {
+        return RegionId::Downtown;
+    }
+    if (distance < 0.30f) {
+        return RegionId::Midtown;
+    }
+    if (distance < 0.46f) {
+        return RegionId::Commercial;
+    }
+    if (deltaY > 40.0f && distance < 0.62f) {
+        return RegionId::Industrial;
+    }
+    if (distance > 0.72f) {
+        return RegionId::Outskirts;
+    }
+    return RegionId::Residential;
 }
 
 void WorldGenerator::passGeography(const WorldConfig& worldConfig, ChunkStore& chunkStore) {
     for (int32_t y = 0; y < worldConfig.WORLD_HEIGHT_TILES; ++y) {
         for (int32_t x = 0; x < worldConfig.WORLD_WIDTH_TILES; ++x) {
             WorldCoord coord{x, y};
-            const float normalizedX = static_cast<float>(x) / WORLD_NORMALIZER;
-            const float normalizedY = static_cast<float>(y) / WORLD_NORMALIZER;
-            if (isWaterTile(normalizedX, normalizedY)) {
+            if (isWaterTile(x, y)) {
                 chunkStore.setTerrainAt(coord, TerrainId::Water);
                 chunkStore.setRegionAt(coord, RegionId::None);
-            }
-        }
-    }
-}
-
-void WorldGenerator::passRegions(const WorldConfig& worldConfig, ChunkStore& chunkStore) {
-    for (int32_t y = 0; y < worldConfig.WORLD_HEIGHT_TILES; ++y) {
-        for (int32_t x = 0; x < worldConfig.WORLD_WIDTH_TILES; ++x) {
-            WorldCoord coord{x, y};
-            if (chunkStore.getTerrainAt(coord) == TerrainId::Water) {
-                continue;
-            }
-            const float normalizedX = static_cast<float>(x) / WORLD_NORMALIZER;
-            const float normalizedY = static_cast<float>(y) / WORLD_NORMALIZER;
-            const RegionId regionId = pickRegionForLand(normalizedX, normalizedY);
-            chunkStore.setRegionAt(coord, regionId);
-        }
-    }
-}
-
-void WorldGenerator::passTerrain(const WorldConfig& worldConfig, ChunkStore& chunkStore) {
-    for (int32_t y = 0; y < worldConfig.WORLD_HEIGHT_TILES; ++y) {
-        for (int32_t x = 0; x < worldConfig.WORLD_WIDTH_TILES; ++x) {
-            WorldCoord coord{x, y};
-            if (chunkStore.getTerrainAt(coord) == TerrainId::Water) {
                 chunkStore.setElevationAt(coord, 0);
                 continue;
             }
-            chunkStore.setTerrainAt(coord, TerrainId::Land);
+            chunkStore.setTerrainAt(coord, TerrainId::OpenLand);
+            chunkStore.setRegionAt(coord, RegionId::Outskirts);
+            chunkStore.setElevationAt(coord, 2);
+        }
+    }
+}
+
+void WorldGenerator::passUrbanFootprint(const WorldConfig& worldConfig, ChunkStore& chunkStore) {
+    for (int32_t y = 0; y < worldConfig.WORLD_HEIGHT_TILES; ++y) {
+        for (int32_t x = 0; x < worldConfig.WORLD_WIDTH_TILES; ++x) {
+            WorldCoord coord{x, y};
+            if (chunkStore.getTerrainAt(coord) == TerrainId::Water) {
+                continue;
+            }
+            if (!isUrbanTile(x, y)) {
+                continue;
+            }
+            chunkStore.setTerrainAt(coord, TerrainId::Building);
+            chunkStore.setRegionAt(coord, RegionId::Residential);
+        }
+    }
+}
+
+void WorldGenerator::passStreetGrid(const WorldConfig& worldConfig, ChunkStore& chunkStore) {
+    for (int32_t y = 0; y < worldConfig.WORLD_HEIGHT_TILES; ++y) {
+        for (int32_t x = 0; x < worldConfig.WORLD_WIDTH_TILES; ++x) {
+            WorldCoord coord{x, y};
+            if (chunkStore.getTerrainAt(coord) == TerrainId::Water) {
+                continue;
+            }
+            if (!isRoadTile(x, y)) {
+                continue;
+            }
+            chunkStore.setTerrainAt(coord, TerrainId::Road);
+        }
+    }
+}
+
+void WorldGenerator::passDistricts(const WorldConfig& worldConfig, ChunkStore& chunkStore) {
+    for (int32_t y = 0; y < worldConfig.WORLD_HEIGHT_TILES; ++y) {
+        for (int32_t x = 0; x < worldConfig.WORLD_WIDTH_TILES; ++x) {
+            WorldCoord coord{x, y};
+            const TerrainId terrainId = chunkStore.getTerrainAt(coord);
+            if (terrainId == TerrainId::Water || terrainId == TerrainId::OpenLand) {
+                continue;
+            }
+            chunkStore.setRegionAt(coord, pickDistrict(x, y));
+        }
+    }
+}
+
+void WorldGenerator::passCityBlocks(const WorldConfig& worldConfig, ChunkStore& chunkStore) {
+    for (int32_t y = 0; y < worldConfig.WORLD_HEIGHT_TILES; ++y) {
+        for (int32_t x = 0; x < worldConfig.WORLD_WIDTH_TILES; ++x) {
+            WorldCoord coord{x, y};
+            TerrainId terrainId = chunkStore.getTerrainAt(coord);
+            if (terrainId == TerrainId::Water) {
+                continue;
+            }
+            if (isCentralParkTile(x, y) && terrainId != TerrainId::Road) {
+                chunkStore.setTerrainAt(coord, TerrainId::Park);
+                chunkStore.setRegionAt(coord, RegionId::Midtown);
+                chunkStore.setElevationAt(coord, 4);
+                continue;
+            }
+            if (terrainId == TerrainId::Road && isMajorPlazaTile(x, y)) {
+                chunkStore.setTerrainAt(coord, TerrainId::Plaza);
+                chunkStore.setElevationAt(coord, 3);
+                continue;
+            }
+            if (terrainId == TerrainId::Road) {
+                chunkStore.setElevationAt(coord, 1);
+                continue;
+            }
+            if (terrainId == TerrainId::OpenLand) {
+                const uint32_t hash = Utils::hashSeedMix(worldSeed, x, y);
+                chunkStore.setElevationAt(coord, static_cast<int16_t>(2 + (hash % 6U)));
+                continue;
+            }
+            const RegionId districtId = chunkStore.getRegionAt(coord);
             const uint32_t hash = Utils::hashSeedMix(worldSeed, x, y);
-            const int16_t elevation = static_cast<int16_t>(5 + (hash % 40U));
-            chunkStore.setElevationAt(coord, elevation);
+            int16_t baseHeight = 8;
+            switch (districtId) {
+            case RegionId::Downtown: baseHeight = 48; break;
+            case RegionId::Midtown: baseHeight = 32; break;
+            case RegionId::Commercial: baseHeight = 24; break;
+            case RegionId::Industrial: baseHeight = 14; break;
+            case RegionId::Waterfront: baseHeight = 10; break;
+            case RegionId::Outskirts: baseHeight = 6; break;
+            default: baseHeight = 12; break;
+            }
+            const int16_t variation = static_cast<int16_t>(hash % 12U);
+            if ((hash % 17U) == 0U && districtId != RegionId::Downtown) {
+                chunkStore.setTerrainAt(coord, TerrainId::Park);
+                chunkStore.setElevationAt(coord, 4);
+                continue;
+            }
+            chunkStore.setTerrainAt(coord, TerrainId::Building);
+            chunkStore.setElevationAt(coord, static_cast<int16_t>(baseHeight + variation));
         }
     }
 }

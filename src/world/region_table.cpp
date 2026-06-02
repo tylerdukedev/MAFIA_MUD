@@ -5,12 +5,13 @@ namespace Core {
 std::string_view RegionTable::getRegionName(RegionId regionId) {
     switch (regionId) {
     case RegionId::None: return "None";
-    case RegionId::Manhattan: return "Manhattan";
-    case RegionId::Brooklyn: return "Brooklyn";
-    case RegionId::Queens: return "Queens";
-    case RegionId::Bronx: return "The Bronx";
-    case RegionId::StatenIsland: return "Staten Island";
-    case RegionId::NewJersey: return "New Jersey";
+    case RegionId::Downtown: return "Downtown";
+    case RegionId::Midtown: return "Midtown";
+    case RegionId::Residential: return "Residential";
+    case RegionId::Commercial: return "Commercial";
+    case RegionId::Industrial: return "Industrial";
+    case RegionId::Waterfront: return "Waterfront";
+    case RegionId::Outskirts: return "Outskirts";
     default: return "Unknown";
     }
 }
@@ -18,12 +19,13 @@ std::string_view RegionTable::getRegionName(RegionId regionId) {
 std::string_view RegionTable::getRegionShortName(RegionId regionId) {
     switch (regionId) {
     case RegionId::None: return "---";
-    case RegionId::Manhattan: return "MAN";
-    case RegionId::Brooklyn: return "BKL";
-    case RegionId::Queens: return "QNS";
-    case RegionId::Bronx: return "BRX";
-    case RegionId::StatenIsland: return "SI";
-    case RegionId::NewJersey: return "NJ";
+    case RegionId::Downtown: return "DTN";
+    case RegionId::Midtown: return "MID";
+    case RegionId::Residential: return "RES";
+    case RegionId::Commercial: return "COM";
+    case RegionId::Industrial: return "IND";
+    case RegionId::Waterfront: return "WTF";
+    case RegionId::Outskirts: return "OUT";
     default: return "???";
     }
 }
