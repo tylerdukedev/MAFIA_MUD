@@ -67,16 +67,16 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
-## Phase 3 — Procgen v1 (Geography-First)
+## Phase 3 — Procgen v1 (Geography-First) ✅
 
 **Goal**: Seed-driven map that roughly resembles NYC + NJ.
 
 | Deliverable | Status |
 |-------------|--------|
-| Pass 1: land/water mask (coastline, Hudson, East River) | ⬜ |
-| Pass 2: borough + NJ region assignment | ⬜ |
-| Pass 3: terrain / elevation | ⬜ |
-| Generate-on-start wired to `ChunkStore` | ⬜ |
+| Pass 1: land/water mask (coastline, Hudson, East River) | ✅ |
+| Pass 2: borough + NJ region assignment | ✅ |
+| Pass 3: terrain / elevation | ✅ |
+| Generate-on-start wired to `ChunkStore` | ✅ |
 
 **Done when**: New seed → recognizable geography with labeled boroughs in UI.
 

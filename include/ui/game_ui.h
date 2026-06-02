@@ -13,6 +13,7 @@ void renderGameUi(
     const WorldConfig& worldConfig,
     ChunkStore& chunkStore,
     SystemRegistry& systemRegistry,
-    ViewportPickState& viewportPickState);
+    ViewportPickState& viewportPickState,
+    uint64_t worldSeed);
 
 } // namespace Core

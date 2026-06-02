@@ -1,5 +1,6 @@
 #include "core/application.h"
 #include "ui/game_ui.h"
+#include "procgen/world_generator.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -33,6 +34,7 @@ Application::Application()
     , imguiContext(nullptr)
     , chunkStore(worldConfig)
     , simClock(WorldConfig::DEFAULT_TICK_RATE_HZ)
+    , worldSeed(DEFAULT_WORLD_SEED)
     , isRunning(false) {
 }
 
@@ -56,6 +58,8 @@ int Application::run() {
         return 1;
     }
     systemRegistry.initialize();
+    WorldGenerator worldGenerator;
+    worldGenerator.generate(worldConfig, chunkStore, worldSeed);
     isRunning = true;
     while (isRunning && !glfwWindowShouldClose(window)) {
         processFrame();
@@ -150,7 +154,7 @@ void Application::renderFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    renderGameUi(simClock, worldConfig, chunkStore, systemRegistry, viewportPickState);
+    renderGameUi(simClock, worldConfig, chunkStore, systemRegistry, viewportPickState, worldSeed);
     ImGui::Render();
     int framebufferWidth = 0;
     int framebufferHeight = 0;

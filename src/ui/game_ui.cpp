@@ -35,10 +35,11 @@ void renderMainMenu(SimClock& simClock) {
     ImGui::EndMainMenuBar();
 }
 
-void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry) {
+void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Simulation")) {
-        ImGui::Text("Phase 2 — Sim Loop + Debug UI");
+        ImGui::Text("Phase 3 — Procgen v1");
+        ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
         ImGui::Text("Window: %.0f x %.0f", ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
@@ -107,6 +108,7 @@ void renderTileInspectorPanel(const WorldConfig& worldConfig, const ChunkStore& 
                 ImGui::Text("Local: (%u, %u)", localCoord.x, localCoord.y);
                 ImGui::Text("Region: %s", RegionTable::getRegionName(chunkStore.getRegionAt(coord)).data());
                 ImGui::Text("Terrain: %u", static_cast<unsigned>(chunkStore.getTerrainAt(coord)));
+                ImGui::Text("Elevation: %d", chunkStore.getElevationAt(coord));
                 ImGui::Text("Chunk active: %s", chunkStore.hasTileAt(coord) ? "yes" : "no");
             }
         }
@@ -163,10 +165,11 @@ void renderGameUi(
     const WorldConfig& worldConfig,
     ChunkStore& chunkStore,
     SystemRegistry& systemRegistry,
-    ViewportPickState& viewportPickState) {
+    ViewportPickState& viewportPickState,
+    uint64_t worldSeed) {
     renderMainMenu(simClock);
     beginMainDockSpace();
-    renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry);
+    renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
     renderRegionsPanel();
     renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState);
     renderMapViewportPanel(worldConfig, viewportPickState);

@@ -126,6 +126,34 @@ void ChunkStore::setRegionAt(const WorldCoord& worldCoord, RegionId regionId) {
     chunk->tiles.regionId[static_cast<size_t>(tileIndex)] = regionId;
 }
 
+
+int16_t ChunkStore::getElevationAt(const WorldCoord& worldCoord) const {
+    if (!config.isWithinWorldBounds(worldCoord)) {
+        return 0;
+    }
+    const ChunkCoord chunkCoord = config.worldToChunkCoord(worldCoord);
+    const Chunk* chunk = getChunkAtCoord(chunkCoord);
+    if (chunk == nullptr) {
+        return 0;
+    }
+    const int32_t tileIndex = getTileIndexInChunk(worldCoord);
+    return chunk->tiles.elevation[static_cast<size_t>(tileIndex)];
+}
+
+void ChunkStore::setElevationAt(const WorldCoord& worldCoord, int16_t elevation) {
+    if (!config.isWithinWorldBounds(worldCoord)) {
+        return;
+    }
+    const ChunkCoord chunkCoord = config.worldToChunkCoord(worldCoord);
+    const ChunkId chunkId = getOrCreateChunk(chunkCoord);
+    Chunk* chunk = getChunk(chunkId);
+    if (chunk == nullptr) {
+        return;
+    }
+    const int32_t tileIndex = getTileIndexInChunk(worldCoord);
+    chunk->tiles.elevation[static_cast<size_t>(tileIndex)] = elevation;
+}
+
 void ChunkStore::setTerrainAt(const WorldCoord& worldCoord, TerrainId terrainId) {
     if (!config.isWithinWorldBounds(worldCoord)) {
         return;

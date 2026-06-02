@@ -28,6 +28,7 @@ private:
     SimClock simClock;
     SystemRegistry systemRegistry;
     ViewportPickState viewportPickState;
+    uint64_t worldSeed;
     bool isRunning;
     static void glfwErrorCallback(int errorCode, const char* description);
     bool initializeWindow();

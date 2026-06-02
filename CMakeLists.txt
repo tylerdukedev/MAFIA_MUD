@@ -61,6 +61,8 @@ set(CAPITAL_VICE_SOURCES
     src/core/application.cpp
     src/core/sim_clock.cpp
     src/sim/system_registry.cpp
+    src/procgen/world_generator.cpp
+    src/utils/seed_hash.cpp
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
@@ -89,3 +91,15 @@ target_link_libraries(chunk_store_test PRIVATE Catch2::Catch2WithMain)
 include(CTest)
 include(Catch)
 catch_discover_tests(chunk_store_test)
+
+add_executable(world_generator_test
+    test/world_generator_test.cpp
+    src/procgen/world_generator.cpp
+    src/utils/seed_hash.cpp
+    src/world/world_config.cpp
+    src/world/chunk_store.cpp
+    src/world/region_table.cpp
+)
+target_include_directories(world_generator_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(world_generator_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(world_generator_test)
