@@ -29,7 +29,6 @@ TEST_CASE("WorldGenerator builds boroughs surrounded by mainland and water", "[p
     bool hasWater = false;
     bool hasRoad = false;
     bool hasBuilding = false;
-    bool hasPark = false;
     bool hasMainland = false;
     for (int32_t y = 0; y < WorldConfig::WORLD_HEIGHT_TILES; ++y) {
         for (int32_t x = 0; x < WorldConfig::WORLD_WIDTH_TILES; ++x) {
@@ -39,7 +38,6 @@ TEST_CASE("WorldGenerator builds boroughs surrounded by mainland and water", "[p
             hasWater = hasWater || terrain == TerrainId::Water;
             hasRoad = hasRoad || terrain == TerrainId::Road;
             hasBuilding = hasBuilding || terrain == TerrainId::Building;
-            hasPark = hasPark || terrain == TerrainId::Park;
             hasMainland = hasMainland || terrain == TerrainId::OpenLand;
         }
     }
@@ -54,7 +52,6 @@ TEST_CASE("WorldGenerator builds boroughs surrounded by mainland and water", "[p
     REQUIRE(hasWater);
     REQUIRE(hasRoad);
     REQUIRE(hasBuilding);
-    REQUIRE(hasPark);
     REQUIRE(hasMainland);
     REQUIRE(chunkStore.getActiveChunkCount() == chunkStore.getTotalChunkCount());
 }

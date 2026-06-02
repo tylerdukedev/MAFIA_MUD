@@ -22,9 +22,7 @@ private:
     uint8_t sampleBakedCode(int32_t x, int32_t y) const;
     void passBoroughs(ChunkStore& chunkStore);
     void passStreets(ChunkStore& chunkStore);
-    void passParks(ChunkStore& chunkStore);
     void passElevation(ChunkStore& chunkStore);
-    bool isCentralParkTile(int32_t x, int32_t y) const;
 };
 
 } // namespace Core

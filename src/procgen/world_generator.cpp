@@ -33,7 +33,6 @@ void WorldGenerator::generate(const WorldConfig& worldConfig, ChunkStore& chunkS
     decodeBakedMap();
     passBoroughs(chunkStore);
     passStreets(chunkStore);
-    passParks(chunkStore);
     passElevation(chunkStore);
 }
 
@@ -92,28 +91,7 @@ void WorldGenerator::passStreets(ChunkStore& chunkStore) {
     }
 }
 
-bool WorldGenerator::isCentralParkTile(int32_t x, int32_t y) const {
-    const float normalizedX = static_cast<float>(x) / static_cast<float>(worldWidth - 1);
-    const float normalizedY = static_cast<float>(y) / static_cast<float>(worldHeight - 1);
-    const bool inHorizontalBand = normalizedX > 0.505f && normalizedX < 0.545f;
-    const bool inVerticalBand = normalizedY > 0.250f && normalizedY < 0.360f;
-    return inHorizontalBand && inVerticalBand;
-}
 
-void WorldGenerator::passParks(ChunkStore& chunkStore) {
-    for (int32_t y = 0; y < worldHeight; ++y) {
-        for (int32_t x = 0; x < worldWidth; ++x) {
-            const WorldCoord coord{x, y};
-            const TerrainId terrainId = chunkStore.getTerrainAt(coord);
-            if (terrainId != TerrainId::Building && terrainId != TerrainId::Road) {
-                continue;
-            }
-            if (chunkStore.getRegionAt(coord) == RegionId::Manhattan && isCentralParkTile(x, y)) {
-                chunkStore.setTerrainAt(coord, TerrainId::Park);
-            }
-        }
-    }
-}
 
 void WorldGenerator::passElevation(ChunkStore& chunkStore) {
     for (int32_t y = 0; y < worldHeight; ++y) {
