@@ -7,6 +7,12 @@ namespace Core {
 namespace {
 
 constexpr float LANDMARK_MARKER_SIZE_PIXELS = 4.0f;
+constexpr float LANDMARK_SNAP_CAPTURE_RADIUS = 34.0f;
+constexpr float LANDMARK_SNAP_BREAK_DRAG = 14.0f;
+constexpr float LANDMARK_SNAP_IN_SPEED = 20.0f;
+constexpr float LANDMARK_SNAP_OUT_SPEED = 14.0f;
+constexpr float LANDMARK_SNAP_LOCK_BLEND = 0.55f;
+constexpr float LANDMARK_SNAP_RELEASE_BLEND = 0.08f;
 
 void getLandmarkScreenCenter(
     const MapCamera& camera,
@@ -41,7 +47,128 @@ void getLandmarkScreenCenter(
     outScreenY = (tileMinY + tileMaxY) * 0.5f;
 }
 
+float clampUnit(float value) {
+    if (value < 0.0f) {
+        return 0.0f;
+    }
+    if (value > 1.0f) {
+        return 1.0f;
+    }
+    return value;
+}
+
+void applySnapBlend(LandmarkSnapState& state, float targetBlend, float deltaSeconds) {
+    if (targetBlend > state.snapBlend) {
+        state.snapBlend = clampUnit(state.snapBlend + LANDMARK_SNAP_IN_SPEED * deltaSeconds);
+        return;
+    }
+    if (targetBlend < state.snapBlend) {
+        state.snapBlend = clampUnit(state.snapBlend - LANDMARK_SNAP_OUT_SPEED * deltaSeconds);
+    }
+}
+
 } // namespace
+
+void resetLandmarkSnapState(LandmarkSnapState& state) {
+    state.isSnapped = false;
+    state.isBreakCooldown = false;
+    state.snappedLandmarkIndex = -1;
+    state.snapBlend = 0.0f;
+    state.breakDragPixels = 0.0f;
+}
+
+LandmarkSnapPick updateLandmarkSnapPick(
+    LandmarkSnapState& state,
+    float rawScreenX,
+    float rawScreenY,
+    float mouseDeltaX,
+    float mouseDeltaY,
+    float deltaSeconds,
+    const MapCamera& camera,
+    const ImVec2& canvasOrigin,
+    const ImVec2& canvasSize) {
+    LandmarkSnapPick pick{};
+    pick.screenX = rawScreenX;
+    pick.screenY = rawScreenY;
+    const int32_t nearestLandmarkIndex = findLandmarkIndexAtScreenPoint(
+        camera,
+        rawScreenX,
+        rawScreenY,
+        canvasOrigin,
+        canvasSize,
+        LANDMARK_SNAP_CAPTURE_RADIUS);
+    float targetBlend = 0.0f;
+    int32_t activeLandmarkIndex = -1;
+    if (state.isSnapped && state.snappedLandmarkIndex >= 0) {
+        const LandmarkDefinition* snappedLandmark = getLandmarkDefinition(state.snappedLandmarkIndex);
+        if (snappedLandmark != nullptr) {
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            getLandmarkScreenCenter(camera, *snappedLandmark, canvasOrigin, canvasSize, centerX, centerY);
+            const float awayX = rawScreenX - centerX;
+            const float awayY = rawScreenY - centerY;
+            const float awayLength = std::sqrt(awayX * awayX + awayY * awayY);
+            if (awayLength > 0.001f) {
+                const float awayNormX = awayX / awayLength;
+                const float awayNormY = awayY / awayLength;
+                const float awayDelta = mouseDeltaX * awayNormX + mouseDeltaY * awayNormY;
+                if (awayDelta > 0.0f) {
+                    state.breakDragPixels += awayDelta;
+                }
+            }
+            if (state.breakDragPixels >= LANDMARK_SNAP_BREAK_DRAG) {
+                state.isSnapped = false;
+                state.snappedLandmarkIndex = -1;
+                state.breakDragPixels = 0.0f;
+                state.isBreakCooldown = true;
+                targetBlend = 0.0f;
+            } else {
+                targetBlend = 1.0f;
+                activeLandmarkIndex = state.snappedLandmarkIndex;
+            }
+        } else {
+            state.isSnapped = false;
+            state.snappedLandmarkIndex = -1;
+        }
+    }
+    if (!state.isSnapped) {
+        if (state.isBreakCooldown) {
+            if (nearestLandmarkIndex < 0) {
+                state.isBreakCooldown = false;
+            }
+        } else if (nearestLandmarkIndex >= 0 && state.snapBlend <= LANDMARK_SNAP_RELEASE_BLEND) {
+            state.isSnapped = true;
+            state.snappedLandmarkIndex = nearestLandmarkIndex;
+            state.breakDragPixels = 0.0f;
+            targetBlend = 1.0f;
+            activeLandmarkIndex = nearestLandmarkIndex;
+        }
+    }
+    applySnapBlend(state, targetBlend, deltaSeconds);
+    if (activeLandmarkIndex >= 0 && state.snapBlend > 0.001f) {
+        const LandmarkDefinition* activeLandmark = getLandmarkDefinition(activeLandmarkIndex);
+        if (activeLandmark != nullptr) {
+            float centerX = 0.0f;
+            float centerY = 0.0f;
+            getLandmarkScreenCenter(camera, *activeLandmark, canvasOrigin, canvasSize, centerX, centerY);
+            pick.screenX = rawScreenX + (centerX - rawScreenX) * state.snapBlend;
+            pick.screenY = rawScreenY + (centerY - rawScreenY) * state.snapBlend;
+            if (state.snapBlend >= LANDMARK_SNAP_LOCK_BLEND) {
+                pick.landmarkIndex = activeLandmarkIndex;
+            }
+        }
+    }
+    if (pick.landmarkIndex < 0 && state.snapBlend <= LANDMARK_SNAP_RELEASE_BLEND) {
+        pick.landmarkIndex = findLandmarkIndexAtScreenPoint(
+            camera,
+            pick.screenX,
+            pick.screenY,
+            canvasOrigin,
+            canvasSize,
+            LANDMARK_HIT_RADIUS_PIXELS);
+    }
+    return pick;
+}
 
 int32_t findLandmarkIndexAtScreenPoint(
     const MapCamera& camera,

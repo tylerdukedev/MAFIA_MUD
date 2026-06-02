@@ -11,6 +11,33 @@ constexpr float LANDMARK_MARKER_MIN_ZOOM = 2.0f;
 constexpr float LANDMARK_LABEL_MIN_ZOOM = 4.5f;
 constexpr float LANDMARK_HIT_RADIUS_PIXELS = 10.0f;
 
+struct LandmarkSnapState {
+    bool isSnapped = false;
+    bool isBreakCooldown = false;
+    int32_t snappedLandmarkIndex = -1;
+    float snapBlend = 0.0f;
+    float breakDragPixels = 0.0f;
+};
+
+struct LandmarkSnapPick {
+    float screenX = 0.0f;
+    float screenY = 0.0f;
+    int32_t landmarkIndex = -1;
+};
+
+void resetLandmarkSnapState(LandmarkSnapState& state);
+
+LandmarkSnapPick updateLandmarkSnapPick(
+    LandmarkSnapState& state,
+    float rawScreenX,
+    float rawScreenY,
+    float mouseDeltaX,
+    float mouseDeltaY,
+    float deltaSeconds,
+    const MapCamera& camera,
+    const ImVec2& canvasOrigin,
+    const ImVec2& canvasSize);
+
 int32_t findLandmarkIndexAtScreenPoint(
     const MapCamera& camera,
     float screenX,
