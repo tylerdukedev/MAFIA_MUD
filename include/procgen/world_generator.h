@@ -22,7 +22,6 @@ private:
     uint8_t sampleBakedCode(int32_t x, int32_t y) const;
     void passBoroughs(ChunkStore& chunkStore);
     void passStreets(ChunkStore& chunkStore);
-    void passLandmarks(ChunkStore& chunkStore);
     void passElevation(ChunkStore& chunkStore);
 };
 

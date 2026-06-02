@@ -64,39 +64,3 @@ TEST_CASE("WorldGenerator places the Atlantic along the south edge", "[procgen]"
     const WorldCoord southCenter{WorldConfig::WORLD_WIDTH_TILES / 2, WorldConfig::WORLD_HEIGHT_TILES - 2};
     REQUIRE(chunkStore.getTerrainAt(southCenter) == TerrainId::Water);
 }
-
-TEST_CASE("WorldGenerator stamps landmarks in their boroughs", "[procgen][landmark]") {
-    WorldConfig config;
-    ChunkStore chunkStore(config);
-    WorldGenerator generator;
-    generator.generate(config, chunkStore, DEFAULT_WORLD_SEED);
-    bool hasCentralPark = false;
-    bool hasLaGuardia = false;
-    bool hasJfk = false;
-    bool hasAirportTerrain = false;
-    for (int32_t y = 0; y < WorldConfig::WORLD_HEIGHT_TILES; ++y) {
-        for (int32_t x = 0; x < WorldConfig::WORLD_WIDTH_TILES; ++x) {
-            const WorldCoord coord{x, y};
-            const LandmarkId landmark = chunkStore.getLandmarkAt(coord);
-            if (landmark == LandmarkId::CentralPark) {
-                hasCentralPark = true;
-                REQUIRE(chunkStore.getRegionAt(coord) == RegionId::Manhattan);
-            }
-            if (landmark == LandmarkId::LaGuardiaAirport) {
-                hasLaGuardia = true;
-                REQUIRE(chunkStore.getRegionAt(coord) == RegionId::Queens);
-            }
-            if (landmark == LandmarkId::JfkAirport) {
-                hasJfk = true;
-                REQUIRE(chunkStore.getRegionAt(coord) == RegionId::Queens);
-            }
-            if (chunkStore.getTerrainAt(coord) == TerrainId::Airport) {
-                hasAirportTerrain = true;
-            }
-        }
-    }
-    REQUIRE(hasCentralPark);
-    REQUIRE(hasLaGuardia);
-    REQUIRE(hasJfk);
-    REQUIRE(hasAirportTerrain);
-}

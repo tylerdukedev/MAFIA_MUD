@@ -12,7 +12,6 @@ struct ChunkTileData {
     std::vector<TerrainId> terrainId;
     std::vector<int16_t> elevation;
     std::vector<uint32_t> flags;
-    std::vector<LandmarkId> landmark;
     void initialize(int32_t tileCount);
     bool isInitialized() const;
 };
@@ -40,8 +39,6 @@ public:
     void setRegionAt(const WorldCoord& worldCoord, RegionId regionId);
     void setTerrainAt(const WorldCoord& worldCoord, TerrainId terrainId);
     void setElevationAt(const WorldCoord& worldCoord, int16_t elevation);
-    LandmarkId getLandmarkAt(const WorldCoord& worldCoord) const;
-    void setLandmarkAt(const WorldCoord& worldCoord, LandmarkId landmarkId);
     int32_t getTileIndexInChunk(const WorldCoord& worldCoord) const;
 
 private:
