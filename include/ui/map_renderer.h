@@ -1,0 +1,21 @@
+#pragma once
+
+#include "core/types.h"
+#include "ui/map_camera.h"
+#include "world/chunk_store.h"
+#include "world/world_config.h"
+#include "imgui.h"
+
+namespace Core {
+
+void renderMapTiles(
+    ImDrawList* drawList,
+    const MapCamera& camera,
+    const WorldConfig& worldConfig,
+    const ChunkStore& chunkStore,
+    const ImVec2& canvasOrigin,
+    const ImVec2& canvasSize);
+
+ImU32 getRegionColor(RegionId regionId, TerrainId terrainId);
+
+} // namespace Core

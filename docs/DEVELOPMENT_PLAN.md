@@ -82,15 +82,15 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
-## Phase 4 — Map Renderer
+## Phase 4 — Map Renderer ✅
 
 **Goal**: Pan/zoom map viewport.
 
 | Deliverable | Status |
 |-------------|--------|
-| Orthographic 2D camera (pan, zoom) | ⬜ |
-| Tile rendering from chunk SoA (color by terrain/region) | ⬜ |
-| Input routing (`WantCaptureMouse` vs map pan) | ⬜ |
+| Orthographic 2D camera (pan, zoom) | ✅ |
+| Tile rendering from chunk SoA (color by terrain/region) | ✅ |
+| Input routing (`WantCaptureMouse` vs map pan) | ✅ |
 
 **Done when**: Smooth navigation; click tile → inspector updates.
 
