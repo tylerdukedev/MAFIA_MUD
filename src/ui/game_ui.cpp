@@ -22,7 +22,7 @@ void renderGameUi(SimClock& simClock, const WorldConfig& worldConfig, const Chun
         ImGui::EndMainMenuBar();
     }
     ImGui::SetNextWindowSize(ImVec2(360.0f, 280.0f), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("NYC Systems Sim")) {
+    if (ImGui::Begin("CapitalVice")) {
         ImGui::Text("Phase 0-1 — Bootstrap + World Skeleton");
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
