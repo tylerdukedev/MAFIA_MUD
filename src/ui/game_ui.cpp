@@ -1,5 +1,7 @@
 #include "ui/map_renderer.h"
 #include "ui/game_ui.h"
+#include "character/character_tables.h"
+#include "character/profile_builder.h"
 #include <cstdio>
 #include <cfloat>
 #include <cstring>
@@ -18,32 +20,78 @@ constexpr float SPEED_OPTIONS[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
 constexpr int32_t SPEED_OPTION_COUNT = 5;
 constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
 
+void renderCharacterCreationPreviewPanel(const CharacterDraft& characterDraft) {
+    ImGui::BeginChild("CharacterPreviewPanel", ImVec2(0.0f, 0.0f), true);
+    ImGui::Text("Character Preview");
+    ImGui::Separator();
+    char descriptionBuffer[256];
+    buildCharacterDescription(descriptionBuffer, sizeof(descriptionBuffer), characterDraft);
+    ImGui::TextWrapped("%s", descriptionBuffer);
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextWrapped("%s", getGenerationRoleSummary(characterDraft.generationId).data());
+    ImGui::EndChild();
+}
 
-constexpr const char* CHARACTER_BACKGROUNDS[] = {
-    "Street Hustler",
-    "Neighborhood Organizer",
-    "Bookkeeper"
-};
-constexpr int32_t CHARACTER_BACKGROUND_COUNT = 3;
-
-constexpr const char* STARTING_BOROUGH_PREFERENCES[] = {
-    "Manhattan",
-    "Brooklyn",
-    "Queens",
-    "The Bronx",
-    "Staten Island"
-};
-constexpr int32_t STARTING_BOROUGH_PREFERENCE_COUNT = 5;
-
-void initializeCharacterCreation(CharacterCreationState& characterCreationState) {
-    if (characterCreationState.hasInitializedDefaults) {
-        return;
+void renderCharacterCreationForm(CharacterDraft& characterDraft, FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen) {
+    ImGui::BeginChild("CharacterCreationForm", ImVec2(0.0f, 0.0f), false);
+    ImGui::Text("Create your character");
+    ImGui::Separator();
+    ImGui::InputText("Name", characterDraft.nameBuffer, sizeof(characterDraft.nameBuffer));
+    int32_t nationalityIndex = static_cast<int32_t>(characterDraft.nationalityId) - 1;
+    int32_t heritageIndex = static_cast<int32_t>(characterDraft.heritageId) - 1;
+    int32_t generationIndex = static_cast<int32_t>(characterDraft.generationId) - 1;
+    int32_t backgroundIndex = static_cast<int32_t>(characterDraft.backgroundId) - 1;
+    if (ImGui::Combo(
+            "Nationality",
+            &nationalityIndex,
+            [](void*, int index) { return getNationalityLabel(index); },
+            nullptr,
+            getNationalityCount())) {
+        characterDraft.nationalityId = nationalityIdFromIndex(nationalityIndex);
     }
-    const char* defaultName = "New Boss";
-    std::snprintf(characterCreationState.nameBuffer, sizeof(characterCreationState.nameBuffer), "%s", defaultName);
-    characterCreationState.selectedBackgroundIndex = 0;
-    characterCreationState.selectedBoroughIndex = 0;
-    characterCreationState.hasInitializedDefaults = true;
+    if (ImGui::Combo(
+            "Heritage",
+            &heritageIndex,
+            [](void*, int index) { return getHeritageLabel(index); },
+            nullptr,
+            getHeritageCount())) {
+        characterDraft.heritageId = heritageIdFromIndex(heritageIndex);
+    }
+    if (ImGui::Combo(
+            "Generation",
+            &generationIndex,
+            [](void*, int index) { return getGenerationLabel(index); },
+            nullptr,
+            getGenerationCount())) {
+        characterDraft.generationId = generationIdFromIndex(generationIndex);
+    }
+    ImGui::SliderInt("Age", &characterDraft.age, CHARACTER_CREATION_MIN_AGE, CHARACTER_CREATION_MAX_AGE);
+    if (ImGui::Combo(
+            "Background",
+            &backgroundIndex,
+            [](void*, int index) { return getBackgroundLabel(index); },
+            nullptr,
+            getBackgroundCount())) {
+        characterDraft.backgroundId = backgroundIdFromIndex(backgroundIndex);
+    }
+    ImGui::Combo(
+        "Starting Borough Preference",
+        &characterDraft.selectedBoroughIndex,
+        [](void*, int index) { return getBoroughPreferenceLabel(index); },
+        nullptr,
+        getBoroughPreferenceCount());
+    ImGui::Spacing();
+    ImGui::Separator();
+    if (ImGui::Button("Start New Game", ImVec2(220.0f, 0.0f))) {
+        frontendUiEvents.requestedStartSimulation = true;
+        frontendScreen = FrontendScreen::InGame;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Back", ImVec2(120.0f, 0.0f))) {
+        frontendScreen = FrontendScreen::MainMenu;
+    }
+    ImGui::EndChild();
 }
 
 void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen, bool hasSaveFile) {
@@ -87,10 +135,10 @@ void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& fr
     ImGui::End();
 }
 
-void renderCharacterCreationScreen(CharacterCreationState& characterCreationState, FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen) {
-    initializeCharacterCreation(characterCreationState);
+void renderCharacterCreationScreen(CharacterDraft& characterDraft, FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen) {
+    initializeCharacterDraftDefaults(characterDraft);
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const ImVec2 panelSize(680.0f, 440.0f);
+    const ImVec2 panelSize(960.0f, 520.0f);
     const ImVec2 panelPos(
         viewport->WorkPos.x + (viewport->WorkSize.x - panelSize.x) * 0.5f,
         viewport->WorkPos.y + (viewport->WorkSize.y - panelSize.y) * 0.5f);
@@ -101,29 +149,12 @@ void renderCharacterCreationScreen(CharacterCreationState& characterCreationStat
         ImGui::End();
         return;
     }
-    ImGui::Text("Create your character");
-    ImGui::Separator();
-    ImGui::InputText("Name", characterCreationState.nameBuffer, sizeof(characterCreationState.nameBuffer));
-    ImGui::Combo(
-        "Background",
-        &characterCreationState.selectedBackgroundIndex,
-        CHARACTER_BACKGROUNDS,
-        CHARACTER_BACKGROUND_COUNT);
-    ImGui::Combo(
-        "Starting Borough Preference",
-        &characterCreationState.selectedBoroughIndex,
-        STARTING_BOROUGH_PREFERENCES,
-        STARTING_BOROUGH_PREFERENCE_COUNT);
-    ImGui::Spacing();
-    ImGui::Separator();
-    if (ImGui::Button("Start New Game", ImVec2(220.0f, 0.0f))) {
-        frontendUiEvents.requestedStartSimulation = true;
-        frontendScreen = FrontendScreen::InGame;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Back", ImVec2(120.0f, 0.0f))) {
-        frontendScreen = FrontendScreen::MainMenu;
-    }
+    ImGui::Columns(2, "CharacterCreationColumns", true);
+    ImGui::SetColumnWidth(0, panelSize.x * 0.48f);
+    renderCharacterCreationForm(characterDraft, frontendUiEvents, frontendScreen);
+    ImGui::NextColumn();
+    renderCharacterCreationPreviewPanel(characterDraft);
+    ImGui::Columns(1);
     ImGui::End();
 }
 
@@ -373,14 +404,14 @@ const char* getSaveLoadStatusMessage() {
     return saveLoadStatusMessage;
 }
 
-FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreationState& characterCreationState, bool hasSaveFile) {
+FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterDraft& characterDraft, bool hasSaveFile) {
     FrontendUiEvents frontendUiEvents{};
     switch (frontendScreen) {
     case FrontendScreen::MainMenu:
         renderMainMenuScreen(frontendUiEvents, frontendScreen, hasSaveFile);
         break;
     case FrontendScreen::CharacterCreation:
-        renderCharacterCreationScreen(characterCreationState, frontendUiEvents, frontendScreen);
+        renderCharacterCreationScreen(characterDraft, frontendUiEvents, frontendScreen);
         break;
     case FrontendScreen::InGame:
         break;

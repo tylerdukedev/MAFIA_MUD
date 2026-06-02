@@ -6,20 +6,24 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 1U;
+constexpr uint32_t SAVE_VERSION = 2U;
 
 struct SaveGameHeader {
     char magic[4];
     uint32_t version;
     uint64_t worldSeed;
     char nameBuffer[32];
-    int32_t selectedBackgroundIndex;
+    uint8_t nationalityId;
+    uint8_t heritageId;
+    uint8_t generationId;
+    uint8_t backgroundId;
+    int32_t age;
     int32_t selectedBoroughIndex;
     uint8_t hasInitializedDefaults;
-    uint8_t padding[3];
+    uint8_t headerPadding[3];
     uint64_t tickCount;
     uint8_t isPaused;
-    uint8_t headerPadding[7];
+    uint8_t tickPadding[7];
     double speedMultiplier;
     double accumulatorSeconds;
     float centerWorldX;
@@ -61,12 +65,12 @@ bool saveFileExists(const char* filePath) {
 bool buildSaveSnapshot(
     SaveGameSnapshot& outSnapshot,
     uint64_t worldSeed,
-    const CharacterCreationState& characterCreationState,
+    const CharacterDraft& characterDraft,
     const SimClock& simClock,
     const MapCamera& mapCamera,
     const ChunkStore& chunkStore) {
     outSnapshot.worldSeed = worldSeed;
-    outSnapshot.characterCreationState = characterCreationState;
+    outSnapshot.characterDraft = characterDraft;
     outSnapshot.tickCount = simClock.getTickCount();
     outSnapshot.isPaused = simClock.isPaused();
     outSnapshot.speedMultiplier = simClock.getSpeedMultiplier();
@@ -87,7 +91,7 @@ bool buildSaveSnapshot(
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,
-    CharacterCreationState& outCharacterCreationState,
+    CharacterDraft& outCharacterDraft,
     SimClock& simClock,
     MapCamera& mapCamera,
     ChunkStore& chunkStore) {
@@ -106,7 +110,7 @@ bool applySaveSnapshot(
         return false;
     }
     outWorldSeed = snapshot.worldSeed;
-    outCharacterCreationState = snapshot.characterCreationState;
+    outCharacterDraft = snapshot.characterDraft;
     simClock.restoreSnapshot(snapshot.tickCount, snapshot.isPaused, snapshot.speedMultiplier, snapshot.accumulatorSeconds);
     mapCamera = snapshot.mapCamera;
     return true;
@@ -124,10 +128,14 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     std::memcpy(header.magic, SAVE_MAGIC, sizeof(SAVE_MAGIC));
     header.version = SAVE_VERSION;
     header.worldSeed = snapshot.worldSeed;
-    std::memcpy(header.nameBuffer, snapshot.characterCreationState.nameBuffer, sizeof(header.nameBuffer));
-    header.selectedBackgroundIndex = snapshot.characterCreationState.selectedBackgroundIndex;
-    header.selectedBoroughIndex = snapshot.characterCreationState.selectedBoroughIndex;
-    header.hasInitializedDefaults = snapshot.characterCreationState.hasInitializedDefaults ? 1U : 0U;
+    std::memcpy(header.nameBuffer, snapshot.characterDraft.nameBuffer, sizeof(header.nameBuffer));
+    header.nationalityId = static_cast<uint8_t>(snapshot.characterDraft.nationalityId);
+    header.heritageId = static_cast<uint8_t>(snapshot.characterDraft.heritageId);
+    header.generationId = static_cast<uint8_t>(snapshot.characterDraft.generationId);
+    header.backgroundId = static_cast<uint8_t>(snapshot.characterDraft.backgroundId);
+    header.age = snapshot.characterDraft.age;
+    header.selectedBoroughIndex = snapshot.characterDraft.selectedBoroughIndex;
+    header.hasInitializedDefaults = snapshot.characterDraft.hasInitializedDefaults ? 1U : 0U;
     header.tickCount = snapshot.tickCount;
     header.isPaused = snapshot.isPaused ? 1U : 0U;
     header.speedMultiplier = snapshot.speedMultiplier;
@@ -173,10 +181,14 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
         return false;
     }
     outSnapshot.worldSeed = header.worldSeed;
-    std::memcpy(outSnapshot.characterCreationState.nameBuffer, header.nameBuffer, sizeof(outSnapshot.characterCreationState.nameBuffer));
-    outSnapshot.characterCreationState.selectedBackgroundIndex = header.selectedBackgroundIndex;
-    outSnapshot.characterCreationState.selectedBoroughIndex = header.selectedBoroughIndex;
-    outSnapshot.characterCreationState.hasInitializedDefaults = header.hasInitializedDefaults != 0U;
+    std::memcpy(outSnapshot.characterDraft.nameBuffer, header.nameBuffer, sizeof(outSnapshot.characterDraft.nameBuffer));
+    outSnapshot.characterDraft.nationalityId = static_cast<NationalityId>(header.nationalityId);
+    outSnapshot.characterDraft.heritageId = static_cast<HeritageId>(header.heritageId);
+    outSnapshot.characterDraft.generationId = static_cast<GenerationId>(header.generationId);
+    outSnapshot.characterDraft.backgroundId = static_cast<BackgroundId>(header.backgroundId);
+    outSnapshot.characterDraft.age = header.age;
+    outSnapshot.characterDraft.selectedBoroughIndex = header.selectedBoroughIndex;
+    outSnapshot.characterDraft.hasInitializedDefaults = header.hasInitializedDefaults != 0U;
     outSnapshot.tickCount = header.tickCount;
     outSnapshot.isPaused = header.isPaused != 0U;
     outSnapshot.speedMultiplier = header.speedMultiplier;

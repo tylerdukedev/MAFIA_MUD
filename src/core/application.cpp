@@ -2,6 +2,10 @@
 #include "ui/game_ui.h"
 #include "procgen/world_generator.h"
 #include "persistence/save_game.h"
+#include "character/profile_builder.h"
+#if defined(CAPITALVICE_DEV_CONSOLE)
+#include "dev/dev_console.h"
+#endif
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -39,6 +43,7 @@ Application::Application()
     , frontendScreen(FrontendScreen::MainMenu)
     , isWorldReady(false)
     , isRunning(false) {
+    playerProfile = buildPlayerProfile(characterDraft);
 }
 
 Application::~Application() {
@@ -89,17 +94,27 @@ bool Application::initializeImGui() {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+#if defined(CAPITALVICE_DEV_CONSOLE)
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+#endif
     io.IniFilename = IMGUI_INI_PATH;
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 4.0f;
     style.FrameRounding = 3.0f;
+#if defined(CAPITALVICE_DEV_CONSOLE)
+    style.WindowRounding = 0.0f;
+    style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+#endif
     if (!ImGui_ImplGlfw_InitForOpenGL(window, true)) {
         return false;
     }
     if (!ImGui_ImplOpenGL3_Init(GLSL_VERSION)) {
         return false;
     }
+#if defined(CAPITALVICE_DEV_CONSOLE)
+    devConsoleLogAppend(devConsoleLog, "Dev console ready. Type help.");
+#endif
     return true;
 }
 
@@ -158,7 +173,7 @@ void Application::renderFrame() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     const bool hasSaveFile = saveFileExists(DEFAULT_SAVE_FILENAME);
-    FrontendUiEvents frontendUiEvents = renderFrontendUi(frontendScreen, characterCreationState, hasSaveFile);
+    FrontendUiEvents frontendUiEvents = renderFrontendUi(frontendScreen, characterDraft, hasSaveFile);
     if (frontendUiEvents.requestedExitGame) {
         isRunning = false;
     }
@@ -169,6 +184,14 @@ void Application::renderFrame() {
     }
     if (frontendUiEvents.requestedStartSimulation && !isWorldReady) {
         startNewSimulation();
+    }
+#if defined(CAPITALVICE_DEV_CONSOLE)
+    if (ImGui::IsKeyPressed(ImGuiKey_F12)) {
+        devConsoleToggleVisibility(devConsoleState);
+    }
+#endif
+    if (frontendScreen == FrontendScreen::CharacterCreation) {
+        playerProfile = buildPlayerProfile(characterDraft);
     }
     if (frontendScreen == FrontendScreen::InGame && isWorldReady) {
         if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
@@ -190,6 +213,9 @@ void Application::renderFrame() {
             loadSavedGame();
         }
     }
+#if defined(CAPITALVICE_DEV_CONSOLE)
+    devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile);
+#endif
     ImGui::Render();
     int framebufferWidth = 0;
     int framebufferHeight = 0;
@@ -197,10 +223,19 @@ void Application::renderFrame() {
     glViewport(0, 0, framebufferWidth, framebufferHeight);
     renderClearBackground();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#if defined(CAPITALVICE_DEV_CONSOLE)
+    if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        GLFWwindow* backupContextWindow = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+        glfwMakeContextCurrent(backupContextWindow);
+    }
+#endif
     glfwSwapBuffers(window);
 }
 
 void Application::startNewSimulation() {
+    playerProfile = buildPlayerProfile(characterDraft);
     systemRegistry.initialize();
     WorldGenerator worldGenerator;
     worldGenerator.generate(worldConfig, chunkStore, worldSeed);
@@ -216,7 +251,7 @@ bool Application::saveCurrentGame() {
         return false;
     }
     SaveGameSnapshot snapshot{};
-    if (!buildSaveSnapshot(snapshot, worldSeed, characterCreationState, simClock, mapCamera, chunkStore)) {
+    if (!buildSaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
     }
@@ -239,10 +274,11 @@ bool Application::loadSavedGame() {
         return false;
     }
     systemRegistry.initialize();
-    if (!applySaveSnapshot(snapshot, worldSeed, characterCreationState, simClock, mapCamera, chunkStore)) {
+    if (!applySaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
     }
+    playerProfile = buildPlayerProfile(characterDraft);
     viewportPickState = ViewportPickState{};
     isWorldReady = true;
     setSaveLoadStatusMessage("Game loaded.");

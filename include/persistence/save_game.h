@@ -1,7 +1,7 @@
 #pragma once
 
+#include "character/character_draft.h"
 #include "core/sim_clock.h"
-#include "ui/game_ui.h"
 #include "ui/map_camera.h"
 #include "world/chunk_store.h"
 #include "world/world_config.h"
@@ -15,7 +15,7 @@ constexpr int32_t SAVE_GAME_TILE_COUNT = WorldConfig::WORLD_WIDTH_TILES * WorldC
 
 struct SaveGameSnapshot {
     uint64_t worldSeed = 0;
-    CharacterCreationState characterCreationState{};
+    CharacterDraft characterDraft{};
     uint64_t tickCount = 0;
     bool isPaused = true;
     double speedMultiplier = 1.0;
@@ -31,14 +31,14 @@ bool saveFileExists(const char* filePath);
 bool buildSaveSnapshot(
     SaveGameSnapshot& outSnapshot,
     uint64_t worldSeed,
-    const CharacterCreationState& characterCreationState,
+    const CharacterDraft& characterDraft,
     const SimClock& simClock,
     const MapCamera& mapCamera,
     const ChunkStore& chunkStore);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,
-    CharacterCreationState& outCharacterCreationState,
+    CharacterDraft& outCharacterDraft,
     SimClock& simClock,
     MapCamera& mapCamera,
     ChunkStore& chunkStore);

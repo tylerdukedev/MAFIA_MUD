@@ -1,8 +1,10 @@
 #pragma once
 
+#include "character/character_draft.h"
+#include "character/player_profile.h"
 #include "core/sim_clock.h"
-#include "ui/game_ui.h"
 #include "sim/system_registry.h"
+#include "ui/game_ui.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
 #include "world/chunk_store.h"
@@ -11,6 +13,10 @@
 #include <cstdint>
 
 struct ImGuiContext;
+
+#if defined(CAPITALVICE_DEV_CONSOLE)
+#include "dev/dev_console.h"
+#endif
 
 namespace Core {
 
@@ -31,11 +37,16 @@ private:
     SystemRegistry systemRegistry;
     MapCamera mapCamera;
     ViewportPickState viewportPickState;
+    CharacterDraft characterDraft;
+    PlayerProfile playerProfile;
     uint64_t worldSeed;
     FrontendScreen frontendScreen;
-    CharacterCreationState characterCreationState;
     bool isWorldReady;
     bool isRunning;
+#if defined(CAPITALVICE_DEV_CONSOLE)
+    DevConsoleState devConsoleState;
+    DevConsoleLog devConsoleLog;
+#endif
     static void glfwErrorCallback(int errorCode, const char* description);
     bool initializeWindow();
     bool initializeImGui();

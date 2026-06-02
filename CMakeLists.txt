@@ -55,6 +55,13 @@ target_link_libraries(imgui_lib PUBLIC glfw)
 
 find_package(OpenGL REQUIRED)
 
+option(CAPITALVICE_DEV_CONSOLE "Enable dev-only console with ImGui viewports" ON)
+
+set(CHARACTER_SOURCES
+    src/character/character_tables.cpp
+    src/character/profile_builder.cpp
+)
+
 # --- Main executable ---
 set(CAPITAL_VICE_SOURCES
     src/main.cpp
@@ -71,11 +78,19 @@ set(CAPITAL_VICE_SOURCES
     src/ui/map_camera.cpp
     src/ui/map_renderer.cpp
     src/ui/game_ui.cpp
+    ${CHARACTER_SOURCES}
 )
+
+if(CAPITALVICE_DEV_CONSOLE)
+    list(APPEND CAPITAL_VICE_SOURCES src/dev/dev_console.cpp)
+endif()
 
 add_executable(capital_vice ${CAPITAL_VICE_SOURCES})
 target_include_directories(capital_vice PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(capital_vice PRIVATE imgui_lib OpenGL::GL ${CMAKE_DL_LIBS})
+if(CAPITALVICE_DEV_CONSOLE)
+    target_compile_definitions(capital_vice PRIVATE CAPITALVICE_DEV_CONSOLE=1)
+endif()
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(capital_vice PRIVATE m)
@@ -128,3 +143,20 @@ add_executable(save_game_test
 target_include_directories(save_game_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(save_game_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(save_game_test)
+
+add_executable(profile_builder_test
+    test/profile_builder_test.cpp
+    ${CHARACTER_SOURCES}
+)
+target_include_directories(profile_builder_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(profile_builder_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(profile_builder_test)
+
+add_executable(dev_console_test
+    test/dev_console_test.cpp
+    src/dev/dev_console.cpp
+    ${CHARACTER_SOURCES}
+)
+target_include_directories(dev_console_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(dev_console_test PRIVATE Catch2::Catch2WithMain imgui_lib)
+catch_discover_tests(dev_console_test)

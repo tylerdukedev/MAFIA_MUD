@@ -1,5 +1,6 @@
 #pragma once
 
+#include "character/character_draft.h"
 #include "core/sim_clock.h"
 #include "sim/system_registry.h"
 #include "ui/map_camera.h"
@@ -14,13 +15,6 @@ enum class FrontendScreen : uint8_t {
     MainMenu = 0,
     CharacterCreation,
     InGame
-};
-
-struct CharacterCreationState {
-    bool hasInitializedDefaults = false;
-    char nameBuffer[32]{};
-    int32_t selectedBackgroundIndex = 0;
-    int32_t selectedBoroughIndex = 0;
 };
 
 struct FrontendUiEvents {
@@ -38,7 +32,7 @@ struct GameUiEvents {
 void setSaveLoadStatusMessage(const char* message);
 const char* getSaveLoadStatusMessage();
 
-FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreationState& characterCreationState, bool hasSaveFile);
+FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterDraft& characterDraft, bool hasSaveFile);
 
 GameUiEvents renderGameUi(
     SimClock& simClock,
