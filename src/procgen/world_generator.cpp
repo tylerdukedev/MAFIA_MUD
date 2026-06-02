@@ -7,48 +7,77 @@
 namespace Core {
 
 namespace {
-struct BoroughSeed {
+struct MapSeed {
     RegionId regionId;
     float normalizedX;
     float normalizedY;
     float scaleX;
     float scaleY;
+    bool isWater;
 };
 
-constexpr BoroughSeed BOROUGH_SEEDS[] = {
-    {RegionId::Manhattan, 0.490f, 0.160f, 2.40f, 0.85f},
-    {RegionId::Manhattan, 0.485f, 0.260f, 2.40f, 0.85f},
-    {RegionId::Manhattan, 0.480f, 0.360f, 2.40f, 0.85f},
-    {RegionId::Manhattan, 0.475f, 0.450f, 2.40f, 0.85f},
-    {RegionId::Bronx, 0.560f, 0.100f, 1.15f, 1.0f},
-    {RegionId::Bronx, 0.655f, 0.120f, 1.15f, 1.0f},
-    {RegionId::Queens, 0.660f, 0.340f, 1.0f, 1.0f},
-    {RegionId::Queens, 0.770f, 0.300f, 1.0f, 1.0f},
-    {RegionId::Queens, 0.860f, 0.400f, 1.0f, 1.0f},
-    {RegionId::Queens, 0.800f, 0.520f, 1.0f, 1.0f},
-    {RegionId::Queens, 0.900f, 0.500f, 1.0f, 1.0f},
-    {RegionId::Queens, 0.720f, 0.450f, 1.0f, 1.0f},
-    {RegionId::Queens, 0.840f, 0.600f, 1.0f, 1.0f},
-    {RegionId::Brooklyn, 0.520f, 0.620f, 1.0f, 1.0f},
-    {RegionId::Brooklyn, 0.605f, 0.720f, 1.0f, 1.0f},
-    {RegionId::Brooklyn, 0.505f, 0.560f, 1.0f, 1.0f},
-    {RegionId::StatenIsland, 0.220f, 0.760f, 1.0f, 1.0f},
-    {RegionId::StatenIsland, 0.160f, 0.830f, 1.0f, 1.0f},
-    {RegionId::NewJersey, 0.160f, 0.180f, 1.0f, 1.0f},
-    {RegionId::NewJersey, 0.120f, 0.400f, 1.0f, 1.0f},
-    {RegionId::NewJersey, 0.180f, 0.580f, 1.0f, 1.0f},
-    {RegionId::NewJersey, 0.100f, 0.720f, 1.0f, 1.0f},
-    {RegionId::NewJersey, 0.205f, 0.060f, 1.0f, 1.0f},
-    {RegionId::NewJersey, 0.300f, 0.300f, 1.0f, 1.0f},
+constexpr MapSeed MAP_SEEDS[] = {
+    {RegionId::Manhattan, 0.555f, 0.150f, 2.70f, 0.80f, false},
+    {RegionId::Manhattan, 0.550f, 0.220f, 2.70f, 0.80f, false},
+    {RegionId::Manhattan, 0.540f, 0.320f, 2.70f, 0.80f, false},
+    {RegionId::Manhattan, 0.528f, 0.420f, 2.70f, 0.80f, false},
+    {RegionId::Manhattan, 0.520f, 0.500f, 2.70f, 0.80f, false},
+    {RegionId::Bronx, 0.640f, 0.080f, 1.0f, 1.0f, false},
+    {RegionId::Bronx, 0.710f, 0.110f, 1.0f, 1.0f, false},
+    {RegionId::Bronx, 0.660f, 0.160f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.770f, 0.200f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.850f, 0.250f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.720f, 0.280f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.810f, 0.320f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.890f, 0.340f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.740f, 0.380f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.860f, 0.440f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.780f, 0.500f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.840f, 0.580f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.720f, 0.460f, 1.0f, 1.0f, false},
+    {RegionId::Brooklyn, 0.500f, 0.620f, 1.0f, 1.0f, false},
+    {RegionId::Brooklyn, 0.580f, 0.700f, 1.0f, 1.0f, false},
+    {RegionId::Brooklyn, 0.480f, 0.580f, 1.0f, 1.0f, false},
+    {RegionId::Brooklyn, 0.560f, 0.660f, 1.0f, 1.0f, false},
+    {RegionId::StatenIsland, 0.220f, 0.740f, 1.0f, 1.0f, false},
+    {RegionId::StatenIsland, 0.160f, 0.820f, 1.0f, 1.0f, false},
+    {RegionId::StatenIsland, 0.280f, 0.800f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.110f, 0.160f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.070f, 0.400f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.110f, 0.600f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.170f, 0.780f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.150f, 0.050f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.060f, 0.280f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.100f, 0.500f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.300f, 0.250f, 1.0f, 1.0f, false},
+    {RegionId::Westchester, 0.430f, 0.030f, 1.0f, 1.0f, false},
+    {RegionId::Westchester, 0.490f, 0.040f, 1.0f, 1.0f, false},
+    {RegionId::Westchester, 0.560f, 0.020f, 1.0f, 1.0f, false},
+    {RegionId::Westchester, 0.320f, 0.040f, 1.0f, 1.0f, false},
+    {RegionId::Westchester, 0.700f, 0.030f, 1.0f, 1.0f, false},
+    {RegionId::Westchester, 0.800f, 0.060f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.960f, 0.260f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.975f, 0.460f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.955f, 0.150f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.985f, 0.360f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.945f, 0.580f, 1.0f, 1.0f, false},
+    {RegionId::None, 0.450f, 0.640f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.420f, 0.720f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.490f, 0.580f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.520f, 0.800f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.380f, 0.840f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.300f, 0.930f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.620f, 0.920f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.150f, 0.900f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.880f, 0.770f, 1.0f, 1.0f, true},
 };
-constexpr int32_t BOROUGH_SEED_COUNT = 24;
+constexpr int32_t MAP_SEED_COUNT = 53;
 
-constexpr float WARP_STRENGTH = 0.055f;
+constexpr float WARP_STRENGTH = 0.050f;
 constexpr float WARP_FREQUENCY = 3.0f;
-constexpr float RIVER_CHANNEL = 0.020f;
-constexpr float COAST_BASE = 0.880f;
-constexpr float COAST_NOISE = 0.030f;
-constexpr float FRAME_MARGIN = 0.014f;
+constexpr float RIVER_CHANNEL = 0.018f;
+constexpr float ATLANTIC_BASE = 0.900f;
+constexpr float ATLANTIC_NOISE = 0.035f;
 constexpr int32_t AVENUE_SPACING = 11;
 constexpr int32_t STREET_SPACING = 5;
 constexpr int32_t PLAZA_SPACING = 33;
@@ -95,63 +124,70 @@ float WorldGenerator::warpNoise(float sampleX, float sampleY, uint64_t streamSee
     return valueNoise(worldSeed ^ streamSeed, sampleX * WARP_FREQUENCY, sampleY * WARP_FREQUENCY) - 0.5f;
 }
 
+bool WorldGenerator::isMainlandRegion(RegionId regionId) const {
+    return regionId == RegionId::NewJersey || regionId == RegionId::Westchester || regionId == RegionId::LongIsland;
+}
+
 bool WorldGenerator::isWaterBoundary(RegionId nearest, RegionId second) const {
     if (nearest == second) {
         return false;
     }
-    const bool isLongIslandPair = (nearest == RegionId::Brooklyn && second == RegionId::Queens)
+    const bool brooklynQueens = (nearest == RegionId::Brooklyn && second == RegionId::Queens)
         || (nearest == RegionId::Queens && second == RegionId::Brooklyn);
-    return !isLongIslandPair;
+    const bool queensLongIsland = (nearest == RegionId::Queens && second == RegionId::LongIsland)
+        || (nearest == RegionId::LongIsland && second == RegionId::Queens);
+    const bool bronxWestchester = (nearest == RegionId::Bronx && second == RegionId::Westchester)
+        || (nearest == RegionId::Westchester && second == RegionId::Bronx);
+    if (brooklynQueens || queensLongIsland || bronxWestchester) {
+        return false;
+    }
+    return true;
 }
 
 BoroughResult WorldGenerator::classifyBorough(float normalizedX, float normalizedY) const {
     const float warpedX = normalizedX + warpNoise(normalizedX, normalizedY, WARP_STREAM_X) * WARP_STRENGTH;
     const float warpedY = normalizedY + warpNoise(normalizedX, normalizedY, WARP_STREAM_Y) * WARP_STRENGTH;
-    float bestDistance = 1e9f;
-    float secondDistance = 1e9f;
-    RegionId bestRegion = RegionId::None;
-    RegionId secondRegion = RegionId::None;
-    for (int32_t index = 0; index < BOROUGH_SEED_COUNT; ++index) {
-        const BoroughSeed& seed = BOROUGH_SEEDS[index];
+    float bestAnyDistance = 1e9f;
+    bool bestAnyIsWater = false;
+    float bestLandDistance = 1e9f;
+    float secondLandDistance = 1e9f;
+    RegionId bestLandRegion = RegionId::None;
+    RegionId secondLandRegion = RegionId::None;
+    for (int32_t index = 0; index < MAP_SEED_COUNT; ++index) {
+        const MapSeed& seed = MAP_SEEDS[index];
         const float deltaX = (warpedX - seed.normalizedX) * seed.scaleX;
         const float deltaY = (warpedY - seed.normalizedY) * seed.scaleY;
         const float distance = deltaX * deltaX + deltaY * deltaY;
-        if (distance < bestDistance) {
-            secondDistance = bestDistance;
-            secondRegion = bestRegion;
-            bestDistance = distance;
-            bestRegion = seed.regionId;
+        if (distance < bestAnyDistance) {
+            bestAnyDistance = distance;
+            bestAnyIsWater = seed.isWater;
+        }
+        if (seed.isWater) {
             continue;
         }
-        if (distance < secondDistance && seed.regionId != bestRegion) {
-            secondDistance = distance;
-            secondRegion = seed.regionId;
+        if (distance < bestLandDistance) {
+            secondLandDistance = bestLandDistance;
+            secondLandRegion = bestLandRegion;
+            bestLandDistance = distance;
+            bestLandRegion = seed.regionId;
+            continue;
+        }
+        if (distance < secondLandDistance && seed.regionId != bestLandRegion) {
+            secondLandDistance = distance;
+            secondLandRegion = seed.regionId;
         }
     }
     BoroughResult result;
-    result.nearest = bestRegion;
-    result.second = secondRegion;
-    result.boundaryGap = std::sqrt(secondDistance) - std::sqrt(bestDistance);
+    result.nearest = bestLandRegion;
+    result.second = secondLandRegion;
+    result.boundaryGap = std::sqrt(secondLandDistance) - std::sqrt(bestLandDistance);
+    result.nearestIsWater = bestAnyIsWater;
     return result;
 }
 
-bool WorldGenerator::isOceanTile(float normalizedX, float normalizedY) const {
-    if (normalizedX < FRAME_MARGIN || normalizedX > 1.0f - FRAME_MARGIN) {
-        return true;
-    }
-    if (normalizedY < FRAME_MARGIN || normalizedY > 1.0f - FRAME_MARGIN) {
-        return true;
-    }
+bool WorldGenerator::isAtlanticTile(float normalizedX, float normalizedY) const {
     const float coastNoise = warpNoise(normalizedX, normalizedY, 0x33AA55ULL) * 2.0f;
-    const float southCoast = COAST_BASE + coastNoise * COAST_NOISE;
-    if (normalizedY > southCoast) {
-        return true;
-    }
-    const float soundEdge = normalizedX - normalizedY + coastNoise * COAST_NOISE;
-    if (soundEdge > 0.62f && normalizedY < 0.30f) {
-        return true;
-    }
-    return false;
+    return normalizedY > ATLANTIC_BASE + coastNoise * ATLANTIC_NOISE;
 }
 
 void WorldGenerator::passBoroughs(ChunkStore& chunkStore) {
@@ -162,18 +198,15 @@ void WorldGenerator::passBoroughs(ChunkStore& chunkStore) {
             const float normalizedX = static_cast<float>(x) / widthNorm;
             const float normalizedY = static_cast<float>(y) / heightNorm;
             const WorldCoord coord{x, y};
-            if (isOceanTile(normalizedX, normalizedY)) {
-                chunkStore.setTerrainAt(coord, TerrainId::Water);
-                chunkStore.setRegionAt(coord, RegionId::None);
-                continue;
-            }
             const BoroughResult borough = classifyBorough(normalizedX, normalizedY);
-            if (isWaterBoundary(borough.nearest, borough.second) && borough.boundaryGap < RIVER_CHANNEL) {
+            const bool isRiver = isWaterBoundary(borough.nearest, borough.second) && borough.boundaryGap < RIVER_CHANNEL;
+            if (borough.nearestIsWater || isRiver || isAtlanticTile(normalizedX, normalizedY)) {
                 chunkStore.setTerrainAt(coord, TerrainId::Water);
                 chunkStore.setRegionAt(coord, RegionId::None);
                 continue;
             }
-            chunkStore.setTerrainAt(coord, TerrainId::Building);
+            const TerrainId landTerrain = isMainlandRegion(borough.nearest) ? TerrainId::OpenLand : TerrainId::Building;
+            chunkStore.setTerrainAt(coord, landTerrain);
             chunkStore.setRegionAt(coord, borough.nearest);
         }
     }
@@ -198,8 +231,8 @@ void WorldGenerator::passStreets(ChunkStore& chunkStore) {
 bool WorldGenerator::isCentralParkTile(int32_t x, int32_t y) const {
     const float normalizedX = static_cast<float>(x) / static_cast<float>(worldWidth - 1);
     const float normalizedY = static_cast<float>(y) / static_cast<float>(worldHeight - 1);
-    const bool inHorizontalBand = normalizedX > 0.452f && normalizedX < 0.500f;
-    const bool inVerticalBand = normalizedY > 0.235f && normalizedY < 0.345f;
+    const bool inHorizontalBand = normalizedX > 0.512f && normalizedX < 0.548f;
+    const bool inVerticalBand = normalizedY > 0.250f && normalizedY < 0.360f;
     return inHorizontalBand && inVerticalBand;
 }
 
@@ -239,6 +272,10 @@ void WorldGenerator::passElevation(ChunkStore& chunkStore) {
                 chunkStore.setElevationAt(coord, 0);
                 continue;
             }
+            if (terrainId == TerrainId::OpenLand) {
+                chunkStore.setElevationAt(coord, 8);
+                continue;
+            }
             if (terrainId == TerrainId::Park || terrainId == TerrainId::Plaza) {
                 chunkStore.setElevationAt(coord, 4);
                 continue;
@@ -254,7 +291,6 @@ void WorldGenerator::passElevation(ChunkStore& chunkStore) {
             case RegionId::Queens: baseHeight = 28; break;
             case RegionId::Bronx: baseHeight = 34; break;
             case RegionId::StatenIsland: baseHeight = 18; break;
-            case RegionId::NewJersey: baseHeight = 22; break;
             default: baseHeight = 16; break;
             }
             const uint32_t hash = Utils::hashSeedMix(worldSeed, x, y);

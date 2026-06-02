@@ -39,7 +39,7 @@ TEST_CASE("MapCamera zoomAt respects limits", "[map][camera]") {
     MapCamera camera;
     camera.pixelsPerTile = 1.0f;
     camera.zoomAt(1000.0f, 10.0f, 10.0f);
-    REQUIRE(camera.pixelsPerTile <= 32.0f);
+    REQUIRE(camera.pixelsPerTile <= 48.0f);
     camera.zoomAt(0.001f, 10.0f, 10.0f);
     REQUIRE(camera.pixelsPerTile >= 0.25f);
 }

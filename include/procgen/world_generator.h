@@ -12,6 +12,7 @@ struct BoroughResult {
     RegionId nearest = RegionId::None;
     RegionId second = RegionId::None;
     float boundaryGap = 1.0f;
+    bool nearestIsWater = false;
 };
 
 class WorldGenerator {
@@ -28,8 +29,9 @@ private:
     void passElevation(ChunkStore& chunkStore);
     float warpNoise(float sampleX, float sampleY, uint64_t streamSeed) const;
     BoroughResult classifyBorough(float normalizedX, float normalizedY) const;
-    bool isOceanTile(float normalizedX, float normalizedY) const;
+    bool isAtlanticTile(float normalizedX, float normalizedY) const;
     bool isWaterBoundary(RegionId nearest, RegionId second) const;
+    bool isMainlandRegion(RegionId regionId) const;
     bool isCentralParkTile(int32_t x, int32_t y) const;
 };
 

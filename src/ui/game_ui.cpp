@@ -22,7 +22,7 @@ const char* getTerrainName(TerrainId terrainId) {
     case TerrainId::Building: return "Building";
     case TerrainId::Park: return "Park";
     case TerrainId::Plaza: return "Plaza";
-    case TerrainId::OpenLand: return "Open Land";
+    case TerrainId::OpenLand: return "Land";
     default: return "None";
     }
 }

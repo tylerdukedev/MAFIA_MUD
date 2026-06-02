@@ -6,7 +6,7 @@ namespace Core {
 
 namespace {
 constexpr float MIN_PIXELS_PER_TILE = 0.25f;
-constexpr float MAX_PIXELS_PER_TILE = 32.0f;
+constexpr float MAX_PIXELS_PER_TILE = 48.0f;
 } // namespace
 
 void MapCamera::panPixels(float deltaPixelsX, float deltaPixelsY) {
@@ -28,7 +28,7 @@ void MapCamera::fitToWorld(int32_t worldWidthTiles, int32_t worldHeightTiles, fl
     }
     const float scaleX = canvasWidthPixels / static_cast<float>(worldWidthTiles);
     const float scaleY = canvasHeightPixels / static_cast<float>(worldHeightTiles);
-    pixelsPerTile = std::min(scaleX, scaleY) * 0.95f;
+    pixelsPerTile = std::max(scaleX, scaleY);
     centerWorldX = static_cast<float>(worldWidthTiles) * 0.5f;
     centerWorldY = static_cast<float>(worldHeightTiles) * 0.5f;
 }

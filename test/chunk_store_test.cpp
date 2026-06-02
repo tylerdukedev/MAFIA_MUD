@@ -88,5 +88,5 @@ TEST_CASE("ChunkStore lazy allocation", "[world][chunk]") {
 TEST_CASE("RegionTable names", "[world][region]") {
     REQUIRE(RegionTable::getRegionName(RegionId::Manhattan) == "Manhattan");
     REQUIRE(RegionTable::getRegionShortName(RegionId::NewJersey) == "NJ");
-    REQUIRE(RegionTable::getPlayableRegionCount() == 6);
+    REQUIRE(RegionTable::getPlayableRegionCount() == 8);
 }

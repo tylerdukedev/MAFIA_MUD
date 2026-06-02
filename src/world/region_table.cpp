@@ -11,6 +11,8 @@ std::string_view RegionTable::getRegionName(RegionId regionId) {
     case RegionId::Bronx: return "The Bronx";
     case RegionId::StatenIsland: return "Staten Island";
     case RegionId::NewJersey: return "New Jersey";
+    case RegionId::Westchester: return "Westchester";
+    case RegionId::LongIsland: return "Long Island";
     default: return "Unknown";
     }
 }
@@ -24,6 +26,8 @@ std::string_view RegionTable::getRegionShortName(RegionId regionId) {
     case RegionId::Bronx: return "BRX";
     case RegionId::StatenIsland: return "SI";
     case RegionId::NewJersey: return "NJ";
+    case RegionId::Westchester: return "WCH";
+    case RegionId::LongIsland: return "LI";
     default: return "???";
     }
 }
