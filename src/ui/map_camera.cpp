@@ -33,6 +33,42 @@ void MapCamera::fitToWorld(int32_t worldWidthTiles, int32_t worldHeightTiles, fl
     centerWorldY = static_cast<float>(worldHeightTiles) * 0.5f;
 }
 
+void MapCamera::centerOnTile(int32_t tileX, int32_t tileY, float targetPixelsPerTile) {
+    centerWorldX = static_cast<float>(tileX) + 0.5f;
+    centerWorldY = static_cast<float>(tileY) + 0.5f;
+    pixelsPerTile = std::clamp(targetPixelsPerTile, MIN_PIXELS_PER_TILE, MAX_PIXELS_PER_TILE);
+}
+
+void initializeMapCameraForStartingBorough(MapCamera& camera, int32_t boroughIndex) {
+    int32_t tileX = 243;
+    int32_t tileY = 208;
+    switch (boroughIndex) {
+    case 0:
+        tileX = 243;
+        tileY = 208;
+        break;
+    case 1:
+        tileX = 268;
+        tileY = 350;
+        break;
+    case 2:
+        tileX = 384;
+        tileY = 230;
+        break;
+    case 3:
+        tileX = 368;
+        tileY = 93;
+        break;
+    case 4:
+        tileX = 102;
+        tileY = 382;
+        break;
+    default:
+        break;
+    }
+    camera.centerOnTile(tileX, tileY, DEFAULT_MAP_PIXELS_PER_TILE);
+}
+
 WorldCoord MapCamera::worldToTile(float worldX, float worldY) const {
     WorldCoord coord;
     coord.x = static_cast<int32_t>(std::floor(worldX));

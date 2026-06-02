@@ -666,13 +666,8 @@ void renderMapViewportPanel(
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Map Viewport")) {
         contextHelpPanelTag("Map Viewport", "Pan, zoom, and pick tiles on the world map.", "map_viewport", contextHelpState);
-        static bool isCameraInitialized = false;
         const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
-        if (!isCameraInitialized && canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
-            mapCamera.fitToWorld(worldConfig.WORLD_WIDTH_TILES, worldConfig.WORLD_HEIGHT_TILES, canvasSize.x, canvasSize.y);
-            isCameraInitialized = true;
-        }
         ImGui::InvisibleButton(
             "map_viewport_canvas",
             canvasSize,

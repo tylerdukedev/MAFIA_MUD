@@ -255,6 +255,7 @@ void Application::startNewSimulation() {
     WorldGenerator worldGenerator;
     worldGenerator.generate(worldConfig, chunkStore, worldSeed);
     mapCamera = MapCamera{};
+    initializeMapCameraForStartingBorough(mapCamera, characterDraft.selectedBoroughIndex);
     viewportPickState = ViewportPickState{};
     simClock = SimClock(WorldConfig::DEFAULT_TICK_RATE_HZ);
     isWorldReady = true;
