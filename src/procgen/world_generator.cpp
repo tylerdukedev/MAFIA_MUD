@@ -19,7 +19,7 @@ RegionId regionForCode(uint8_t code) {
     case 4: return RegionId::Bronx;
     case 5: return RegionId::StatenIsland;
     case 6: return RegionId::NewJersey;
-    case 7: return RegionId::Westchester;
+    case 7: return RegionId::NewJersey;
     case 8: return RegionId::LongIsland;
     default: return RegionId::None;
     }

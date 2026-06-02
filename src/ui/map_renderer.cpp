@@ -24,7 +24,6 @@ ImU32 getBoroughColor(RegionId regionId) {
     case RegionId::Bronx: return IM_COL32(224, 66, 60, 255);
     case RegionId::StatenIsland: return IM_COL32(158, 98, 184, 255);
     case RegionId::NewJersey:
-    case RegionId::Westchester:
     case RegionId::LongIsland: return IM_COL32(225, 200, 158, 255);
     default: return IM_COL32(120, 124, 132, 255);
     }

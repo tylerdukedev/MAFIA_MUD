@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/sim_clock.h"
+#include "ui/game_ui.h"
 #include "sim/system_registry.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
@@ -31,6 +32,9 @@ private:
     MapCamera mapCamera;
     ViewportPickState viewportPickState;
     uint64_t worldSeed;
+    FrontendScreen frontendScreen;
+    CharacterCreationState characterCreationState;
+    bool isWorldReady;
     bool isRunning;
     static void glfwErrorCallback(int errorCode, const char* description);
     bool initializeWindow();
@@ -42,6 +46,7 @@ private:
     void runSimulationTicks();
     void renderFrame();
     void renderClearBackground();
+    void startNewSimulation();
 };
 
 } // namespace Core

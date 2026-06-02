@@ -10,6 +10,28 @@
 
 namespace Core {
 
+enum class FrontendScreen : uint8_t {
+    MainMenu = 0,
+    CharacterCreation,
+    InGame
+};
+
+struct CharacterCreationState {
+    bool hasInitializedDefaults = false;
+    char nameBuffer[32]{};
+    int32_t selectedBackgroundIndex = 0;
+    int32_t selectedBoroughIndex = 0;
+};
+
+struct FrontendUiEvents {
+    bool requestedNewGame = false;
+    bool requestedLoadGame = false;
+    bool requestedExitGame = false;
+    bool requestedStartSimulation = false;
+};
+
+FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterCreationState& characterCreationState);
+
 void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,

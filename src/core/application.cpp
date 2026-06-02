@@ -35,6 +35,8 @@ Application::Application()
     , chunkStore(worldConfig)
     , simClock(WorldConfig::DEFAULT_TICK_RATE_HZ)
     , worldSeed(DEFAULT_WORLD_SEED)
+    , frontendScreen(FrontendScreen::MainMenu)
+    , isWorldReady(false)
     , isRunning(false) {
 }
 
@@ -57,9 +59,6 @@ int Application::run() {
         glfwTerminate();
         return 1;
     }
-    systemRegistry.initialize();
-    WorldGenerator worldGenerator;
-    worldGenerator.generate(worldConfig, chunkStore, worldSeed);
     isRunning = true;
     while (isRunning && !glfwWindowShouldClose(window)) {
         processFrame();
@@ -122,10 +121,10 @@ void Application::shutdownWindow() {
 
 void Application::processFrame() {
     glfwPollEvents();
-    if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
+    if (frontendScreen == FrontendScreen::InGame && ImGui::IsKeyPressed(ImGuiKey_Space)) {
         simClock.togglePaused();
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_S)) {
+    if (frontendScreen == FrontendScreen::InGame && ImGui::IsKeyPressed(ImGuiKey_S)) {
         simClock.stepOneTick();
     }
     updateSimulation();
@@ -133,6 +132,9 @@ void Application::processFrame() {
 }
 
 void Application::updateSimulation() {
+    if (frontendScreen != FrontendScreen::InGame || !isWorldReady) {
+        return;
+    }
     const double deltaSeconds = ImGui::GetIO().DeltaTime;
     simClock.update(deltaSeconds);
     runSimulationTicks();
@@ -154,7 +156,16 @@ void Application::renderFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    renderGameUi(simClock, worldConfig, chunkStore, systemRegistry, mapCamera, viewportPickState, worldSeed);
+    FrontendUiEvents frontendUiEvents = renderFrontendUi(frontendScreen, characterCreationState);
+    if (frontendUiEvents.requestedExitGame) {
+        isRunning = false;
+    }
+    if (frontendUiEvents.requestedStartSimulation && !isWorldReady) {
+        startNewSimulation();
+    }
+    if (frontendScreen == FrontendScreen::InGame && isWorldReady) {
+        renderGameUi(simClock, worldConfig, chunkStore, systemRegistry, mapCamera, viewportPickState, worldSeed);
+    }
     ImGui::Render();
     int framebufferWidth = 0;
     int framebufferHeight = 0;
@@ -163,6 +174,16 @@ void Application::renderFrame() {
     renderClearBackground();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     glfwSwapBuffers(window);
+}
+
+void Application::startNewSimulation() {
+    systemRegistry.initialize();
+    WorldGenerator worldGenerator;
+    worldGenerator.generate(worldConfig, chunkStore, worldSeed);
+    mapCamera = MapCamera{};
+    viewportPickState = ViewportPickState{};
+    simClock = SimClock(WorldConfig::DEFAULT_TICK_RATE_HZ);
+    isWorldReady = true;
 }
 
 void Application::renderClearBackground() {
