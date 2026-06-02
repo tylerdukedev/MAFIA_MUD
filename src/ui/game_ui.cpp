@@ -715,6 +715,9 @@ void renderMapViewportPanel(
                     mapCamera,
                     canvasPos,
                     canvasSize);
+                if (snapPick.shouldSetMousePos) {
+                    applyLandmarkSnapCursor(snapPick);
+                }
                 const int32_t landmarkIndex = snapPick.landmarkIndex;
                 if (landmarkIndex >= 0) {
                     const LandmarkDefinition* landmark = getLandmarkDefinition(landmarkIndex);

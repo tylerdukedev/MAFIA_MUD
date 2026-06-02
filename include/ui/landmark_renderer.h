@@ -23,6 +23,7 @@ struct LandmarkSnapPick {
     float screenX = 0.0f;
     float screenY = 0.0f;
     int32_t landmarkIndex = -1;
+    bool shouldSetMousePos = false;
 };
 
 void resetLandmarkSnapState(LandmarkSnapState& state);
@@ -37,6 +38,8 @@ LandmarkSnapPick updateLandmarkSnapPick(
     const MapCamera& camera,
     const ImVec2& canvasOrigin,
     const ImVec2& canvasSize);
+
+void applyLandmarkSnapCursor(const LandmarkSnapPick& pick);
 
 int32_t findLandmarkIndexAtScreenPoint(
     const MapCamera& camera,
