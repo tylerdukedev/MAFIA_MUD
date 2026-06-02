@@ -6,6 +6,8 @@
 namespace Core {
 
 namespace {
+constexpr float WORLD_NORMALIZER = 511.0f;
+
 struct RegionAnchor {
     RegionId regionId;
     float normalizedX;
@@ -13,15 +15,89 @@ struct RegionAnchor {
 };
 
 constexpr RegionAnchor REGION_ANCHORS[] = {
-    {RegionId::Manhattan, 0.345f, 0.42f},
-    {RegionId::Brooklyn, 0.415f, 0.38f},
-    {RegionId::Queens, 0.52f, 0.44f},
-    {RegionId::Bronx, 0.375f, 0.62f},
-    {RegionId::StatenIsland, 0.265f, 0.155f},
-    {RegionId::NewJersey, 0.20f, 0.42f},
+    {RegionId::Manhattan, 0.350f, 0.45f},
+    {RegionId::Brooklyn, 0.445f, 0.32f},
+    {RegionId::Queens, 0.555f, 0.42f},
+    {RegionId::Bronx, 0.400f, 0.665f},
+    {RegionId::StatenIsland, 0.235f, 0.125f},
+    {RegionId::NewJersey, 0.185f, 0.42f},
 };
 constexpr int32_t REGION_ANCHOR_COUNT = 6;
-constexpr float WORLD_NORMALIZER = 511.0f;
+
+float getHudsonEdge(float normalizedY) {
+    return 0.292f + 0.006f * std::sin(normalizedY * 14.0f);
+}
+
+float getEastRiverWestEdge(float normalizedY) {
+    return 0.358f + 0.004f * std::sin(normalizedY * 11.0f);
+}
+
+float getEastRiverEastEdge(float normalizedY) {
+    return 0.382f + 0.004f * std::cos(normalizedY * 10.0f);
+}
+
+bool isInsideManhattan(float normalizedX, float normalizedY) {
+    if (normalizedY < 0.18f || normalizedY > 0.72f) {
+        return false;
+    }
+    const float centerX = 0.350f + 0.004f * std::sin(normalizedY * 9.0f);
+    const float halfWidth = 0.014f + 0.006f * std::sin((normalizedY - 0.18f) * 6.0f);
+    return std::abs(normalizedX - centerX) <= halfWidth;
+}
+
+bool isInsideStatenIsland(float normalizedX, float normalizedY) {
+    const float deltaX = (normalizedX - 0.235f) / 0.075f;
+    const float deltaY = (normalizedY - 0.125f) / 0.055f;
+    return (deltaX * deltaX + deltaY * deltaY) <= 1.0f;
+}
+
+bool isInsideBronx(float normalizedX, float normalizedY) {
+    if (normalizedY < 0.56f || normalizedY > 0.82f) {
+        return false;
+    }
+    if (normalizedX < 0.335f || normalizedX > 0.54f) {
+        return false;
+    }
+    const float southEdge = 0.56f + 0.015f * std::sin(normalizedX * 12.0f);
+    return normalizedY >= southEdge;
+}
+
+bool isInsideBrooklyn(float normalizedX, float normalizedY) {
+    if (normalizedY < 0.14f || normalizedY > 0.46f) {
+        return false;
+    }
+    if (normalizedX < getEastRiverEastEdge(normalizedY) || normalizedX > 0.54f) {
+        return false;
+    }
+    const float northBay = 0.44f - 0.04f * std::sin(normalizedX * 8.0f);
+    return normalizedY <= northBay;
+}
+
+bool isInsideQueens(float normalizedX, float normalizedY) {
+    if (normalizedY < 0.24f || normalizedY > 0.62f) {
+        return false;
+    }
+    if (normalizedX < 0.415f || normalizedX > 0.70f) {
+        return false;
+    }
+    if (isInsideBrooklyn(normalizedX, normalizedY)) {
+        return false;
+    }
+    if (isInsideBronx(normalizedX, normalizedY)) {
+        return false;
+    }
+    return true;
+}
+
+bool isInsideNewJersey(float normalizedX, float normalizedY) {
+    if (normalizedX >= getHudsonEdge(normalizedY)) {
+        return false;
+    }
+    if (normalizedY < 0.05f || normalizedY > 0.92f) {
+        return false;
+    }
+    return normalizedX >= 0.10f;
+}
 } // namespace
 
 void WorldGenerator::generate(const WorldConfig& worldConfig, ChunkStore& chunkStore, uint64_t inputSeed) {
@@ -32,35 +108,66 @@ void WorldGenerator::generate(const WorldConfig& worldConfig, ChunkStore& chunkS
 }
 
 bool WorldGenerator::isWaterTile(float normalizedX, float normalizedY) const {
-    if (normalizedX > 0.70f) {
+    if (normalizedX > 0.695f + 0.035f * std::sin(normalizedY * 7.0f)) {
         return true;
     }
-    if (normalizedX < 0.14f) {
+    if (normalizedX < 0.08f) {
         return true;
     }
-    const float hudsonEdge = 0.28f + 0.015f * std::sin(normalizedY * 12.0f);
-    if (normalizedX < hudsonEdge && normalizedY > 0.08f && normalizedY < 0.88f) {
+    const float hudsonEdge = getHudsonEdge(normalizedY);
+    if (normalizedX < hudsonEdge && normalizedY > 0.04f && normalizedY < 0.93f) {
         return true;
     }
-    if (normalizedX > 0.355f && normalizedX < 0.38f && normalizedY > 0.12f && normalizedY < 0.72f) {
+    const float eastRiverWest = getEastRiverWestEdge(normalizedY);
+    const float eastRiverEast = getEastRiverEastEdge(normalizedY);
+    if (normalizedX > eastRiverWest && normalizedX < eastRiverEast && normalizedY > 0.12f && normalizedY < 0.74f) {
         return true;
     }
-    if (normalizedY < 0.11f && normalizedX > 0.20f && normalizedX < 0.65f) {
+    if (normalizedY < 0.105f && normalizedX > 0.26f && normalizedX < 0.62f) {
         return true;
     }
-    if (normalizedY < 0.18f && normalizedX > 0.22f && normalizedX < 0.35f) {
+    if (normalizedY < 0.19f && normalizedX > 0.30f && normalizedX < 0.44f) {
         return true;
     }
-    const float deltaX = normalizedX - 0.26f;
-    const float deltaY = normalizedY - 0.16f;
-    const float distanceSquared = deltaX * deltaX + deltaY * deltaY;
-    if (distanceSquared > 0.008f && distanceSquared < 0.025f && normalizedX < 0.32f && normalizedY < 0.24f) {
+    if (isInsideStatenIsland(normalizedX, normalizedY)) {
+        return false;
+    }
+    if (isInsideManhattan(normalizedX, normalizedY)) {
+        return false;
+    }
+    if (normalizedY < 0.22f && normalizedX > 0.24f && normalizedX < 0.34f) {
+        const float deltaX = normalizedX - 0.235f;
+        const float deltaY = normalizedY - 0.125f;
+        const float distanceSquared = deltaX * deltaX + deltaY * deltaY;
+        if (distanceSquared > 0.003f) {
+            return true;
+        }
+    }
+    if (normalizedX > 0.58f && normalizedY > 0.50f && normalizedY < 0.72f) {
         return true;
     }
     return false;
 }
 
 RegionId WorldGenerator::pickRegionForLand(float normalizedX, float normalizedY) const {
+    if (isInsideManhattan(normalizedX, normalizedY)) {
+        return RegionId::Manhattan;
+    }
+    if (isInsideStatenIsland(normalizedX, normalizedY)) {
+        return RegionId::StatenIsland;
+    }
+    if (isInsideBronx(normalizedX, normalizedY)) {
+        return RegionId::Bronx;
+    }
+    if (isInsideBrooklyn(normalizedX, normalizedY)) {
+        return RegionId::Brooklyn;
+    }
+    if (isInsideQueens(normalizedX, normalizedY)) {
+        return RegionId::Queens;
+    }
+    if (isInsideNewJersey(normalizedX, normalizedY)) {
+        return RegionId::NewJersey;
+    }
     RegionId closestRegion = RegionId::None;
     float closestDistanceSquared = 999.0f;
     for (int32_t index = 0; index < REGION_ANCHOR_COUNT; ++index) {

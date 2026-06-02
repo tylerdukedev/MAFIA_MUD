@@ -154,10 +154,8 @@ void renderMapViewportPanel(
         const ImVec2 canvasMax(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
         drawList->PushClipRect(canvasPos, canvasMax, true);
         drawList->AddRectFilled(canvasPos, canvasMax, IM_COL32(12, 14, 18, 255));
-        if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
-            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
-        }
-        drawList->PopClipRect();
+        bool showTilePreview = false;
+        WorldCoord previewCoord{};
         if (isCanvasHovered) {
             ImGuiIO& io = ImGui::GetIO();
             if (io.MouseWheel != 0.0f) {
@@ -178,19 +176,36 @@ void renderMapViewportPanel(
                 mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
                 const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
                 updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
+                if (worldConfig.isWithinWorldBounds(coord)) {
+                    showTilePreview = true;
+                    previewCoord = coord;
+                }
                 if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                     updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
                 }
             }
+        } else {
+            viewportPickState.hasHover = false;
+        }
+        if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
+            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
+            if (showTilePreview) {
+                renderHoveredTilePreview(drawList, worldConfig, chunkStore, previewCoord, canvasPos, canvasSize);
+            }
+        }
+        drawList->PopClipRect();
+        if (isCanvasHovered) {
             char overlayBuffer[96];
             std::snprintf(
                 overlayBuffer,
                 sizeof(overlayBuffer),
                 "Scroll: zoom | Drag: pan | Zoom: %.2f px/tile",
                 mapCamera.pixelsPerTile);
-            drawList->AddText(ImVec2(canvasPos.x + 8.0f, canvasPos.y + 8.0f), IM_COL32(220, 224, 232, 230), overlayBuffer);
-        } else if (!isCanvasHovered) {
-            viewportPickState.hasHover = false;
+            const ImVec2 hintSize = ImGui::CalcTextSize(overlayBuffer);
+            drawList->AddText(
+                ImVec2(canvasPos.x + 8.0f, canvasMax.y - hintSize.y - 8.0f),
+                IM_COL32(220, 224, 232, 230),
+                overlayBuffer);
         }
     } else {
         viewportPickState.hasHover = false;
