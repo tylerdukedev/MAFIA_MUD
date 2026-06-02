@@ -1,4 +1,4 @@
-# Development Plan — NYC Systems Sim
+# Development Plan — CapitalVice
 
 Dwarf Fortress-style systems simulation set in NYC (five boroughs) + parts of NJ.
 Procedural map, modern minimal ImGui, strict performance foundations for scale.
@@ -19,7 +19,7 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 | Minimal UI: FPS, pause/resume, tick counter | ✅ |
 | `.cursorrules` + this plan document | ✅ |
 
-**Done when**: `cmake --build build && ./build/nyc_sim` opens a window with ImGui panels.
+**Done when**: `cmake --build build && ./build/capital_vice` opens a window with ImGui panels.
 
 ---
 
@@ -129,7 +129,7 @@ Gameplay (future systems)
 CC=gcc CXX=g++ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
-./build/nyc_sim
+./build/capital_vice
 ```
 
 Dependencies fetched automatically via CMake FetchContent (GLFW, Catch2). System packages: `build-essential`, `libgl1-mesa-dev`, X11 dev libs.

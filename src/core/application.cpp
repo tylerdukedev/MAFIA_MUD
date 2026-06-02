@@ -17,7 +17,7 @@ namespace Core {
 namespace {
 constexpr int32_t WINDOW_WIDTH = 1280;
 constexpr int32_t WINDOW_HEIGHT = 800;
-constexpr const char* WINDOW_TITLE = "NYC Systems Sim";
+constexpr const char* WINDOW_TITLE = "CapitalVice";
 constexpr const char* GLSL_VERSION = "#version 130";
 } // namespace
 

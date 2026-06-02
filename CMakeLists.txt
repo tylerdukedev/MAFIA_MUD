@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(NycSim VERSION 0.1.0 LANGUAGES CXX)
+project(CapitalVice VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,7 +31,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(catch2)
 
-# --- ImGui ---
+# --- ImGui (vendored under lib/imgui) ---
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/lib/imgui)
 add_library(imgui STATIC
     ${IMGUI_DIR}/imgui.cpp
@@ -50,7 +50,7 @@ target_link_libraries(imgui PUBLIC glfw)
 find_package(OpenGL REQUIRED)
 
 # --- Main executable ---
-set(NYC_SIM_SOURCES
+set(CAPITAL_VICE_SOURCES
     src/main.cpp
     src/core/application.cpp
     src/core/sim_clock.cpp
@@ -60,12 +60,12 @@ set(NYC_SIM_SOURCES
     src/ui/game_ui.cpp
 )
 
-add_executable(nyc_sim ${NYC_SIM_SOURCES})
-target_include_directories(nyc_sim PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(nyc_sim PRIVATE imgui OpenGL::GL ${CMAKE_DL_LIBS})
+add_executable(capital_vice ${CAPITAL_VICE_SOURCES})
+target_include_directories(capital_vice PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(capital_vice PRIVATE imgui OpenGL::GL ${CMAKE_DL_LIBS})
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries(nyc_sim PRIVATE m)
+    target_link_libraries(capital_vice PRIVATE m)
 endif()
 
 # --- Tests ---
