@@ -19,7 +19,6 @@ private:
     int32_t worldHeight = 0;
     std::vector<uint8_t> bakedRegion;
     void decodeBakedMap();
-    void applyBoroughMaskCorrections();
     uint8_t sampleBakedCode(int32_t x, int32_t y) const;
     void passBoroughs(ChunkStore& chunkStore);
     void passStreets(ChunkStore& chunkStore);
