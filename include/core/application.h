@@ -1,6 +1,8 @@
 #pragma once
 
 #include "core/sim_clock.h"
+#include "sim/system_registry.h"
+#include "ui/viewport_state.h"
 #include "world/chunk_store.h"
 #include "world/world_config.h"
 #include <GLFW/glfw3.h>
@@ -24,6 +26,8 @@ private:
     WorldConfig worldConfig;
     ChunkStore chunkStore;
     SimClock simClock;
+    SystemRegistry systemRegistry;
+    ViewportPickState viewportPickState;
     bool isRunning;
     static void glfwErrorCallback(int errorCode, const char* description);
     bool initializeWindow();
@@ -32,6 +36,7 @@ private:
     void shutdownWindow();
     void processFrame();
     void updateSimulation();
+    void runSimulationTicks();
     void renderFrame();
     void renderClearBackground();
 };

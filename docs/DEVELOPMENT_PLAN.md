@@ -7,7 +7,7 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
-## Phase 0 — Bootstrap ✅ (current)
+## Phase 0 — Bootstrap ✅
 
 **Goal**: Runnable application with window, ImGui shell, and sim-clock skeleton.
 
@@ -23,7 +23,7 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
-## Phase 1 — World Skeleton ✅ (current)
+## Phase 1 — World Skeleton ✅
 
 **Goal**: Empty NYC-scale world in memory; no gameplay yet.
 
@@ -39,15 +39,29 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
-## Phase 2 — Sim Loop + Debug UI
+## Phase 1.5 — Docking UI ✅
+
+**Goal**: Unity-style dockable panels with persisted layout.
+
+| Deliverable | Status |
+|-------------|--------|
+| ImGui docking branch enabled | ✅ |
+| Full-window dockspace + default layout | ✅ |
+| Panels: Simulation, Regions, Map Viewport, Tile Inspector | ✅ |
+| Layout reset menu + `capitalvice_layout.ini` persistence | ✅ |
+| Minimum window size 960×540 | ✅ |
+
+---
+
+## Phase 2 — Sim Loop + Debug UI ✅
 
 **Goal**: Time advances; world is inspectable.
 
 | Deliverable | Status |
 |-------------|--------|
-| `SimClock` integrated into main loop (fixed tick, pause, step, speed) | ⬜ |
-| `SystemRegistry` — ordered no-op systems | ⬜ |
-| ImGui: sim controls, cursor tile info, memory/chunk stats | ⬜ |
+| `SimClock` integrated into main loop (fixed tick, pause, step, speed) | ✅ |
+| `SystemRegistry` — ordered no-op systems | ✅ |
+| ImGui: sim controls, cursor tile info, memory/chunk stats | ✅ |
 
 **Done when**: Tick counter increments; tile under cursor shows coord + region.
 

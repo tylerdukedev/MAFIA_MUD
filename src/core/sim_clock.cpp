@@ -6,6 +6,7 @@ SimClock::SimClock(double inputTickRateHz)
     : tickRateHz(inputTickRateHz)
     , tickIntervalSeconds(1.0 / inputTickRateHz)
     , accumulatorSeconds(0.0)
+    , speedMultiplier(1.0)
     , tickCount(0)
     , paused(true)
     , stepRequested(false)
@@ -22,7 +23,7 @@ void SimClock::update(double deltaSeconds) {
         advanceTick();
         return;
     }
-    accumulatorSeconds += deltaSeconds;
+    accumulatorSeconds += deltaSeconds * speedMultiplier;
     while (accumulatorSeconds >= tickIntervalSeconds) {
         accumulatorSeconds -= tickIntervalSeconds;
         advanceTick();
@@ -39,6 +40,18 @@ void SimClock::togglePaused() {
 
 void SimClock::stepOneTick() {
     stepRequested = true;
+}
+
+void SimClock::setSpeedMultiplier(double multiplier) {
+    if (multiplier < 0.0) {
+        speedMultiplier = 0.0;
+        return;
+    }
+    speedMultiplier = multiplier;
+}
+
+double SimClock::getSpeedMultiplier() const {
+    return speedMultiplier;
 }
 
 bool SimClock::isPaused() const {

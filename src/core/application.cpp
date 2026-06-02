@@ -17,8 +17,11 @@ namespace Core {
 namespace {
 constexpr int32_t WINDOW_WIDTH = 1280;
 constexpr int32_t WINDOW_HEIGHT = 800;
+constexpr int32_t MIN_WINDOW_WIDTH = 960;
+constexpr int32_t MIN_WINDOW_HEIGHT = 540;
 constexpr const char* WINDOW_TITLE = "CapitalVice";
 constexpr const char* GLSL_VERSION = "#version 130";
+constexpr const char* IMGUI_INI_PATH = "capitalvice_layout.ini";
 } // namespace
 
 void Application::glfwErrorCallback(int errorCode, const char* description) {
@@ -52,6 +55,7 @@ int Application::run() {
         glfwTerminate();
         return 1;
     }
+    systemRegistry.initialize();
     isRunning = true;
     while (isRunning && !glfwWindowShouldClose(window)) {
         processFrame();
@@ -69,6 +73,7 @@ bool Application::initializeWindow() {
     if (window == nullptr) {
         return false;
     }
+    glfwSetWindowSizeLimits(window, MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     return true;
@@ -79,7 +84,12 @@ bool Application::initializeImGui() {
     imguiContext = ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.IniFilename = IMGUI_INI_PATH;
     ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 4.0f;
+    style.FrameRounding = 3.0f;
     if (!ImGui_ImplGlfw_InitForOpenGL(window, true)) {
         return false;
     }
@@ -121,13 +131,26 @@ void Application::processFrame() {
 void Application::updateSimulation() {
     const double deltaSeconds = ImGui::GetIO().DeltaTime;
     simClock.update(deltaSeconds);
+    runSimulationTicks();
+}
+
+void Application::runSimulationTicks() {
+    const int32_t ticksThisFrame = simClock.getTicksThisFrame();
+    if (ticksThisFrame <= 0) {
+        return;
+    }
+    const uint64_t tickCount = simClock.getTickCount();
+    const uint64_t firstTick = tickCount - static_cast<uint64_t>(ticksThisFrame) + 1U;
+    for (uint64_t tickIndex = firstTick; tickIndex <= tickCount; ++tickIndex) {
+        systemRegistry.runTick(tickIndex);
+    }
 }
 
 void Application::renderFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    renderGameUi(simClock, worldConfig, chunkStore);
+    renderGameUi(simClock, worldConfig, chunkStore, systemRegistry, viewportPickState);
     ImGui::Render();
     int framebufferWidth = 0;
     int framebufferHeight = 0;

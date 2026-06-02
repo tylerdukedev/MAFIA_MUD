@@ -11,6 +11,8 @@ public:
     void setPaused(bool paused);
     void togglePaused();
     void stepOneTick();
+    void setSpeedMultiplier(double multiplier);
+    double getSpeedMultiplier() const;
     bool isPaused() const;
     double getTickRateHz() const;
     uint64_t getTickCount() const;
@@ -21,6 +23,7 @@ private:
     double tickRateHz;
     double tickIntervalSeconds;
     double accumulatorSeconds;
+    double speedMultiplier;
     uint64_t tickCount;
     bool paused;
     bool stepRequested;

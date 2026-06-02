@@ -37,3 +37,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 See `docs/DEVELOPMENT_PLAN.md` for the phased roadmap.
+
+## UI docking
+
+Panels are dockable (drag to edges to snap). Layout persists to `capitalvice_layout.ini`. Use **View → Reset Panel Layout** to restore defaults.
+
+ImGui is fetched from the official `docking` branch via CMake FetchContent (first configure may take longer).
