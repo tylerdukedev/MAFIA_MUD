@@ -17,11 +17,12 @@ struct MapSeed {
 };
 
 constexpr MapSeed MAP_SEEDS[] = {
-    {RegionId::Manhattan, 0.555f, 0.150f, 2.70f, 0.80f, false},
-    {RegionId::Manhattan, 0.550f, 0.220f, 2.70f, 0.80f, false},
-    {RegionId::Manhattan, 0.540f, 0.320f, 2.70f, 0.80f, false},
-    {RegionId::Manhattan, 0.528f, 0.420f, 2.70f, 0.80f, false},
-    {RegionId::Manhattan, 0.520f, 0.500f, 2.70f, 0.80f, false},
+    {RegionId::Manhattan, 0.548f, 0.150f, 3.40f, 0.70f, false},
+    {RegionId::Manhattan, 0.540f, 0.225f, 3.40f, 0.70f, false},
+    {RegionId::Manhattan, 0.531f, 0.300f, 3.40f, 0.70f, false},
+    {RegionId::Manhattan, 0.522f, 0.375f, 3.40f, 0.70f, false},
+    {RegionId::Manhattan, 0.514f, 0.450f, 3.40f, 0.70f, false},
+    {RegionId::Manhattan, 0.508f, 0.515f, 3.40f, 0.70f, false},
     {RegionId::Bronx, 0.640f, 0.080f, 1.0f, 1.0f, false},
     {RegionId::Bronx, 0.710f, 0.110f, 1.0f, 1.0f, false},
     {RegionId::Bronx, 0.660f, 0.160f, 1.0f, 1.0f, false},
@@ -29,9 +30,9 @@ constexpr MapSeed MAP_SEEDS[] = {
     {RegionId::Queens, 0.850f, 0.250f, 1.0f, 1.0f, false},
     {RegionId::Queens, 0.720f, 0.280f, 1.0f, 1.0f, false},
     {RegionId::Queens, 0.810f, 0.320f, 1.0f, 1.0f, false},
-    {RegionId::Queens, 0.890f, 0.340f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.855f, 0.340f, 1.0f, 1.0f, false},
     {RegionId::Queens, 0.740f, 0.380f, 1.0f, 1.0f, false},
-    {RegionId::Queens, 0.860f, 0.440f, 1.0f, 1.0f, false},
+    {RegionId::Queens, 0.840f, 0.440f, 1.0f, 1.0f, false},
     {RegionId::Queens, 0.780f, 0.500f, 1.0f, 1.0f, false},
     {RegionId::Queens, 0.840f, 0.580f, 1.0f, 1.0f, false},
     {RegionId::Queens, 0.720f, 0.460f, 1.0f, 1.0f, false},
@@ -50,33 +51,35 @@ constexpr MapSeed MAP_SEEDS[] = {
     {RegionId::NewJersey, 0.060f, 0.280f, 1.0f, 1.0f, false},
     {RegionId::NewJersey, 0.100f, 0.500f, 1.0f, 1.0f, false},
     {RegionId::NewJersey, 0.300f, 0.250f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.340f, 0.560f, 1.0f, 1.0f, false},
+    {RegionId::NewJersey, 0.310f, 0.700f, 1.0f, 1.0f, false},
     {RegionId::Westchester, 0.430f, 0.030f, 1.0f, 1.0f, false},
     {RegionId::Westchester, 0.490f, 0.040f, 1.0f, 1.0f, false},
     {RegionId::Westchester, 0.560f, 0.020f, 1.0f, 1.0f, false},
     {RegionId::Westchester, 0.320f, 0.040f, 1.0f, 1.0f, false},
     {RegionId::Westchester, 0.700f, 0.030f, 1.0f, 1.0f, false},
     {RegionId::Westchester, 0.800f, 0.060f, 1.0f, 1.0f, false},
-    {RegionId::LongIsland, 0.960f, 0.260f, 1.0f, 1.0f, false},
-    {RegionId::LongIsland, 0.975f, 0.460f, 1.0f, 1.0f, false},
-    {RegionId::LongIsland, 0.955f, 0.150f, 1.0f, 1.0f, false},
-    {RegionId::LongIsland, 0.985f, 0.360f, 1.0f, 1.0f, false},
-    {RegionId::LongIsland, 0.945f, 0.580f, 1.0f, 1.0f, false},
-    {RegionId::None, 0.450f, 0.640f, 1.0f, 1.0f, true},
-    {RegionId::None, 0.420f, 0.720f, 1.0f, 1.0f, true},
-    {RegionId::None, 0.490f, 0.580f, 1.0f, 1.0f, true},
-    {RegionId::None, 0.520f, 0.800f, 1.0f, 1.0f, true},
-    {RegionId::None, 0.380f, 0.840f, 1.0f, 1.0f, true},
-    {RegionId::None, 0.300f, 0.930f, 1.0f, 1.0f, true},
-    {RegionId::None, 0.620f, 0.920f, 1.0f, 1.0f, true},
-    {RegionId::None, 0.150f, 0.900f, 1.0f, 1.0f, true},
-    {RegionId::None, 0.880f, 0.770f, 1.0f, 1.0f, true},
+    {RegionId::LongIsland, 0.920f, 0.250f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.940f, 0.450f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.915f, 0.150f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.950f, 0.350f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.930f, 0.580f, 1.0f, 1.0f, false},
+    {RegionId::LongIsland, 0.955f, 0.680f, 1.0f, 1.0f, false},
+    {RegionId::None, 0.430f, 0.620f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.400f, 0.690f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.470f, 0.575f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.385f, 0.715f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.300f, 0.960f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.620f, 0.965f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.150f, 0.945f, 1.0f, 1.0f, true},
+    {RegionId::None, 0.900f, 0.800f, 1.0f, 1.0f, true},
 };
-constexpr int32_t MAP_SEED_COUNT = 53;
+constexpr int32_t MAP_SEED_COUNT = 56;
 
 constexpr float WARP_STRENGTH = 0.050f;
 constexpr float WARP_FREQUENCY = 3.0f;
-constexpr float RIVER_CHANNEL = 0.018f;
-constexpr float ATLANTIC_BASE = 0.900f;
+constexpr float RIVER_CHANNEL = 0.012f;
+constexpr float ATLANTIC_BASE = 0.945f;
 constexpr float ATLANTIC_NOISE = 0.035f;
 constexpr int32_t AVENUE_SPACING = 11;
 constexpr int32_t STREET_SPACING = 5;
