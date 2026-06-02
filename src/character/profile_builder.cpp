@@ -198,7 +198,7 @@ void buildCharacterDescription(char* outBuffer, size_t bufferSize, const Charact
     std::snprintf(
         outBuffer,
         bufferSize,
-        "%s, age %d — %s from %.*s. Background: %.*s.",
+        "%s, age %d - %s from %.*s. Background: %.*s.",
         draft.nameBuffer,
         draft.age,
         identityBuffer,

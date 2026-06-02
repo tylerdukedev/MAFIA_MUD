@@ -6,6 +6,7 @@
 #include "sim/system_registry.h"
 #include "ui/game_ui.h"
 #include "ui/help_manual.h"
+#include "ui/context_help.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
 #include "world/chunk_store.h"
@@ -41,6 +42,7 @@ private:
     CharacterDraft characterDraft;
     PlayerProfile playerProfile;
     HelpManualState helpManualState;
+    ContextHelpState contextHelpState;
     uint64_t worldSeed;
     FrontendScreen frontendScreen;
     bool isWorldReady;

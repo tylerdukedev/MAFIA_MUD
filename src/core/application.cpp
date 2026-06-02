@@ -172,6 +172,7 @@ void Application::renderFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+    updateContextHelpMode(contextHelpState);
     const bool hasSaveFile = saveFileExists(DEFAULT_SAVE_FILENAME);
     ApplicationMenuBarParams menuBarParams{};
     menuBarParams.screen = frontendScreen;
@@ -221,8 +222,12 @@ void Application::renderFrame() {
             systemRegistry,
             mapCamera,
             viewportPickState,
-            worldSeed);
+            worldSeed,
+            playerProfile,
+            contextHelpState);
     }
+    renderContextHelpCursorOverlay(contextHelpState);
+    renderContextHelpInspectPopup(contextHelpState, helpManualState);
 #if defined(CAPITALVICE_DEV_CONSOLE)
     devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile);
 #endif

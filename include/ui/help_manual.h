@@ -20,6 +20,8 @@ struct HelpManualState {
 
 int32_t getHelpManualTopicCount();
 const HelpManualTopic* getHelpManualTopic(int32_t topicIndex);
+int32_t findHelpManualTopicIndexById(const char* topicId);
+void openHelpManualTopic(HelpManualState& state, const char* topicId);
 void renderHelpManualWindow(HelpManualState& state);
 
 } // namespace Core

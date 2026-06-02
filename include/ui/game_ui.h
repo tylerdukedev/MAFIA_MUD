@@ -1,8 +1,10 @@
 #pragma once
 
 #include "character/character_draft.h"
+#include "character/player_profile.h"
 #include "core/sim_clock.h"
 #include "sim/system_registry.h"
+#include "ui/context_help.h"
 #include "ui/help_manual.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
@@ -53,6 +55,8 @@ void renderGameUi(
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
-    uint64_t worldSeed);
+    uint64_t worldSeed,
+    const PlayerProfile& playerProfile,
+    ContextHelpState& contextHelpState);
 
 } // namespace Core

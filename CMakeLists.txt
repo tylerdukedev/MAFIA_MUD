@@ -9,6 +9,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto")
 endif()
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
 
 # --- Dependencies ---
 include(FetchContent)
@@ -78,6 +81,7 @@ set(CAPITAL_VICE_SOURCES
     src/ui/map_camera.cpp
     src/ui/map_renderer.cpp
     src/ui/help_manual.cpp
+    src/ui/context_help.cpp
     src/ui/game_ui.cpp
     ${CHARACTER_SOURCES}
 )

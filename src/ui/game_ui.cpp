@@ -1,6 +1,7 @@
 #include "ui/map_renderer.h"
 #include "ui/game_ui.h"
 #include "ui/help_manual.h"
+#include "ui/context_help.h"
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
 #include <cstdio>
@@ -227,6 +228,7 @@ ApplicationMenuBarEvents renderApplicationMenuBar(const ApplicationMenuBarParams
                 params.helpManualState->isOpen = !manualOpen;
             }
         }
+        ImGui::MenuItem("Inspect Mode", "Hold Ctrl", false, false);
         ImGui::Separator();
         ImGui::BeginDisabled();
         ImGui::MenuItem("About Capital Vice");
@@ -239,25 +241,47 @@ ApplicationMenuBarEvents renderApplicationMenuBar(const ApplicationMenuBarParams
 
 namespace {
 
-void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
+void renderSimulationPanel(
+    SimClock& simClock,
+    const WorldConfig& worldConfig,
+    const ChunkStore& chunkStore,
+    const SystemRegistry& systemRegistry,
+    uint64_t worldSeed,
+    ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Simulation")) {
+        contextHelpPanelTag(
+            "Simulation Panel",
+            "Clock status, speed controls, and world summary.",
+            "sim_clock",
+            contextHelpState);
         if (saveLoadStatusMessage[0] != '\0') {
             ImGui::TextWrapped("%s", saveLoadStatusMessage);
             ImGui::Separator();
         }
-        ImGui::Text("Phase 5 — Five Boroughs");
+        ImGui::Text("Phase 5 - Five Boroughs");
         ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
         ImGui::Text("Window: %.0f x %.0f", ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
-        ImGui::Text("Sim: %s", simClock.isPaused() ? "PAUSED" : "RUNNING");
-        ImGui::Text("Tick rate: %.0f Hz", simClock.getTickRateHz());
+        char simStatusLine[32];
+        std::snprintf(simStatusLine, sizeof(simStatusLine), "Sim: %s", simClock.isPaused() ? "PAUSED" : "RUNNING");
+        contextHelpTextLine(
+            simStatusLine,
+            "Pause with Space or the Simulation menu. While paused, S steps one tick.",
+            "sim_clock",
+            contextHelpState);
+        char tickRateLine[32];
+        std::snprintf(tickRateLine, sizeof(tickRateLine), "Tick rate: %.0f Hz", simClock.getTickRateHz());
+        contextHelpTextLine(tickRateLine, "Fixed simulation rate. Multiple ticks may run per frame at high speed.", "sim_clock", contextHelpState);
         ImGui::Text("Speed: %.2fx", simClock.getSpeedMultiplier());
         ImGui::Text("Tick count: %llu", static_cast<unsigned long long>(simClock.getTickCount()));
         ImGui::Text("Ticks this frame: %d", simClock.getTicksThisFrame());
         ImGui::Separator();
         ImGui::Text("Speed multiplier");
+        if (contextHelpState.isInspectMode) {
+            ImGui::BeginDisabled();
+        }
         for (int32_t index = 0; index < SPEED_OPTION_COUNT; ++index) {
             const float speedOption = SPEED_OPTIONS[index];
             char labelBuffer[16];
@@ -269,14 +293,24 @@ void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, c
                 ImGui::SameLine();
             }
         }
+        if (contextHelpState.isInspectMode) {
+            ImGui::EndDisabled();
+        }
         ImGui::Separator();
+        contextHelpTextLine(
+            "World tile grid",
+            "512x512 world stored in ChunkStore. See World Data in the Manual.",
+            "world_data",
+            contextHelpState);
         ImGui::Text("World: %d x %d tiles", worldConfig.WORLD_WIDTH_TILES, worldConfig.WORLD_HEIGHT_TILES);
         ImGui::Text("Chunk size: %d x %d", worldConfig.CHUNK_SIZE, worldConfig.CHUNK_SIZE);
         ImGui::Text("Chunks: %d x %d (%d total)", worldConfig.CHUNK_COUNT_X, worldConfig.CHUNK_COUNT_Y, chunkStore.getTotalChunkCount());
         ImGui::Text("Active chunks: %d", chunkStore.getActiveChunkCount());
         ImGui::Text("Boroughs: %d", RegionTable::getPlayableRegionCount());
         ImGui::Separator();
-        ImGui::Text("Systems: %d", systemRegistry.getSystemCount());
+        char systemsLine[32];
+        std::snprintf(systemsLine, sizeof(systemsLine), "Systems: %d", systemRegistry.getSystemCount());
+        contextHelpTextLine(systemsLine, "Registered simulation systems called each tick.", "system_registry", contextHelpState);
         for (int32_t index = 0; index < systemRegistry.getSystemCount(); ++index) {
             const ISimSystem* system = systemRegistry.getSystem(index);
             if (system != nullptr) {
@@ -284,14 +318,235 @@ void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, c
             }
         }
         ImGui::Separator();
-        ImGui::TextDisabled("Space = pause/resume | S = step tick");
+        ImGui::TextDisabled("Space = pause/resume | S = step tick | Ctrl = inspect help");
     }
     ImGui::End();
 }
 
-void renderBoroughsPanel() {
+void renderCharacterPanel(const PlayerProfile& playerProfile, ContextHelpState& contextHelpState) {
+    ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 400.0f), ImVec2(FLT_MAX, FLT_MAX));
+    if (ImGui::Begin("Character")) {
+        contextHelpPanelTag(
+            "Character Panel",
+            "Your identity and foundational trait profile during play.",
+            "character_panel",
+            contextHelpState);
+        char identityBuffer[96];
+        buildIdentityLabel(identityBuffer, sizeof(identityBuffer), playerProfile.draft);
+        char descriptionBuffer[256];
+        buildCharacterDescription(descriptionBuffer, sizeof(descriptionBuffer), playerProfile.draft);
+        contextHelpSectionHeader(
+            "Identity",
+            "Core choices from character creation.",
+            "profile_overview",
+            contextHelpState);
+        char nameLine[48];
+        std::snprintf(nameLine, sizeof(nameLine), "Name: %s", playerProfile.draft.nameBuffer);
+        contextHelpTextLine(nameLine, "Display name shown in descriptions and reports.", "char_name", contextHelpState);
+        char ageLine[24];
+        std::snprintf(ageLine, sizeof(ageLine), "Age: %d", playerProfile.draft.age);
+        contextHelpTextLine(ageLine, "Age nudges street vs institutional opportunity paths.", "profile_builder", contextHelpState);
+        char nationalityLine[64];
+        std::snprintf(
+            nationalityLine,
+            sizeof(nationalityLine),
+            "Nationality: %.*s",
+            static_cast<int>(getNationalityName(playerProfile.draft.nationalityId).size()),
+            getNationalityName(playerProfile.draft.nationalityId).data());
+        contextHelpTextLine(nationalityLine, "Citizenship and passport context for legitimacy and language.", "profile_builder", contextHelpState);
+        char heritageLine[64];
+        std::snprintf(
+            heritageLine,
+            sizeof(heritageLine),
+            "Heritage: %.*s",
+            static_cast<int>(getHeritageName(playerProfile.draft.heritageId).size()),
+            getHeritageName(playerProfile.draft.heritageId).data());
+        contextHelpTextLine(heritageLine, "Ethnic heritage nudges network and cultural stats.", "profile_builder", contextHelpState);
+        char generationLine[64];
+        std::snprintf(
+            generationLine,
+            sizeof(generationLine),
+            "Generation: %.*s",
+            static_cast<int>(getGenerationName(playerProfile.draft.generationId).size()),
+            getGenerationName(playerProfile.draft.generationId).data());
+        contextHelpTextLine(generationLine, "Generation sets the base tradeoff for all trait axes.", "char_generation", contextHelpState);
+        char backgroundLine[64];
+        std::snprintf(
+            backgroundLine,
+            sizeof(backgroundLine),
+            "Background: %.*s",
+            static_cast<int>(getBackgroundName(playerProfile.draft.backgroundId).size()),
+            getBackgroundName(playerProfile.draft.backgroundId).data());
+        contextHelpTextLine(backgroundLine, "Starting career path before the story begins.", "profile_builder", contextHelpState);
+        char boroughLine[64];
+        std::snprintf(
+            boroughLine,
+            sizeof(boroughLine),
+            "Borough: %.*s",
+            static_cast<int>(getBoroughPreferenceName(playerProfile.draft.selectedBoroughIndex).size()),
+            getBoroughPreferenceName(playerProfile.draft.selectedBoroughIndex).data());
+        contextHelpTextLine(boroughLine, "Preferred starting borough. Gameplay territory links come later.", "profile_builder", contextHelpState);
+        char identityLine[128];
+        std::snprintf(identityLine, sizeof(identityLine), "Identity label: %s", identityBuffer);
+        contextHelpTextLine(identityLine, "Short identity string built from generation and heritage.", "profile_overview", contextHelpState);
+        contextHelpSectionHeader("Description", "Narrative summary from your draft.", "char_creation", contextHelpState);
+        contextHelpWrappedText(descriptionBuffer, "Character description", "Full prose summary of your character.", "char_creation", contextHelpState);
+        contextHelpSectionHeader(
+            "Foundational Traits",
+            "Trait axes are one profile layer among future systems.",
+            "trait_axes",
+            contextHelpState);
+        ImGui::TextDisabled("Hover for tooltips. Hold Ctrl and click for Manual links.");
+        if (ImGui::CollapsingHeader("Network Access", ImGuiTreeNodeFlags_DefaultOpen)) {
+            contextHelpStatBar(
+                "Ethnic Network",
+                playerProfile.networkAccess.ethnicNetwork,
+                "Enclave contacts and introductions.",
+                "stat_ethnic_network",
+                contextHelpState);
+            contextHelpStatBar(
+                "Political Machine",
+                playerProfile.networkAccess.politicalMachine,
+                "Ward bosses and patronage access.",
+                "stat_political_machine",
+                contextHelpState);
+            contextHelpStatBar(
+                "Law Enforcement Channel",
+                playerProfile.networkAccess.lawEnforcementChannel,
+                "Informal police and clerk influence.",
+                "stat_law_channel",
+                contextHelpState);
+            contextHelpStatBar(
+                "Business Association",
+                playerProfile.networkAccess.businessAssociation,
+                "Trade groups and supplier ties.",
+                "stat_business_assoc",
+                contextHelpState);
+            contextHelpStatBar(
+                "Import Pipeline",
+                playerProfile.networkAccess.importPipeline,
+                "Smuggling and freight routes.",
+                "stat_import_pipeline",
+                contextHelpState);
+        }
+        if (ImGui::CollapsingHeader("Legitimacy", ImGuiTreeNodeFlags_DefaultOpen)) {
+            contextHelpStatBar(
+                "Police Attention Decay",
+                playerProfile.legitimacy.policeAttentionDecay,
+                "How fast heat cools when quiet.",
+                "stat_police_decay",
+                contextHelpState);
+            contextHelpStatBar(
+                "Shell Company Ease",
+                playerProfile.legitimacy.shellCompanyEase,
+                "Speed of standing up fronts.",
+                "stat_shell_company",
+                contextHelpState);
+            contextHelpStatBar(
+                "Public Job Access",
+                playerProfile.legitimacy.publicFacingJobAccess,
+                "Respectable cover employment.",
+                "stat_public_job",
+                contextHelpState);
+            contextHelpStatBar(
+                "Mainstream Suspicion",
+                playerProfile.legitimacy.mainstreamSuspicion,
+                "Baseline scrutiny from society.",
+                "stat_mainstream_suspicion",
+                contextHelpState);
+        }
+        if (ImGui::CollapsingHeader("Loyalty Bias", ImGuiTreeNodeFlags_DefaultOpen)) {
+            contextHelpStatBar(
+                "Faction Resistance",
+                playerProfile.loyaltyBias.ethnicFactionResistance,
+                "Pushback against rival factions.",
+                "stat_faction_resist",
+                contextHelpState);
+            contextHelpStatBar(
+                "Kin Alliance",
+                playerProfile.loyaltyBias.kinAlliancePreference,
+                "Family-first loyalty tendency.",
+                "stat_kin_alliance",
+                contextHelpState);
+            contextHelpStatBar(
+                "Detection Risk",
+                playerProfile.loyaltyBias.mainstreamDetectionRisk,
+                "Risk mainstream detects organized ties.",
+                "stat_detection_risk",
+                contextHelpState);
+            contextHelpStatBar(
+                "Individualistic Loyalty",
+                playerProfile.loyaltyBias.individualisticLoyalty,
+                "Personal gain over group duty.",
+                "stat_individual_loyalty",
+                contextHelpState);
+        }
+        if (ImGui::CollapsingHeader("Cultural Competency", ImGuiTreeNodeFlags_DefaultOpen)) {
+            contextHelpStatBar(
+                "In-Group Negotiation",
+                playerProfile.culturalCompetency.inGroupNegotiation,
+                "Deals inside your heritage group.",
+                "stat_in_group_neg",
+                contextHelpState);
+            contextHelpStatBar(
+                "Out-Group Negotiation",
+                playerProfile.culturalCompetency.outGroupNegotiation,
+                "Deals with outsiders and officials.",
+                "stat_out_group_neg",
+                contextHelpState);
+            contextHelpStatBar(
+                "Cross-Ethnic Penalty",
+                playerProfile.culturalCompetency.crossEthnicPenalty,
+                "Friction working across ethnic lines.",
+                "stat_cross_ethnic",
+                contextHelpState);
+            contextHelpStatBar(
+                "Language Access",
+                playerProfile.culturalCompetency.languageAccess,
+                "Mainstream language proficiency.",
+                "stat_language",
+                contextHelpState);
+            contextHelpStatBar(
+                "Translate Bonus",
+                playerProfile.culturalCompetency.translateBonus,
+                "Edge when using intermediaries.",
+                "stat_translate",
+                contextHelpState);
+        }
+        if (ImGui::CollapsingHeader("Opportunity Paths", ImGuiTreeNodeFlags_DefaultOpen)) {
+            contextHelpStatBar(
+                "Street Crime Path",
+                playerProfile.opportunityPaths.streetCrimePath,
+                "Street-level criminal aptitude.",
+                "stat_street_crime",
+                contextHelpState);
+            contextHelpStatBar(
+                "Organizer Path",
+                playerProfile.opportunityPaths.organizerPath,
+                "Crew and neighborhood organizing.",
+                "stat_organizer",
+                contextHelpState);
+            contextHelpStatBar(
+                "Institutional Path",
+                playerProfile.opportunityPaths.institutionalPath,
+                "Unions, offices, institutional graft.",
+                "stat_institutional",
+                contextHelpState);
+            contextHelpStatBar(
+                "Corporate Path",
+                playerProfile.opportunityPaths.corporatePath,
+                "Finance and corporate infiltration.",
+                "stat_corporate",
+                contextHelpState);
+        }
+    }
+    ImGui::End();
+}
+
+void renderBoroughsPanel(ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Boroughs")) {
+        contextHelpPanelTag("Boroughs Panel", "Reference list of playable borough names.", "boroughs", contextHelpState);
         for (int32_t regionIndex = 1; regionIndex < static_cast<int32_t>(RegionId::COUNT); ++regionIndex) {
             const auto regionId = static_cast<RegionId>(regionIndex);
             ImGui::BulletText("%s (%s)", RegionTable::getRegionName(regionId).data(), RegionTable::getRegionShortName(regionId).data());
@@ -300,9 +555,14 @@ void renderBoroughsPanel() {
     ImGui::End();
 }
 
-void renderTileInspectorPanel(const WorldConfig& worldConfig, const ChunkStore& chunkStore, const ViewportPickState& viewportPickState) {
+void renderTileInspectorPanel(
+    const WorldConfig& worldConfig,
+    const ChunkStore& chunkStore,
+    const ViewportPickState& viewportPickState,
+    ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 140.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Tile Inspector")) {
+        contextHelpPanelTag("Tile Inspector", "Details for the hovered or selected map tile.", "tile_inspector", contextHelpState);
         if (!viewportPickState.hasHover && !viewportPickState.hasSelection) {
             ImGui::TextDisabled("Hover or click the map viewport to inspect tiles.");
         } else {
@@ -342,9 +602,11 @@ void renderMapViewportPanel(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     MapCamera& mapCamera,
-    ViewportPickState& viewportPickState) {
+    ViewportPickState& viewportPickState,
+    ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Map Viewport")) {
+        contextHelpPanelTag("Map Viewport", "Pan, zoom, and pick tiles on the world map.", "map_viewport", contextHelpState);
         static bool isCameraInitialized = false;
         const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
@@ -363,16 +625,17 @@ void renderMapViewportPanel(
         drawList->AddRectFilled(canvasPos, canvasMax, IM_COL32(12, 14, 18, 255));
         if (isCanvasHovered) {
             ImGuiIO& io = ImGui::GetIO();
-            if (io.MouseWheel != 0.0f) {
+            if (!contextHelpState.isInspectMode && io.MouseWheel != 0.0f) {
                 float focusWorldX = 0.0f;
                 float focusWorldY = 0.0f;
                 mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, focusWorldX, focusWorldY);
                 const float zoomFactor = io.MouseWheel > 0.0f ? ZOOM_WHEEL_FACTOR : (1.0f / ZOOM_WHEEL_FACTOR);
                 mapCamera.zoomAt(zoomFactor, focusWorldX, focusWorldY);
             }
-            const bool isPanning = ImGui::IsMouseDragging(ImGuiMouseButton_Middle)
+            const bool isPanning = !contextHelpState.isInspectMode
+                && (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)
                 || ImGui::IsMouseDragging(ImGuiMouseButton_Right)
-                || ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+                || ImGui::IsMouseDragging(ImGuiMouseButton_Left));
             if (isPanning) {
                 mapCamera.panPixels(io.MouseDelta.x, io.MouseDelta.y);
             } else {
@@ -381,7 +644,7 @@ void renderMapViewportPanel(
                 mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
                 const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
                 updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
-                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                     updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
                 }
             }
@@ -458,12 +721,15 @@ void renderGameUi(
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
-    uint64_t worldSeed) {
+    uint64_t worldSeed,
+    const PlayerProfile& playerProfile,
+    ContextHelpState& contextHelpState) {
     beginMainDockSpace();
-    renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
-    renderBoroughsPanel();
-    renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState);
-    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState);
+    renderCharacterPanel(playerProfile, contextHelpState);
+    renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed, contextHelpState);
+    renderBoroughsPanel(contextHelpState);
+    renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState, contextHelpState);
+    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, contextHelpState);
 }
 
 } // namespace Core
