@@ -154,7 +154,7 @@ void Application::renderFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    renderGameUi(simClock, worldConfig, chunkStore, systemRegistry, viewportPickState, worldSeed);
+    renderGameUi(simClock, worldConfig, chunkStore, systemRegistry, mapCamera, viewportPickState, worldSeed);
     ImGui::Render();
     int framebufferWidth = 0;
     int framebufferHeight = 0;

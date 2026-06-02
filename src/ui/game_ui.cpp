@@ -1,3 +1,4 @@
+#include "ui/map_renderer.h"
 #include "ui/game_ui.h"
 #include <cstdio>
 #include <cfloat>
@@ -12,6 +13,7 @@ constexpr float MIN_WINDOW_WIDTH = 960.0f;
 constexpr float MIN_WINDOW_HEIGHT = 540.0f;
 constexpr float SPEED_OPTIONS[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
 constexpr int32_t SPEED_OPTION_COUNT = 5;
+constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
 
 void renderMainMenu(SimClock& simClock) {
     if (!ImGui::BeginMainMenuBar()) {
@@ -38,7 +40,7 @@ void renderMainMenu(SimClock& simClock) {
 void renderSimulationPanel(SimClock& simClock, const WorldConfig& worldConfig, const ChunkStore& chunkStore, const SystemRegistry& systemRegistry, uint64_t worldSeed) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Simulation")) {
-        ImGui::Text("Phase 3 — Procgen v1");
+        ImGui::Text("Phase 4 — Map Renderer");
         ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
@@ -116,41 +118,78 @@ void renderTileInspectorPanel(const WorldConfig& worldConfig, const ChunkStore& 
     ImGui::End();
 }
 
-void renderMapViewportPanel(const WorldConfig& worldConfig, ViewportPickState& viewportPickState) {
+void updateViewportPickFromWorldCoord(ViewportPickState& viewportPickState, const WorldConfig& worldConfig, const WorldCoord& coord, bool isSelection) {
+    if (!worldConfig.isWithinWorldBounds(coord)) {
+        viewportPickState.hasHover = false;
+        return;
+    }
+    viewportPickState.hoveredCoord = coord;
+    viewportPickState.hasHover = true;
+    if (isSelection) {
+        viewportPickState.selectedCoord = coord;
+        viewportPickState.hasSelection = true;
+    }
+}
+
+void renderMapViewportPanel(
+    const WorldConfig& worldConfig,
+    const ChunkStore& chunkStore,
+    MapCamera& mapCamera,
+    ViewportPickState& viewportPickState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Map Viewport")) {
-        ImGui::TextDisabled("Map renderer arrives in Phase 4. Drag panels to dock edges to rearrange.");
+        static bool isCameraInitialized = false;
         const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
+        if (!isCameraInitialized && canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
+            mapCamera.fitToWorld(worldConfig.WORLD_WIDTH_TILES, worldConfig.WORLD_HEIGHT_TILES, canvasSize.x, canvasSize.y);
+            isCameraInitialized = true;
+        }
+        ImGui::InvisibleButton(
+            "map_viewport_canvas",
+            canvasSize,
+            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle | ImGuiButtonFlags_MouseButtonRight);
+        const bool isCanvasHovered = ImGui::IsItemHovered();
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImVec2 canvasMax(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
+        drawList->PushClipRect(canvasPos, canvasMax, true);
+        drawList->AddRectFilled(canvasPos, canvasMax, IM_COL32(12, 14, 18, 255));
         if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
-            ImGui::InvisibleButton("map_viewport_canvas", canvasSize, ImGuiButtonFlags_MouseButtonLeft);
-            const bool isCanvasHovered = ImGui::IsItemHovered();
-            const ImU32 backgroundColor = ImGui::GetColorU32(ImVec4(0.06f, 0.07f, 0.09f, 1.0f));
-            const ImU32 borderColor = ImGui::GetColorU32(ImVec4(0.22f, 0.24f, 0.28f, 1.0f));
-            ImGui::GetWindowDrawList()->AddRectFilled(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), backgroundColor);
-            ImGui::GetWindowDrawList()->AddRect(canvasPos, ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y), borderColor);
-            viewportPickState.hasHover = false;
-            if (isCanvasHovered) {
-                const ImVec2 mousePos = ImGui::GetIO().MousePos;
-                const float normalizedX = (mousePos.x - canvasPos.x) / canvasSize.x;
-                const float normalizedY = (mousePos.y - canvasPos.y) / canvasSize.y;
-                if (normalizedX >= 0.0f && normalizedX <= 1.0f && normalizedY >= 0.0f && normalizedY <= 1.0f) {
-                    WorldCoord coord;
-                    coord.x = static_cast<int32_t>(normalizedX * static_cast<float>(worldConfig.WORLD_WIDTH_TILES - 1));
-                    coord.y = static_cast<int32_t>(normalizedY * static_cast<float>(worldConfig.WORLD_HEIGHT_TILES - 1));
-                    viewportPickState.hoveredCoord = coord;
-                    viewportPickState.hasHover = true;
-                    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                        viewportPickState.selectedCoord = coord;
-                        viewportPickState.hasSelection = true;
-                    }
-                    char overlayBuffer[64];
-                    std::snprintf(overlayBuffer, sizeof(overlayBuffer), "(%d, %d)", coord.x, coord.y);
-                    ImGui::GetWindowDrawList()->AddText(ImVec2(canvasPos.x + 8.0f, canvasPos.y + 8.0f), ImGui::GetColorU32(ImVec4(0.85f, 0.88f, 0.92f, 1.0f)), "Hover tile");
-                    ImGui::GetWindowDrawList()->AddText(ImVec2(canvasPos.x + 8.0f, canvasPos.y + 24.0f), ImGui::GetColorU32(ImVec4(0.65f, 0.70f, 0.78f, 1.0f)), overlayBuffer);
+            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
+        }
+        drawList->PopClipRect();
+        if (isCanvasHovered) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (io.MouseWheel != 0.0f) {
+                float focusWorldX = 0.0f;
+                float focusWorldY = 0.0f;
+                mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, focusWorldX, focusWorldY);
+                const float zoomFactor = io.MouseWheel > 0.0f ? ZOOM_WHEEL_FACTOR : (1.0f / ZOOM_WHEEL_FACTOR);
+                mapCamera.zoomAt(zoomFactor, focusWorldX, focusWorldY);
+            }
+            const bool isPanning = ImGui::IsMouseDragging(ImGuiMouseButton_Middle)
+                || ImGui::IsMouseDragging(ImGuiMouseButton_Right)
+                || ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+            if (isPanning) {
+                mapCamera.panPixels(io.MouseDelta.x, io.MouseDelta.y);
+            } else {
+                float worldX = 0.0f;
+                float worldY = 0.0f;
+                mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
+                const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
+                updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                    updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
                 }
             }
-        } else {
+            char overlayBuffer[96];
+            std::snprintf(
+                overlayBuffer,
+                sizeof(overlayBuffer),
+                "Scroll: zoom | Drag: pan | Zoom: %.2f px/tile",
+                mapCamera.pixelsPerTile);
+            drawList->AddText(ImVec2(canvasPos.x + 8.0f, canvasPos.y + 8.0f), IM_COL32(220, 224, 232, 230), overlayBuffer);
+        } else if (!isCanvasHovered) {
             viewportPickState.hasHover = false;
         }
     } else {
@@ -163,8 +202,9 @@ void renderMapViewportPanel(const WorldConfig& worldConfig, ViewportPickState& v
 void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
-    ChunkStore& chunkStore,
+    const ChunkStore& chunkStore,
     SystemRegistry& systemRegistry,
+    MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
     uint64_t worldSeed) {
     renderMainMenu(simClock);
@@ -172,7 +212,7 @@ void renderGameUi(
     renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed);
     renderRegionsPanel();
     renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState);
-    renderMapViewportPanel(worldConfig, viewportPickState);
+    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState);
 }
 
 } // namespace Core
