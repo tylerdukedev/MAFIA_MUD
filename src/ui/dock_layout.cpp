@@ -6,7 +6,7 @@ namespace Core {
 
 namespace {
 constexpr const char* DOCKSPACE_WINDOW_NAME = "CapitalViceDockSpace";
-constexpr const char* DOCKSPACE_HOST_ID = "CapitalViceDockSpaceHostV4";
+constexpr const char* DOCKSPACE_HOST_ID = "CapitalViceDockSpaceHostV5";
 constexpr const char* WINDOW_SIMULATION = "Simulation";
 constexpr const char* WINDOW_CHARACTER = "Character";
 constexpr const char* WINDOW_BOROUGHS = "Boroughs";
@@ -16,12 +16,22 @@ constexpr const char* WINDOW_MAP_VIEWPORT = "Map Viewport";
 constexpr float DOCK_LEFT_WIDTH_FRACTION = 0.18f;
 constexpr float DOCK_RIGHT_WIDTH_FRACTION = 0.18f;
 constexpr float DOCK_BOTTOM_HEIGHT_FRACTION = 0.24f;
+constexpr float DOCK_VIEWPORT_RESIZE_THRESHOLD = 1.0f;
 
 bool isDefaultDockLayoutPending = false;
+ImVec2 cachedDockViewportSize = ImVec2(-1.0f, -1.0f);
+
+bool hasDockViewportSizeChanged(const ImVec2& viewportSize) {
+    if (cachedDockViewportSize.x < 0.0f) {
+        return false;
+    }
+    return ImFabs(cachedDockViewportSize.x - viewportSize.x) > DOCK_VIEWPORT_RESIZE_THRESHOLD
+        || ImFabs(cachedDockViewportSize.y - viewportSize.y) > DOCK_VIEWPORT_RESIZE_THRESHOLD;
+}
 
 void buildDefaultDockLayout(ImGuiID dockspaceId, const ImVec2& dockspaceSize) {
     ImGui::DockBuilderRemoveNode(dockspaceId);
-    ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_None);
+    ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dockspaceId, dockspaceSize);
     ImGuiID dockMainId = dockspaceId;
     ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Left, DOCK_LEFT_WIDTH_FRACTION, nullptr, &dockMainId);
@@ -34,6 +44,19 @@ void buildDefaultDockLayout(ImGuiID dockspaceId, const ImVec2& dockspaceSize) {
     ImGui::DockBuilderDockWindow(WINDOW_CITY, dockBottomId);
     ImGui::DockBuilderDockWindow(WINDOW_MAP_VIEWPORT, dockMainId);
     ImGui::DockBuilderFinish(dockspaceId);
+}
+
+void syncDockLayoutToViewport(ImGuiID dockspaceId, const ImVec2& viewportSize) {
+    if (ImGui::DockBuilderGetNode(dockspaceId) == nullptr) {
+        buildDefaultDockLayout(dockspaceId, viewportSize);
+        cachedDockViewportSize = viewportSize;
+        return;
+    }
+    if (!hasDockViewportSizeChanged(viewportSize)) {
+        return;
+    }
+    buildDefaultDockLayout(dockspaceId, viewportSize);
+    cachedDockViewportSize = viewportSize;
 }
 } // namespace
 
@@ -63,18 +86,19 @@ void beginMainDockSpace() {
     ImGui::Begin(DOCKSPACE_WINDOW_NAME, nullptr, windowFlags);
     ImGui::PopStyleVar(3);
     ImGuiID dockspaceId = ImGui::GetID(DOCKSPACE_HOST_ID);
-    ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
-    ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
-    if (ImGui::DockBuilderGetNode(dockspaceId) == nullptr) {
-        buildDefaultDockLayout(dockspaceId, viewport->WorkSize);
-    }
+    syncDockLayoutToViewport(dockspaceId, viewport->WorkSize);
+    ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoUndocking;
+    const ImVec2 dockSpaceSize = ImGui::GetContentRegionAvail();
+    ImGui::DockSpace(dockspaceId, dockSpaceSize, dockspaceFlags);
     ImGui::End();
 }
 
 void resetDockLayout() {
+    cachedDockViewportSize = ImVec2(-1.0f, -1.0f);
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGuiID dockspaceId = ImGui::GetID(DOCKSPACE_HOST_ID);
     buildDefaultDockLayout(dockspaceId, viewport->WorkSize);
+    cachedDockViewportSize = viewport->WorkSize;
 }
 
 } // namespace Core
