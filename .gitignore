@@ -12,3 +12,4 @@ imgui*.ini
 .idea/
 .DS_Store
 capitalvice_layout.ini
+dist/

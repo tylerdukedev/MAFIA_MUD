@@ -38,6 +38,31 @@ ctest --test-dir build --output-on-failure
 
 See `docs/DEVELOPMENT_PLAN.md` for the phased roadmap.
 
+## Windows installer (easy install)
+
+1. Install [Inno Setup 6](https://jrsoftware.org/isinfo.php) (optional; needed only to build the setup `.exe`).
+2. From the repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
+```
+
+Outputs in `dist/`:
+
+| File | Description |
+|------|-------------|
+| `CapitalVice-Setup-0.1.0.exe` | Full installer (Start menu + uninstaller) |
+| `CapitalVice-Portable-0.1.0.zip` | Unzip and run `capital_vice.exe` (no Inno required) |
+
+The game installs to `Program Files\Capital Vice`. **Saves and settings** go to `%LOCALAPPDATA%\CapitalVice\` so they stay writable without admin rights.
+
+CMake package (no Inno):
+
+```powershell
+cmake --build build --config Release --target capital_vice
+cpack -G ZIP
+```
+
 ## UI docking
 
 Panels are dockable (drag to edges to snap). Layout persists to `capitalvice_layout.ini`. Use **View → Reset Panel Layout** to restore defaults.

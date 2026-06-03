@@ -13,6 +13,7 @@
 #include "game/player_wallet.h"
 #include "persistence/save_gameplay_stores.h"
 #include "persistence/playthrough_archive.h"
+#include "utils/app_paths.h"
 #include "world/city_control.h"
 #include "sim/sim_event_queue.h"
 #include "character/profile_builder.h"
@@ -67,6 +68,7 @@ Application::~Application() {
 }
 
 int Application::run() {
+    initializeApplicationUserDataDirectory();
     glfwSetErrorCallback(glfwErrorCallback);
     if (!glfwInit()) {
         return 1;

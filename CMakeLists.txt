@@ -141,6 +141,7 @@ set(CAPITAL_VICE_SOURCES
     src/ui/game_modal_ui.cpp
     src/procgen/world_generator.cpp
     src/utils/seed_hash.cpp
+    src/utils/app_paths.cpp
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
@@ -174,6 +175,24 @@ endif()
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(capital_vice PRIVATE m)
+endif()
+
+install(TARGETS capital_vice RUNTIME DESTINATION .)
+install(FILES README.md DESTINATION . OPTIONAL)
+install(FILES installer/readme_after_install.txt DESTINATION . OPTIONAL)
+
+include(CPack)
+set(CPACK_PACKAGE_NAME "Capital Vice")
+set(CPACK_PACKAGE_VENDOR "Capital Vice")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "Capital Vice")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/installer/license.txt")
+set(CPACK_GENERATOR "ZIP")
+if(WIN32)
+    list(APPEND CPACK_GENERATOR "NSIS")
+    set(CPACK_NSIS_DISPLAY_NAME "Capital Vice")
+    set(CPACK_NSIS_PACKAGE_NAME "Capital Vice")
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
 endif()
 
 # --- Tests ---

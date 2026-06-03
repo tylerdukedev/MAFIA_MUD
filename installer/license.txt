@@ -1,0 +1,12 @@
+Capital Vice - End User License (Preview Build)
+
+Copyright (c) Capital Vice contributors.
+
+Permission is granted to install and use this preview build for personal,
+non-commercial play and testing.
+
+This software is provided "as is" without warranty of any kind. Saves and
+settings are stored under your user profile (not in the install folder).
+
+Third-party components (Dear ImGui, GLFW, Catch2) are subject to their
+respective licenses in the project repository.
