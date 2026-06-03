@@ -14,7 +14,8 @@ void renderMapTiles(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     const ImVec2& canvasOrigin,
-    const ImVec2& canvasSize);
+    const ImVec2& canvasSize,
+    const WorldCoord* hoveredTileCoord = nullptr);
 
 ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation);
 

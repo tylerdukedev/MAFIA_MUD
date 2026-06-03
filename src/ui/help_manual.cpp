@@ -211,13 +211,44 @@ constexpr const char* P_DISTRICT_PANEL[] = {
 };
 
 constexpr const char* P_LANDMARK_CONTROL[] = {
-    "Districts are designed as always-hot control nodes: higher baseline heat and the highest capture difficulty.",
-    "When territory systems ship, holding districts will weigh more toward borough-wide influence than ordinary tiles.",
-    "Current stats are placeholders; control status shows Unclaimed until gameplay systems connect.",
+    "Districts are always-hot control nodes: higher baseline heat and the highest capture difficulty.",
+    "Holding districts weighs more toward borough-wide influence than ordinary tiles (see LANDMARK_BOROUGH_INFLUENCE_WEIGHT).",
+    "The District panel shows live crime heat and difficulty adjusted by player influence on the landmark tile.",
 };
 
 constexpr const char* P_BOROUGHS[] = {
-    "Lists playable borough names as a reference. Camera jump and filters may come later.",
+    "Lists playable boroughs with live economic health, population, crime, and unemployment bars.",
+    "Metrics refresh when BoroughVitalitySystem runs a full rollup every 40 ticks.",
+};
+
+constexpr const char* P_BOROUGH_VITALITY_OVERVIEW[] = {
+    "Tiles store signals (weight, population, pressures). Boroughs expose the player-facing scoreboard.",
+    "Simulation updates borough population with stock-flow math, then redistributes to tiles by economic weight on rollup.",
+};
+
+constexpr const char* P_TILE_ECONOMIC_WEIGHT[] = {
+    "Economic weight is mostly static from terrain and borough, with Manhattan and landmarks boosting contribution.",
+    "Water tiles have zero weight and do not receive population on redistribution.",
+};
+
+constexpr const char* P_BOROUGH_HEALTH_FORMULA[] = {
+    "Economic health blends weighted business vitality, crime penalty, law stability, player boost, and opposition drag.",
+    "Health is clamped 0-100 and shown in Simulation and Boroughs panels after each rollup pass.",
+};
+
+constexpr const char* P_POPULATION_MODEL[] = {
+    "Births, deaths, and migration run at borough level using economic health and crime rate, not per-tile demography.",
+    "When targets diverge from tile sums, population is redistributed proportionally to economic weight.",
+};
+
+constexpr const char* P_CRIME_LAW_OPPOSITION[] = {
+    "Crime, law, business vitality, player influence, and opposition are uint8 tile pressures rolled up by weight.",
+    "Opponent stub periodically raises law pressure and opposition while eroding player influence in a random borough.",
+};
+
+constexpr const char* P_DISTRICT_HOT_NODES[] = {
+    "Landmark tiles seed max economic weight, higher crime heat, and boosted business vitality within heat radius.",
+    "District panel heat and difficulty read live tile pressures; borough lines show rollup context.",
 };
 
 constexpr const char* P_DOCKING[] = {
@@ -229,8 +260,8 @@ constexpr const char* P_VIEW_MENU[] = {
 };
 
 constexpr const char* P_SAVE_LOAD[] = {
-    "Binary save capitalvice_save.dat (v2). Stores draft, profile inputs, sim clock, camera, and all tile data.",
-    "Save with Ctrl+S or File menu. Load from File menu or main menu.",
+    "Binary save capitalvice_save.dat (v3). Stores draft, sim clock, camera, geography, and tile vitality arrays.",
+    "Save with Ctrl+S or File menu. Load from File menu or main menu. Older save versions are rejected.",
 };
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
@@ -301,6 +332,12 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
 
     {"sim_clock", "Simulation", "Simulation Clock", "20 Hz tick loop", P_SIM_CLOCK, 2},
     {"system_registry", "Simulation", "System Registry", "Tick pipeline", P_SYSTEM_REGISTRY, 2},
+    {"borough_vitality_overview", "Simulation / Borough Vitality", "Borough Vitality Overview", "Tiles as signals, boroughs as scoreboard", P_BOROUGH_VITALITY_OVERVIEW, 2},
+    {"tile_economic_weight", "Simulation / Borough Vitality", "Tile Economic Weight", "Static contribution to rollup", P_TILE_ECONOMIC_WEIGHT, 2},
+    {"borough_health_formula", "Simulation / Borough Vitality", "Borough Health Formula", "What moves economic health", P_BOROUGH_HEALTH_FORMULA, 2},
+    {"population_model", "Simulation / Borough Vitality", "Population Model", "Borough stock-flow", P_POPULATION_MODEL, 2},
+    {"crime_law_opposition", "Simulation / Borough Vitality", "Crime, Law, and Opposition", "Competing pressures", P_CRIME_LAW_OPPOSITION, 2},
+    {"district_hot_nodes", "Simulation / Borough Vitality", "District Hot Nodes", "Landmark vitality seeding", P_DISTRICT_HOT_NODES, 2},
 
     {"world_data", "World and Map", "World Data", "512x512 ChunkStore", P_WORLD_DATA, 1},
     {"procgen", "World and Map", "World Generation", "Seed and borough mask", P_PROCGEN, 1},
@@ -309,12 +346,12 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"landmarks_overview", "World and Map / Districts", "District Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
     {"district_panel", "World and Map / Districts", "District Panel", "Landmark stats UI", P_DISTRICT_PANEL, 2},
     {"landmark_control", "World and Map / Districts", "District Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
-    {"boroughs", "World and Map", "Boroughs Panel", "Region list", P_BOROUGHS, 1},
+    {"boroughs", "World and Map", "Boroughs Panel", "Live borough vitality bars", P_BOROUGHS, 2},
 
     {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 1},
     {"view_menu", "Interface", "View Menu", "Reset layout", P_VIEW_MENU, 1},
 
-    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v2", P_SAVE_LOAD, 2},
+    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v3", P_SAVE_LOAD, 2},
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
     {"dev_console", "Developer Tools", "Dev Console", "F12 commands", P_DEV_CONSOLE, 1},

@@ -12,6 +12,13 @@ struct ChunkTileData {
     std::vector<TerrainId> terrainId;
     std::vector<int16_t> elevation;
     std::vector<uint32_t> flags;
+    std::vector<uint8_t> economicWeight;
+    std::vector<uint16_t> population;
+    std::vector<uint8_t> crimePressure;
+    std::vector<uint8_t> lawPressure;
+    std::vector<uint8_t> businessVitality;
+    std::vector<uint8_t> playerInfluence;
+    std::vector<uint8_t> oppositionInfluence;
     void initialize(int32_t tileCount);
     bool isInitialized() const;
 };
@@ -26,6 +33,7 @@ struct Chunk {
 class ChunkStore {
 public:
     explicit ChunkStore(const WorldConfig& config);
+    const WorldConfig& getConfig() const;
     int32_t getTotalChunkCount() const;
     int32_t getActiveChunkCount() const;
     ChunkId getOrCreateChunk(const ChunkCoord& chunkCoord);
@@ -36,9 +44,23 @@ public:
     RegionId getRegionAt(const WorldCoord& worldCoord) const;
     TerrainId getTerrainAt(const WorldCoord& worldCoord) const;
     int16_t getElevationAt(const WorldCoord& worldCoord) const;
+    uint8_t getEconomicWeightAt(const WorldCoord& worldCoord) const;
+    uint16_t getPopulationAt(const WorldCoord& worldCoord) const;
+    uint8_t getCrimePressureAt(const WorldCoord& worldCoord) const;
+    uint8_t getLawPressureAt(const WorldCoord& worldCoord) const;
+    uint8_t getBusinessVitalityAt(const WorldCoord& worldCoord) const;
+    uint8_t getPlayerInfluenceAt(const WorldCoord& worldCoord) const;
+    uint8_t getOppositionInfluenceAt(const WorldCoord& worldCoord) const;
     void setRegionAt(const WorldCoord& worldCoord, RegionId regionId);
     void setTerrainAt(const WorldCoord& worldCoord, TerrainId terrainId);
     void setElevationAt(const WorldCoord& worldCoord, int16_t elevation);
+    void setEconomicWeightAt(const WorldCoord& worldCoord, uint8_t economicWeight);
+    void setPopulationAt(const WorldCoord& worldCoord, uint16_t population);
+    void setCrimePressureAt(const WorldCoord& worldCoord, uint8_t crimePressure);
+    void setLawPressureAt(const WorldCoord& worldCoord, uint8_t lawPressure);
+    void setBusinessVitalityAt(const WorldCoord& worldCoord, uint8_t businessVitality);
+    void setPlayerInfluenceAt(const WorldCoord& worldCoord, uint8_t playerInfluence);
+    void setOppositionInfluenceAt(const WorldCoord& worldCoord, uint8_t oppositionInfluence);
     int32_t getTileIndexInChunk(const WorldCoord& worldCoord) const;
     void resetAll();
     bool exportFullWorldTiles(
@@ -52,6 +74,24 @@ public:
         const uint8_t* terrainIds,
         const int16_t* elevations,
         const uint32_t* flags,
+        int32_t tileCount);
+    bool exportFullWorldVitality(
+        uint8_t* outEconomicWeights,
+        uint16_t* outPopulations,
+        uint8_t* outCrimePressures,
+        uint8_t* outLawPressures,
+        uint8_t* outBusinessVitalities,
+        uint8_t* outPlayerInfluences,
+        uint8_t* outOppositionInfluences,
+        int32_t tileCount) const;
+    bool importFullWorldVitality(
+        const uint8_t* economicWeights,
+        const uint16_t* populations,
+        const uint8_t* crimePressures,
+        const uint8_t* lawPressures,
+        const uint8_t* businessVitalities,
+        const uint8_t* playerInfluences,
+        const uint8_t* oppositionInfluences,
         int32_t tileCount);
 
 private:

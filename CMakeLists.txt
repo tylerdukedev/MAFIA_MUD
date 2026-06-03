@@ -71,12 +71,14 @@ set(CAPITAL_VICE_SOURCES
     src/core/application.cpp
     src/core/sim_clock.cpp
     src/sim/system_registry.cpp
+    src/sim/borough_vitality_system.cpp
     src/procgen/world_generator.cpp
     src/utils/seed_hash.cpp
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
     src/world/landmark_table.cpp
+    src/world/tile_vitality.cpp
     src/persistence/save_game.cpp
     src/ui/dock_layout.cpp
     src/ui/map_camera.cpp
@@ -132,6 +134,8 @@ add_executable(world_generator_test
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
+    src/world/tile_vitality.cpp
+    src/world/landmark_table.cpp
 )
 target_include_directories(world_generator_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(world_generator_test PRIVATE Catch2::Catch2WithMain)
@@ -153,6 +157,8 @@ add_executable(save_game_test
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
+    src/world/tile_vitality.cpp
+    src/world/landmark_table.cpp
     src/core/sim_clock.cpp
 )
 target_include_directories(save_game_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -175,3 +181,16 @@ add_executable(dev_console_test
 target_include_directories(dev_console_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(dev_console_test PRIVATE Catch2::Catch2WithMain imgui_lib)
 catch_discover_tests(dev_console_test)
+
+add_executable(tile_vitality_test
+    test/tile_vitality_test.cpp
+    src/world/tile_vitality.cpp
+    src/world/world_config.cpp
+    src/world/chunk_store.cpp
+    src/world/region_table.cpp
+    src/world/landmark_table.cpp
+    src/utils/seed_hash.cpp
+)
+target_include_directories(tile_vitality_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(tile_vitality_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(tile_vitality_test)

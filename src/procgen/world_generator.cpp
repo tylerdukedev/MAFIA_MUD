@@ -1,6 +1,7 @@
 #include "procgen/world_generator.h"
 #include "procgen/borough_map_data.h"
 #include "utils/seed_hash.h"
+#include "world/tile_vitality.h"
 #include <cstdint>
 
 namespace Core {
@@ -34,6 +35,11 @@ void WorldGenerator::generate(const WorldConfig& worldConfig, ChunkStore& chunkS
     passBoroughs(chunkStore);
     passStreets(chunkStore);
     passElevation(chunkStore);
+    passTileVitality(chunkStore);
+}
+
+void WorldGenerator::passTileVitality(ChunkStore& chunkStore) {
+    initializeTileVitality(chunkStore);
 }
 
 void WorldGenerator::decodeBakedMap() {

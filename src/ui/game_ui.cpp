@@ -12,6 +12,8 @@
 #include "ui/landmark_renderer.h"
 #include "world/landmark_table.h"
 #include "world/region_table.h"
+#include "world/tile_vitality.h"
+#include "sim/borough_vitality_system.h"
 #include "imgui.h"
 
 namespace Core {
@@ -248,6 +250,7 @@ void renderSimulationPanel(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
+    const BoroughVitalityStore& boroughVitalityStore,
     const SystemRegistry& systemRegistry,
     uint64_t worldSeed,
     ContextHelpState& contextHelpState) {
@@ -319,6 +322,36 @@ void renderSimulationPanel(
             if (system != nullptr) {
                 ImGui::BulletText("%s (tick %llu)", system->getName(), static_cast<unsigned long long>(system->getLastTickCount()));
             }
+        }
+        const BoroughVitalitySystem* vitalitySystem = systemRegistry.getBoroughVitalitySystem();
+        if (vitalitySystem != nullptr) {
+            ImGui::Text(
+                "Last borough rollup tick: %llu",
+                static_cast<unsigned long long>(vitalitySystem->getLastRollupTickCount()));
+        }
+        ImGui::Separator();
+        contextHelpSectionHeader(
+            "Borough Vitality",
+            "Aggregated economic health and pressure metrics per borough.",
+            "borough_vitality_overview",
+            contextHelpState);
+        for (int32_t regionIndex = 1; regionIndex < static_cast<int32_t>(RegionId::COUNT); ++regionIndex) {
+            const RegionId regionId = static_cast<RegionId>(regionIndex);
+            const BoroughVitalitySnapshot* snapshot = getBoroughSnapshot(boroughVitalityStore, regionId);
+            if (snapshot == nullptr) {
+                continue;
+            }
+            char boroughLine[128];
+            std::snprintf(
+                boroughLine,
+                sizeof(boroughLine),
+                "%s: health %.0f | pop %u | crime %.0f%% | unemp %.0f%%",
+                RegionTable::getRegionShortName(regionId).data(),
+                snapshot->economicHealth,
+                snapshot->totalPopulation,
+                snapshot->crimeRate * 100.0f,
+                snapshot->unemploymentRate * 100.0f);
+            contextHelpTextLine(boroughLine, "Rollup runs every 40 simulation ticks.", "borough_health_formula", contextHelpState);
         }
         ImGui::Separator();
         ImGui::TextDisabled("Space = pause/resume | S = step tick | Ctrl = inspect help");
@@ -546,19 +579,52 @@ void renderCharacterPanel(const PlayerProfile& playerProfile, ContextHelpState& 
     ImGui::End();
 }
 
-void renderBoroughsPanel(ContextHelpState& contextHelpState) {
+void renderBoroughsPanel(const BoroughVitalityStore& boroughVitalityStore, ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Boroughs")) {
-        contextHelpPanelTag("Boroughs Panel", "Reference list of playable borough names.", "boroughs", contextHelpState);
+        contextHelpPanelTag(
+            "Boroughs Panel",
+            "Playable boroughs with live vitality bars.",
+            "borough_vitality_overview",
+            contextHelpState);
         for (int32_t regionIndex = 1; regionIndex < static_cast<int32_t>(RegionId::COUNT); ++regionIndex) {
-            const auto regionId = static_cast<RegionId>(regionIndex);
-            ImGui::BulletText("%s (%s)", RegionTable::getRegionName(regionId).data(), RegionTable::getRegionShortName(regionId).data());
+            const RegionId regionId = static_cast<RegionId>(regionIndex);
+            const BoroughVitalitySnapshot* snapshot = getBoroughSnapshot(boroughVitalityStore, regionId);
+            if (snapshot == nullptr) {
+                continue;
+            }
+            ImGui::Text("%s", RegionTable::getRegionName(regionId).data());
+            contextHelpStatBar(
+                "Economic Health",
+                snapshot->economicHealth / BOROUGH_HEALTH_MAX,
+                "Weighted rollup of business, crime, law, and influence pressures.",
+                "borough_health_formula",
+                contextHelpState);
+            ImGui::Text("Population: %u", snapshot->totalPopulation);
+            contextHelpStatBar(
+                "Crime Rate",
+                snapshot->crimeRate,
+                "Higher crime drags health and pushes migration out.",
+                "crime_law_opposition",
+                contextHelpState);
+            contextHelpStatBar(
+                "Unemployment",
+                snapshot->unemploymentRate,
+                "Derived from low business vitality rollup.",
+                "population_model",
+                contextHelpState);
+            ImGui::Separator();
         }
     }
     ImGui::End();
 }
 
-void renderDistrictPanel(const WorldConfig& worldConfig, const ChunkStore& chunkStore, const ViewportPickState& viewportPickState, ContextHelpState& contextHelpState) {
+void renderDistrictPanel(
+    const WorldConfig& worldConfig,
+    const ChunkStore& chunkStore,
+    const BoroughVitalityStore& boroughVitalityStore,
+    const ViewportPickState& viewportPickState,
+    ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, 220.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("District")) {
         contextHelpPanelTag("District Panel", "Stats for a selected map landmark district.", "district_panel", contextHelpState);
@@ -584,30 +650,39 @@ void renderDistrictPanel(const WorldConfig& worldConfig, const ChunkStore& chunk
                     ImGui::Text("Borough: out of bounds");
                 }
                 ImGui::Text("Tile: (%d, %d)", landmark->tileX, landmark->tileY);
+                const uint8_t tileCrime = chunkStore.getCrimePressureAt(coord);
+                const uint8_t tilePlayer = chunkStore.getPlayerInfluenceAt(coord);
+                const float liveHeat = pressureUint8ToNormalized(tileCrime);
+                const float controlDifficulty = std::min(
+                    1.0f,
+                    LANDMARK_CONTROL_DIFFICULTY * (0.65f + liveHeat * 0.35f) - pressureUint8ToNormalized(tilePlayer) * 0.15f);
+                const RegionId boroughId = chunkStore.getRegionAt(coord);
+                const BoroughVitalitySnapshot* boroughSnapshot = getBoroughSnapshot(boroughVitalityStore, boroughId);
                 ImGui::Separator();
                 contextHelpSectionHeader(
-                    "Foundational District Stats",
-                    "Placeholder values for future territory control.",
-                    "landmark_control",
+                    "District Vitality",
+                    "Live tile pressures and borough rollup context.",
+                    "district_hot_nodes",
                     contextHelpState);
                 contextHelpStatBar(
                     "Heat Index",
-                    LANDMARK_BASE_HEAT,
-                    "Districts stay hotter than surrounding tiles.",
-                    "landmark_control",
+                    liveHeat,
+                    "Crime pressure at the landmark tile; seeded hotter than surroundings.",
+                    "district_hot_nodes",
                     contextHelpState);
                 contextHelpStatBar(
                     "Control Difficulty",
-                    LANDMARK_CONTROL_DIFFICULTY,
-                    "Hardest class of tiles to capture and hold.",
+                    controlDifficulty,
+                    "Base landmark difficulty adjusted by live crime and player influence.",
                     "landmark_control",
                     contextHelpState);
                 ImGui::Text("Borough influence weight: %.1fx", LANDMARK_BOROUGH_INFLUENCE_WEIGHT);
-                if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("District control will contribute more to borough-wide metrics than normal tiles.");
+                ImGui::Text("Economic weight: %u", chunkStore.getEconomicWeightAt(coord));
+                if (boroughSnapshot != nullptr) {
+                    ImGui::Text("Borough health: %.0f", boroughSnapshot->economicHealth);
+                    ImGui::Text("Borough crime: %.0f%%", boroughSnapshot->crimeRate * 100.0f);
                 }
                 ImGui::Text("Control status: Unclaimed");
-                ImGui::TextDisabled("Gameplay control systems not yet wired.");
             }
         }
     }
@@ -617,6 +692,7 @@ void renderDistrictPanel(const WorldConfig& worldConfig, const ChunkStore& chunk
 void renderTileInspectorPanel(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
+    const BoroughVitalityStore& boroughVitalityStore,
     const ViewportPickState& viewportPickState,
     ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 140.0f), ImVec2(FLT_MAX, FLT_MAX));
@@ -638,6 +714,27 @@ void renderTileInspectorPanel(
                 ImGui::Text("Terrain: %s", getTerrainName(terrainId));
                 ImGui::Text("Elevation: %d", chunkStore.getElevationAt(coord));
                 ImGui::Text("Chunk active: %s", chunkStore.hasTileAt(coord) ? "yes" : "no");
+                ImGui::Separator();
+                contextHelpSectionHeader(
+                    "Tile Vitality",
+                    "Per-tile signals that roll up into borough metrics.",
+                    "tile_economic_weight",
+                    contextHelpState);
+                ImGui::Text("Economic weight: %u", chunkStore.getEconomicWeightAt(coord));
+                ImGui::Text("Population: %u", chunkStore.getPopulationAt(coord));
+                ImGui::Text("Crime pressure: %u", chunkStore.getCrimePressureAt(coord));
+                ImGui::Text("Law pressure: %u", chunkStore.getLawPressureAt(coord));
+                ImGui::Text("Business vitality: %u", chunkStore.getBusinessVitalityAt(coord));
+                ImGui::Text("Player influence: %u", chunkStore.getPlayerInfluenceAt(coord));
+                ImGui::Text("Opposition influence: %u", chunkStore.getOppositionInfluenceAt(coord));
+                const RegionId tileRegion = chunkStore.getRegionAt(coord);
+                const BoroughVitalitySnapshot* boroughSnapshot = getBoroughSnapshot(boroughVitalityStore, tileRegion);
+                if (boroughSnapshot != nullptr && chunkStore.getEconomicWeightAt(coord) > 0) {
+                    ImGui::TextDisabled(
+                        "Contributes to %s health (%.0f).",
+                        RegionTable::getRegionShortName(tileRegion).data(),
+                        boroughSnapshot->economicHealth);
+                }
             }
         }
     }
@@ -733,18 +830,12 @@ void renderMapViewportPanel(
             viewportPickState.hasHover = false;
         }
         if (canvasSize.x > 1.0f && canvasSize.y > 1.0f) {
-            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize);
+            const WorldCoord* hoveredTileCoord = nullptr;
+            if (viewportPickState.hasHover) {
+                hoveredTileCoord = &viewportPickState.hoveredCoord;
+            }
+            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize, hoveredTileCoord);
             renderLandmarkOverlays(drawList, mapCamera, canvasPos, canvasSize, viewportPickState);
-        }
-        if (viewportPickState.hasHover && mapCamera.pixelsPerTile >= 2.0f) {
-            const WorldCoord hovered = viewportPickState.hoveredCoord;
-            float hoverMinX = 0.0f;
-            float hoverMinY = 0.0f;
-            float hoverMaxX = 0.0f;
-            float hoverMaxY = 0.0f;
-            mapCamera.tileToScreen(static_cast<float>(hovered.x), static_cast<float>(hovered.y), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMinX, hoverMinY);
-            mapCamera.tileToScreen(static_cast<float>(hovered.x + 1), static_cast<float>(hovered.y + 1), canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoverMaxX, hoverMaxY);
-            drawList->AddRect(ImVec2(hoverMinX, hoverMinY), ImVec2(hoverMaxX, hoverMaxY), IM_COL32(255, 255, 255, 235), 0.0f, 0, 2.0f);
         }
         drawList->PopClipRect();
         if (isCanvasHovered) {
@@ -800,6 +891,7 @@ void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
+    const BoroughVitalityStore& boroughVitalityStore,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
@@ -808,10 +900,10 @@ void renderGameUi(
     ContextHelpState& contextHelpState) {
     beginMainDockSpace();
     renderCharacterPanel(playerProfile, contextHelpState);
-    renderSimulationPanel(simClock, worldConfig, chunkStore, systemRegistry, worldSeed, contextHelpState);
-    renderBoroughsPanel(contextHelpState);
-    renderTileInspectorPanel(worldConfig, chunkStore, viewportPickState, contextHelpState);
-    renderDistrictPanel(worldConfig, chunkStore, viewportPickState, contextHelpState);
+    renderSimulationPanel(simClock, worldConfig, chunkStore, boroughVitalityStore, systemRegistry, worldSeed, contextHelpState);
+    renderBoroughsPanel(boroughVitalityStore, contextHelpState);
+    renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, contextHelpState);
+    renderDistrictPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, contextHelpState);
     renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, contextHelpState);
 }
 

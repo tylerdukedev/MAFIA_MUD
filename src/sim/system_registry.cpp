@@ -26,9 +26,15 @@ SystemRegistry::SystemRegistry()
     }
 }
 
-void SystemRegistry::initialize() {
+void SystemRegistry::initialize(const SimWorldBindings& bindings) {
     systemCount = 0;
+    boroughVitalitySystem.bind(bindings);
+    systems[systemCount++] = &boroughVitalitySystem;
     systems[systemCount++] = &debugSystem;
+}
+
+const BoroughVitalitySystem* SystemRegistry::getBoroughVitalitySystem() const {
+    return &boroughVitalitySystem;
 }
 
 void SystemRegistry::runTick(uint64_t tickCount) {

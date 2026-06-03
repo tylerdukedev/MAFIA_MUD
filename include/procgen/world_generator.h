@@ -23,6 +23,7 @@ private:
     void passBoroughs(ChunkStore& chunkStore);
     void passStreets(ChunkStore& chunkStore);
     void passElevation(ChunkStore& chunkStore);
+    void passTileVitality(ChunkStore& chunkStore);
 };
 
 } // namespace Core

@@ -96,19 +96,18 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
-## Phase 5 — First Gameplay System
+## Phase 5 — Borough Vitality System
 
-**Goal**: Prove a real system plugs into the pipeline cleanly.
-
-Pick **one**: zone control, sparse population, or resource nodes.
+**Goal**: Tile-level signals roll up to borough economic health, population, and crime metrics with a performant sim pass and UI.
 
 | Deliverable | Status |
 |-------------|--------|
-| SoA entity/agent store (if needed) | ⬜ |
-| One `SimSystem` implementation | ⬜ |
-| UI reflects system state changes | ⬜ |
+| Tile vitality SoA in `ChunkStore` + `tile_vitality` module | ✅ |
+| `BoroughVitalitySystem` + worldgen vitality pass | ✅ |
+| Simulation, Boroughs, Tile Inspector, District panels + manual topics | ✅ |
+| Save format v3 (vitality arrays) + `tile_vitality_test` | ✅ |
 
-**Done when**: System modifies world state each tick; visible in UI.
+**Done when**: System modifies world state each tick; borough metrics visible in UI after rollup.
 
 ---
 

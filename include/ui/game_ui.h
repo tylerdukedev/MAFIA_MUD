@@ -9,6 +9,7 @@
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
 #include "world/chunk_store.h"
+#include "world/tile_vitality.h"
 #include "world/world_config.h"
 #include <cstdint>
 
@@ -52,6 +53,7 @@ void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
+    const BoroughVitalityStore& boroughVitalityStore,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,

@@ -1,5 +1,6 @@
 #include "persistence/save_game.h"
 #include "procgen/world_generator.h"
+#include "world/tile_vitality.h"
 #include "character/profile_builder.h"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdio>
@@ -36,8 +37,10 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     sourceCamera.centerWorldX = 120.0f;
     sourceCamera.centerWorldY = 88.0f;
     sourceCamera.pixelsPerTile = 3.5f;
+    BoroughVitalityStore sourceVitality{};
+    rollupBoroughVitality(config, sourceStore, sourceVitality);
     SaveGameSnapshot snapshot{};
-    REQUIRE(buildSaveSnapshot(snapshot, DEFAULT_WORLD_SEED, sourceDraft, sourceClock, sourceCamera, sourceStore));
+    REQUIRE(buildSaveSnapshot(snapshot, DEFAULT_WORLD_SEED, sourceDraft, sourceClock, sourceCamera, sourceStore, sourceVitality));
     REQUIRE(saveGameToFile(TEST_SAVE_PATH, snapshot));
     REQUIRE(saveFileExists(TEST_SAVE_PATH));
     SaveGameSnapshot loadedSnapshot{};
@@ -59,6 +62,8 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     REQUIRE(loadedStore.getTerrainAt(sampleCoord) == sourceStore.getTerrainAt(sampleCoord));
     REQUIRE(loadedStore.getRegionAt(sampleCoord) == sourceStore.getRegionAt(sampleCoord));
     REQUIRE(loadedStore.getElevationAt(sampleCoord) == sourceStore.getElevationAt(sampleCoord));
+    REQUIRE(loadedStore.getEconomicWeightAt(sampleCoord) == sourceStore.getEconomicWeightAt(sampleCoord));
+    REQUIRE(loadedStore.getPopulationAt(sampleCoord) == sourceStore.getPopulationAt(sampleCoord));
     removeTestSaveFile();
 }
 

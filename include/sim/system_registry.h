@@ -1,40 +1,24 @@
 #pragma once
 
+#include "sim/borough_vitality_system.h"
+#include "sim/isim_system.h"
+#include "sim/sim_world_bindings.h"
 #include <cstdint>
 
 namespace Core {
 
-class ISimSystem {
-public:
-    virtual ~ISimSystem() = default;
-    virtual const char* getName() const = 0;
-    virtual void onTick(uint64_t tickCount) = 0;
-    uint64_t getLastTickCount() const;
-
-protected:
-    uint64_t lastTickCount = 0;
-};
-
-class DebugSystem final : public ISimSystem {
-public:
-    const char* getName() const override;
-    void onTick(uint64_t tickCount) override;
-    uint64_t getProcessedTickCount() const;
-
-private:
-    uint64_t processedTickCount = 0;
-};
-
 class SystemRegistry {
 public:
     SystemRegistry();
-    void initialize();
+    void initialize(const SimWorldBindings& bindings);
     void runTick(uint64_t tickCount);
     int32_t getSystemCount() const;
     const ISimSystem* getSystem(int32_t index) const;
+    const BoroughVitalitySystem* getBoroughVitalitySystem() const;
 
 private:
     DebugSystem debugSystem;
+    BoroughVitalitySystem boroughVitalitySystem;
     ISimSystem* systems[8];
     int32_t systemCount;
 };

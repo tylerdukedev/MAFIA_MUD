@@ -72,3 +72,6 @@ docs/      → architecture and phase plan
 - Match existing conventions in surrounding files before adding new patterns.
 - Minimize diff scope — solve the current phase deliverable, do not jump ahead.
 - Build and run tests before marking a phase complete.
+
+## 10. Git
+- Always commit and merge PR

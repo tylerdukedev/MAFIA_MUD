@@ -2,6 +2,8 @@
 #include "ui/game_ui.h"
 #include "procgen/world_generator.h"
 #include "persistence/save_game.h"
+#include "sim/sim_world_bindings.h"
+#include "world/tile_vitality.h"
 #include "character/profile_builder.h"
 #if defined(CAPITALVICE_DEV_CONSOLE)
 #include "dev/dev_console.h"
@@ -216,6 +218,7 @@ void Application::renderFrame() {
             simClock,
             worldConfig,
             chunkStore,
+            boroughVitalityStore,
             systemRegistry,
             mapCamera,
             viewportPickState,
@@ -240,9 +243,16 @@ void Application::renderFrame() {
 
 void Application::startNewSimulation() {
     playerProfile = buildPlayerProfile(characterDraft);
-    systemRegistry.initialize();
+    resetBoroughVitalityStore(boroughVitalityStore);
     WorldGenerator worldGenerator;
     worldGenerator.generate(worldConfig, chunkStore, worldSeed);
+    rollupBoroughVitality(worldConfig, chunkStore, boroughVitalityStore);
+    const SimWorldBindings simBindings{
+        &chunkStore,
+        &boroughVitalityStore,
+        &worldConfig,
+        &worldSeed};
+    systemRegistry.initialize(simBindings);
     mapCamera = MapCamera{};
     initializeMapCameraForStartingBorough(mapCamera, characterDraft.selectedBoroughIndex);
     viewportPickState = ViewportPickState{};
@@ -256,7 +266,7 @@ bool Application::saveCurrentGame() {
         return false;
     }
     SaveGameSnapshot snapshot{};
-    if (!buildSaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore)) {
+    if (!buildSaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore, boroughVitalityStore)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
     }
@@ -278,11 +288,17 @@ bool Application::loadSavedGame() {
         setSaveLoadStatusMessage("Load failed: save file is invalid or incompatible.");
         return false;
     }
-    systemRegistry.initialize();
     if (!applySaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
     }
+    rollupBoroughVitality(worldConfig, chunkStore, boroughVitalityStore);
+    const SimWorldBindings simBindings{
+        &chunkStore,
+        &boroughVitalityStore,
+        &worldConfig,
+        &worldSeed};
+    systemRegistry.initialize(simBindings);
     playerProfile = buildPlayerProfile(characterDraft);
     viewportPickState = ViewportPickState{};
     isWorldReady = true;

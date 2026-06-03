@@ -6,7 +6,7 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 2U;
+constexpr uint32_t SAVE_VERSION = 3U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -68,7 +68,9 @@ bool buildSaveSnapshot(
     const CharacterDraft& characterDraft,
     const SimClock& simClock,
     const MapCamera& mapCamera,
-    const ChunkStore& chunkStore) {
+    const ChunkStore& chunkStore,
+    const BoroughVitalityStore& boroughVitalityStore) {
+    (void)boroughVitalityStore;
     outSnapshot.worldSeed = worldSeed;
     outSnapshot.characterDraft = characterDraft;
     outSnapshot.tickCount = simClock.getTickCount();
@@ -80,11 +82,29 @@ bool buildSaveSnapshot(
     outSnapshot.terrainIds.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
     outSnapshot.elevations.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0);
     outSnapshot.flags.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
-    return chunkStore.exportFullWorldTiles(
-        outSnapshot.regionIds.data(),
-        outSnapshot.terrainIds.data(),
-        outSnapshot.elevations.data(),
-        outSnapshot.flags.data(),
+    outSnapshot.economicWeights.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.populations.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.crimePressures.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.lawPressures.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.businessVitalities.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.playerInfluences.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.oppositionInfluences.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    if (!chunkStore.exportFullWorldTiles(
+            outSnapshot.regionIds.data(),
+            outSnapshot.terrainIds.data(),
+            outSnapshot.elevations.data(),
+            outSnapshot.flags.data(),
+            SAVE_GAME_TILE_COUNT)) {
+        return false;
+    }
+    return chunkStore.exportFullWorldVitality(
+        outSnapshot.economicWeights.data(),
+        outSnapshot.populations.data(),
+        outSnapshot.crimePressures.data(),
+        outSnapshot.lawPressures.data(),
+        outSnapshot.businessVitalities.data(),
+        outSnapshot.playerInfluences.data(),
+        outSnapshot.oppositionInfluences.data(),
         SAVE_GAME_TILE_COUNT);
 }
 
@@ -98,7 +118,14 @@ bool applySaveSnapshot(
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.terrainIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.elevations.size()) != SAVE_GAME_TILE_COUNT
-        || static_cast<int32_t>(snapshot.flags.size()) != SAVE_GAME_TILE_COUNT) {
+        || static_cast<int32_t>(snapshot.flags.size()) != SAVE_GAME_TILE_COUNT
+        || static_cast<int32_t>(snapshot.economicWeights.size()) != SAVE_GAME_TILE_COUNT
+        || static_cast<int32_t>(snapshot.populations.size()) != SAVE_GAME_TILE_COUNT
+        || static_cast<int32_t>(snapshot.crimePressures.size()) != SAVE_GAME_TILE_COUNT
+        || static_cast<int32_t>(snapshot.lawPressures.size()) != SAVE_GAME_TILE_COUNT
+        || static_cast<int32_t>(snapshot.businessVitalities.size()) != SAVE_GAME_TILE_COUNT
+        || static_cast<int32_t>(snapshot.playerInfluences.size()) != SAVE_GAME_TILE_COUNT
+        || static_cast<int32_t>(snapshot.oppositionInfluences.size()) != SAVE_GAME_TILE_COUNT) {
         return false;
     }
     if (!chunkStore.importFullWorldTiles(
@@ -106,6 +133,17 @@ bool applySaveSnapshot(
             snapshot.terrainIds.data(),
             snapshot.elevations.data(),
             snapshot.flags.data(),
+            SAVE_GAME_TILE_COUNT)) {
+        return false;
+    }
+    if (!chunkStore.importFullWorldVitality(
+            snapshot.economicWeights.data(),
+            snapshot.populations.data(),
+            snapshot.crimePressures.data(),
+            snapshot.lawPressures.data(),
+            snapshot.businessVitalities.data(),
+            snapshot.playerInfluences.data(),
+            snapshot.oppositionInfluences.data(),
             SAVE_GAME_TILE_COUNT)) {
         return false;
     }
@@ -150,7 +188,16 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     const bool terrainsWritten = writeAllBytes(fileHandle, snapshot.terrainIds.data(), snapshot.terrainIds.size());
     const bool elevationsWritten = writeAllBytes(fileHandle, snapshot.elevations.data(), snapshot.elevations.size() * sizeof(int16_t));
     const bool flagsWritten = writeAllBytes(fileHandle, snapshot.flags.data(), snapshot.flags.size() * sizeof(uint32_t));
-    const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten;
+    const bool economicWeightsWritten = writeAllBytes(fileHandle, snapshot.economicWeights.data(), snapshot.economicWeights.size());
+    const bool populationsWritten = writeAllBytes(fileHandle, snapshot.populations.data(), snapshot.populations.size() * sizeof(uint16_t));
+    const bool crimePressuresWritten = writeAllBytes(fileHandle, snapshot.crimePressures.data(), snapshot.crimePressures.size());
+    const bool lawPressuresWritten = writeAllBytes(fileHandle, snapshot.lawPressures.data(), snapshot.lawPressures.size());
+    const bool businessVitalitiesWritten = writeAllBytes(fileHandle, snapshot.businessVitalities.data(), snapshot.businessVitalities.size());
+    const bool playerInfluencesWritten = writeAllBytes(fileHandle, snapshot.playerInfluences.data(), snapshot.playerInfluences.size());
+    const bool oppositionInfluencesWritten = writeAllBytes(fileHandle, snapshot.oppositionInfluences.data(), snapshot.oppositionInfluences.size());
+    const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
+        && economicWeightsWritten && populationsWritten && crimePressuresWritten && lawPressuresWritten
+        && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -200,11 +247,27 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     outSnapshot.terrainIds.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
     outSnapshot.elevations.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0);
     outSnapshot.flags.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.economicWeights.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.populations.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.crimePressures.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.lawPressures.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.businessVitalities.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.playerInfluences.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.oppositionInfluences.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
     const bool regionsRead = readAllBytes(fileHandle, outSnapshot.regionIds.data(), outSnapshot.regionIds.size());
     const bool terrainsRead = readAllBytes(fileHandle, outSnapshot.terrainIds.data(), outSnapshot.terrainIds.size());
     const bool elevationsRead = readAllBytes(fileHandle, outSnapshot.elevations.data(), outSnapshot.elevations.size() * sizeof(int16_t));
     const bool flagsRead = readAllBytes(fileHandle, outSnapshot.flags.data(), outSnapshot.flags.size() * sizeof(uint32_t));
-    const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead;
+    const bool economicWeightsRead = readAllBytes(fileHandle, outSnapshot.economicWeights.data(), outSnapshot.economicWeights.size());
+    const bool populationsRead = readAllBytes(fileHandle, outSnapshot.populations.data(), outSnapshot.populations.size() * sizeof(uint16_t));
+    const bool crimePressuresRead = readAllBytes(fileHandle, outSnapshot.crimePressures.data(), outSnapshot.crimePressures.size());
+    const bool lawPressuresRead = readAllBytes(fileHandle, outSnapshot.lawPressures.data(), outSnapshot.lawPressures.size());
+    const bool businessVitalitiesRead = readAllBytes(fileHandle, outSnapshot.businessVitalities.data(), outSnapshot.businessVitalities.size());
+    const bool playerInfluencesRead = readAllBytes(fileHandle, outSnapshot.playerInfluences.data(), outSnapshot.playerInfluences.size());
+    const bool oppositionInfluencesRead = readAllBytes(fileHandle, outSnapshot.oppositionInfluences.data(), outSnapshot.oppositionInfluences.size());
+    const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
+        && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead
+        && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead;
     std::fclose(fileHandle);
     return didLoad;
 }

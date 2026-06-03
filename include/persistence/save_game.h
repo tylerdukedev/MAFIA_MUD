@@ -4,6 +4,7 @@
 #include "core/sim_clock.h"
 #include "ui/map_camera.h"
 #include "world/chunk_store.h"
+#include "world/tile_vitality.h"
 #include "world/world_config.h"
 #include <cstdint>
 #include <vector>
@@ -25,6 +26,13 @@ struct SaveGameSnapshot {
     std::vector<uint8_t> terrainIds;
     std::vector<int16_t> elevations;
     std::vector<uint32_t> flags;
+    std::vector<uint8_t> economicWeights;
+    std::vector<uint16_t> populations;
+    std::vector<uint8_t> crimePressures;
+    std::vector<uint8_t> lawPressures;
+    std::vector<uint8_t> businessVitalities;
+    std::vector<uint8_t> playerInfluences;
+    std::vector<uint8_t> oppositionInfluences;
 };
 
 bool saveFileExists(const char* filePath);
@@ -34,7 +42,8 @@ bool buildSaveSnapshot(
     const CharacterDraft& characterDraft,
     const SimClock& simClock,
     const MapCamera& mapCamera,
-    const ChunkStore& chunkStore);
+    const ChunkStore& chunkStore,
+    const BoroughVitalityStore& boroughVitalityStore);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,

@@ -10,6 +10,7 @@
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
 #include "world/chunk_store.h"
+#include "world/tile_vitality.h"
 #include "world/world_config.h"
 #include <GLFW/glfw3.h>
 #include <cstdint>
@@ -35,6 +36,7 @@ private:
     ImGuiContext* imguiContext;
     WorldConfig worldConfig;
     ChunkStore chunkStore;
+    BoroughVitalityStore boroughVitalityStore{};
     SimClock simClock;
     SystemRegistry systemRegistry;
     MapCamera mapCamera;

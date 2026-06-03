@@ -15,7 +15,6 @@ ImU32 scaleColor(ImU32 color, float factor) {
     const int clampedBlue = static_cast<int>(std::min(255.0f, std::max(0.0f, blue)));
     return IM_COL32(clampedRed, clampedGreen, clampedBlue, 255);
 }
-
 ImU32 getBoroughColor(RegionId regionId) {
     switch (regionId) {
     case RegionId::Manhattan: return IM_COL32(86, 180, 80, 255);
@@ -28,9 +27,15 @@ ImU32 getBoroughColor(RegionId regionId) {
     default: return IM_COL32(120, 124, 132, 255);
     }
 }
+constexpr float MAP_ROAD_COLOR_SCALE = 0.94f;
+constexpr float MAP_GRID_EDGE_SCALE = 0.90f;
+constexpr ImU32 MAP_TILE_HOVER_FILL = IM_COL32(255, 255, 255, 90);
+constexpr ImU32 MAP_TILE_HOVER_BORDER = IM_COL32(255, 255, 255, 230);
+constexpr float MAP_MIN_GRID_PIXELS_PER_TILE = 6.0f;
 } // namespace
 
 ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation) {
+    (void)elevation;
     if (terrainId == TerrainId::Water) {
         return IM_COL32(148, 204, 232, 255);
     }
@@ -40,15 +45,11 @@ ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation) {
     if (terrainId == TerrainId::Plaza) {
         return IM_COL32(204, 200, 190, 255);
     }
-    if (terrainId == TerrainId::OpenLand) {
-        return getBoroughColor(regionId);
-    }
     const ImU32 boroughColor = getBoroughColor(regionId);
     if (terrainId == TerrainId::Road) {
-        return scaleColor(boroughColor, 0.60f);
+        return scaleColor(boroughColor, MAP_ROAD_COLOR_SCALE);
     }
-    const float tint = 0.88f + std::min(static_cast<float>(elevation) / 255.0f, 1.0f) * 0.22f;
-    return scaleColor(boroughColor, tint);
+    return boroughColor;
 }
 
 void renderMapTiles(
@@ -57,7 +58,8 @@ void renderMapTiles(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     const ImVec2& canvasOrigin,
-    const ImVec2& canvasSize) {
+    const ImVec2& canvasSize,
+    const WorldCoord* hoveredTileCoord) {
     const float canvasWidthPixels = canvasSize.x;
     const float canvasHeightPixels = canvasSize.y;
     if (canvasWidthPixels <= 1.0f || canvasHeightPixels <= 1.0f) {
@@ -74,6 +76,15 @@ void renderMapTiles(
     const int32_t clampedStartY = std::max(0, startY);
     const int32_t clampedEndY = std::min(worldConfig.WORLD_HEIGHT_TILES - 1, endY);
     const float tileSizePixels = std::max(camera.pixelsPerTile, 1.0f);
+    const bool drawTileGrid = tileSizePixels >= MAP_MIN_GRID_PIXELS_PER_TILE;
+    const bool drawHover = hoveredTileCoord != nullptr;
+    const float canvasCenterX = canvasOrigin.x + canvasWidthPixels * 0.5f;
+    const float canvasCenterY = canvasOrigin.y + canvasHeightPixels * 0.5f;
+    float hoverMinX = 0.0f;
+    float hoverMinY = 0.0f;
+    float hoverMaxX = 0.0f;
+    float hoverMaxY = 0.0f;
+    bool hasHoverRect = false;
     for (int32_t tileY = clampedStartY; tileY <= clampedEndY; ++tileY) {
         for (int32_t tileX = clampedStartX; tileX <= clampedEndX; ++tileX) {
             WorldCoord coord{tileX, tileY};
@@ -81,25 +92,48 @@ void renderMapTiles(
             const RegionId regionId = chunkStore.getRegionAt(coord);
             const int16_t elevation = chunkStore.getElevationAt(coord);
             const ImU32 tileColor = getTileColor(regionId, terrainId, elevation);
-            float screenMinX = 0.0f;
-            float screenMinY = 0.0f;
-            float screenMaxX = 0.0f;
-            float screenMaxY = 0.0f;
-            camera.tileToScreen(static_cast<float>(tileX), static_cast<float>(tileY), canvasOrigin.x, canvasOrigin.y, canvasWidthPixels, canvasHeightPixels, screenMinX, screenMinY);
-            camera.tileToScreen(static_cast<float>(tileX + 1), static_cast<float>(tileY + 1), canvasOrigin.x, canvasOrigin.y, canvasWidthPixels, canvasHeightPixels, screenMaxX, screenMaxY);
+            const float screenMinX = canvasCenterX + (static_cast<float>(tileX) - camera.centerWorldX) * tileSizePixels;
+            const float screenMinY = canvasCenterY + (static_cast<float>(tileY) - camera.centerWorldY) * tileSizePixels;
+            const float screenMaxX = screenMinX + tileSizePixels;
+            const float screenMaxY = screenMinY + tileSizePixels;
             if (screenMaxX < canvasOrigin.x || screenMinX > canvasOrigin.x + canvasWidthPixels) {
                 continue;
             }
             if (screenMaxY < canvasOrigin.y || screenMinY > canvasOrigin.y + canvasHeightPixels) {
                 continue;
             }
-            drawList->AddRectFilled(ImVec2(screenMinX, screenMinY), ImVec2(screenMaxX, screenMaxY), tileColor);
-            if (tileSizePixels >= 3.5f && terrainId != TerrainId::Water) {
-                const ImU32 gridColor = IM_COL32(36, 40, 48, 95);
-                drawList->AddLine(ImVec2(screenMaxX, screenMinY), ImVec2(screenMaxX, screenMaxY), gridColor, 1.0f);
-                drawList->AddLine(ImVec2(screenMinX, screenMaxY), ImVec2(screenMaxX, screenMaxY), gridColor, 1.0f);
+            const int pixelMinX = static_cast<int>(std::floor(screenMinX));
+            const int pixelMinY = static_cast<int>(std::floor(screenMinY));
+            int pixelMaxX = static_cast<int>(std::ceil(screenMaxX));
+            int pixelMaxY = static_cast<int>(std::ceil(screenMaxY));
+            if (pixelMaxX <= pixelMinX) {
+                pixelMaxX = pixelMinX + 1;
+            }
+            if (pixelMaxY <= pixelMinY) {
+                pixelMaxY = pixelMinY + 1;
+            }
+            const float fillMinX = static_cast<float>(pixelMinX);
+            const float fillMinY = static_cast<float>(pixelMinY);
+            const float fillMaxX = static_cast<float>(pixelMaxX);
+            const float fillMaxY = static_cast<float>(pixelMaxY);
+            drawList->AddRectFilled(ImVec2(fillMinX, fillMinY), ImVec2(fillMaxX, fillMaxY), tileColor);
+            if (drawTileGrid && terrainId != TerrainId::Water) {
+                const ImU32 edgeColor = scaleColor(tileColor, MAP_GRID_EDGE_SCALE);
+                drawList->AddRectFilled(ImVec2(fillMinX, fillMinY), ImVec2(fillMaxX, fillMinY + 1.0f), edgeColor);
+                drawList->AddRectFilled(ImVec2(fillMinX, fillMinY), ImVec2(fillMinX + 1.0f, fillMaxY), edgeColor);
+            }
+            if (drawHover && hoveredTileCoord->x == tileX && hoveredTileCoord->y == tileY) {
+                hoverMinX = fillMinX;
+                hoverMinY = fillMinY;
+                hoverMaxX = fillMaxX;
+                hoverMaxY = fillMaxY;
+                hasHoverRect = true;
             }
         }
+    }
+    if (hasHoverRect) {
+        drawList->AddRectFilled(ImVec2(hoverMinX, hoverMinY), ImVec2(hoverMaxX, hoverMaxY), MAP_TILE_HOVER_FILL);
+        drawList->AddRect(ImVec2(hoverMinX, hoverMinY), ImVec2(hoverMaxX, hoverMaxY), MAP_TILE_HOVER_BORDER, 0.0f, 0, 1.5f);
     }
 }
 
