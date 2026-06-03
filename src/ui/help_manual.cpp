@@ -339,8 +339,9 @@ constexpr const char* P_CITY_HOT_NODES[] = {
 };
 
 constexpr const char* P_DOCKING[] = {
-    "Each new game starts with a sensible default layout: map center, tools on the left, boroughs/contacts on the right.",
-    "Drag and tab panels freely afterward. Layout saves to capitalvice_layout.ini between sessions.",
+    "Each new game applies the default layout: map center, tools left, boroughs/contacts right, city/business along the bottom.",
+    "Panels stay draggable and tabbed; layout saves to capitalvice_layout.ini between sessions (load game keeps your layout).",
+    "Panel names and dock zones live in include/ui/game_dock_panels.h — change that table when adding windows.",
     "If panels look stuck, use View > Reset Panel Layout or delete capitalvice_layout.ini.",
 };
 

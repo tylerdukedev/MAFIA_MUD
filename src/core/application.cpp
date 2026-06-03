@@ -315,7 +315,7 @@ void Application::startNewSimulation() {
         &characterAgentStore,
         &worldEventStore};
     systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore, &playerCriminalJusticeStore);
-    requestDefaultDockLayoutOnNextFrame();
+    requestDefaultGameDockLayout();
     panelVisibility = GamePanelVisibility{};
     mapCamera = MapCamera{};
     const LandmarkDefinition* startCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
@@ -412,7 +412,6 @@ bool Application::loadSavedGame() {
         &characterAgentStore,
         &worldEventStore};
     systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore, &playerCriminalJusticeStore);
-    requestDefaultDockLayoutOnNextFrame();
     panelVisibility = GamePanelVisibility{};
     playerProfile = buildPlayerProfile(characterDraft);
     viewportPickState = ViewportPickState{};

@@ -1,4 +1,5 @@
 #include "ui/game_ui_panels.h"
+#include "ui/game_dock_panels.h"
 #include "game/housing_living_costs.h"
 #include "game/player_employment.h"
 #include "ui/game_modal_ui.h"
@@ -344,7 +345,7 @@ void renderBusinessPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, 220.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin("Business", &isOpen)) {
+    if (!ImGui::Begin(GameDockPanel::Business, &isOpen)) {
         ImGui::End();
         panelVisibility.showBusiness = isOpen;
         return;
@@ -407,7 +408,7 @@ void renderContactsPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(280.0f, 240.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin("Contacts", &isOpen)) {
+    if (!ImGui::Begin(GameDockPanel::Contacts, &isOpen)) {
         ImGui::End();
         panelVisibility.showContacts = isOpen;
         return;

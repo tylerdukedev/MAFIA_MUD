@@ -2,9 +2,12 @@
 
 namespace Core {
 
-void requestDefaultDockLayoutOnNextFrame();
-void setupDefaultDockLayoutIfNeeded();
+void requestDefaultGameDockLayout();
+void requestResetGameDockLayout();
 void beginMainDockSpace();
+void finalizeGameDockLayoutForFrame();
+
+void requestDefaultDockLayoutOnNextFrame();
 void resetDockLayout();
 
 } // namespace Core

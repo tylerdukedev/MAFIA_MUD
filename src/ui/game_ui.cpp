@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cstring>
 #include "ui/dock_layout.h"
+#include "ui/game_dock_panels.h"
 #include "ui/landmark_renderer.h"
 #include "world/business_node_table.h"
 #include "world/landmark_table.h"
@@ -380,7 +381,10 @@ ApplicationMenuBarEvents renderApplicationMenuBar(const ApplicationMenuBarParams
         }
         if (ImGui::BeginMenu("View")) {
             if (ImGui::MenuItem("Reset Panel Layout")) {
-                resetDockLayout();
+                requestResetGameDockLayout();
+                if (params.panelVisibility != nullptr) {
+                    *params.panelVisibility = GamePanelVisibility{};
+                }
             }
             ImGui::EndMenu();
         }
@@ -433,7 +437,7 @@ void renderSimulationPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin("Simulation", &isOpen)) {
+    if (!ImGui::Begin(GameDockPanel::Simulation, &isOpen)) {
         ImGui::End();
         panelVisibility.showSimulation = isOpen;
         return;
@@ -565,7 +569,7 @@ void renderCharacterPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 400.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin("Character", &isOpen)) {
+    if (!ImGui::Begin(GameDockPanel::Character, &isOpen)) {
         ImGui::End();
         panelVisibility.showCharacter = isOpen;
         return;
@@ -844,7 +848,7 @@ void renderBoroughsPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin("Boroughs", &isOpen)) {
+    if (!ImGui::Begin(GameDockPanel::Boroughs, &isOpen)) {
         ImGui::End();
         panelVisibility.showBoroughs = isOpen;
         return;
@@ -906,7 +910,7 @@ void renderCityPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, 220.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin("City", &isOpen)) {
+    if (!ImGui::Begin(GameDockPanel::City, &isOpen)) {
         ImGui::End();
         panelVisibility.showCity = isOpen;
         return;
@@ -1012,7 +1016,7 @@ void renderTileInspectorPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 140.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin("Tile Inspector", &isOpen)) {
+    if (!ImGui::Begin(GameDockPanel::TileInspector, &isOpen)) {
         ImGui::End();
         panelVisibility.showTileInspector = isOpen;
         return;
@@ -1087,7 +1091,7 @@ void renderMapViewportPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin("Map Viewport", &isOpen)) {
+    if (!ImGui::Begin(GameDockPanel::MapViewport, &isOpen)) {
         ImGui::End();
         panelVisibility.showMapViewport = isOpen;
         return;
@@ -1282,7 +1286,6 @@ void renderGameUi(
     tickWorkDayCommutePrompt(gameModalState, playerWorldState, playerOperationsStore, simClock, tickCount);
     tickCriminalJusticeModals(gameModalState, playerCriminalJusticeStore, simClock);
     beginMainDockSpace();
-    setupDefaultDockLayoutIfNeeded();
     if (!blockPanels) {
         renderCharacterPanel(playerProfile, playerWallet, playerLawEnforcementStore, playerCriminalJusticeStore, playerOrganizationStore, panelVisibility, contextHelpState);
         renderSimulationPanel(
@@ -1356,6 +1359,7 @@ void renderGameUi(
         playerProfile,
         tickCount,
         worldSeed);
+    finalizeGameDockLayoutForFrame();
 }
 
 } // namespace Core
