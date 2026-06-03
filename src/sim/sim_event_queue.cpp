@@ -2,6 +2,34 @@
 
 namespace Core {
 
+bool pushSimEventWithCatalog(SimEventQueue& queue, SimEventType type, int32_t catalogIndex) {
+    if (queue.eventCount >= SIM_EVENT_QUEUE_CAPACITY) {
+        return false;
+    }
+    SimEvent& event = queue.events[queue.tailIndex];
+    event.type = type;
+    event.landmarkIndex = -1;
+    event.catalogIndex = catalogIndex;
+    event.businessNodeIndex = -1;
+    queue.tailIndex = (queue.tailIndex + 1) % SIM_EVENT_QUEUE_CAPACITY;
+    ++queue.eventCount;
+    return true;
+}
+
+bool pushSimEventWithJob(SimEventQueue& queue, int32_t businessNodeIndex) {
+    if (queue.eventCount >= SIM_EVENT_QUEUE_CAPACITY) {
+        return false;
+    }
+    SimEvent& event = queue.events[queue.tailIndex];
+    event.type = SimEventType::ApplyForJob;
+    event.landmarkIndex = -1;
+    event.catalogIndex = -1;
+    event.businessNodeIndex = businessNodeIndex;
+    queue.tailIndex = (queue.tailIndex + 1) % SIM_EVENT_QUEUE_CAPACITY;
+    ++queue.eventCount;
+    return true;
+}
+
 bool pushSimEvent(SimEventQueue& queue, SimEventType type, int32_t landmarkIndex) {
     if (queue.eventCount >= SIM_EVENT_QUEUE_CAPACITY) {
         return false;
@@ -9,6 +37,8 @@ bool pushSimEvent(SimEventQueue& queue, SimEventType type, int32_t landmarkIndex
     SimEvent& event = queue.events[queue.tailIndex];
     event.type = type;
     event.landmarkIndex = landmarkIndex;
+    event.catalogIndex = -1;
+    event.businessNodeIndex = -1;
     queue.tailIndex = (queue.tailIndex + 1) % SIM_EVENT_QUEUE_CAPACITY;
     ++queue.eventCount;
     return true;

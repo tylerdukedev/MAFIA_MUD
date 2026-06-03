@@ -44,7 +44,7 @@ constexpr LandmarkDefinition LANDMARK_DEFINITIONS[] = {
     {"dumbo", 262, 278, "DUMBO", "DUMBO", 1, 215},
     {"coney_island", 251, 411, "Coney Island", "Coney Island", 2, 205},
     {"yankee_stadium", 318, 108, "Yankee Stadium", "Yankee Stadium", 2, 220},
-    {"newark_penn", 168, 318, "Newark Penn Station", "Newark Penn", 1, 210},
+    {"newark_penn", 112, 174, "Newark Penn Station", "Newark Penn", 1, 210},
 };
 
 constexpr int32_t LANDMARK_COUNT = static_cast<int32_t>(sizeof(LANDMARK_DEFINITIONS) / sizeof(LANDMARK_DEFINITIONS[0]));

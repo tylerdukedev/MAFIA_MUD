@@ -3,6 +3,7 @@
 #include "sim/borough_vitality_system.h"
 #include "sim/city_control_system.h"
 #include "sim/economy_system.h"
+#include "sim/operation_system.h"
 #include "sim/isim_system.h"
 #include "sim/sim_world_bindings.h"
 #include <cstdint>
@@ -12,7 +13,7 @@ namespace Core {
 class SystemRegistry {
 public:
     SystemRegistry();
-    void initialize(const SimWorldBindings& bindings);
+    void initialize(const SimWorldBindings& bindings, CharacterAgentStore* agentStore);
     void runTick(uint64_t tickCount);
     int32_t getSystemCount() const;
     const ISimSystem* getSystem(int32_t index) const;
@@ -20,6 +21,7 @@ public:
 
 private:
     DebugSystem debugSystem;
+    OperationSystem operationSystem;
     CityControlSystem cityControlSystem;
     EconomySystem economySystem;
     BoroughVitalitySystem boroughVitalitySystem;

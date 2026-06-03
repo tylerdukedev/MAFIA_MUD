@@ -26,11 +26,13 @@ SystemRegistry::SystemRegistry()
     }
 }
 
-void SystemRegistry::initialize(const SimWorldBindings& bindings) {
+void SystemRegistry::initialize(const SimWorldBindings& bindings, CharacterAgentStore* agentStore) {
     systemCount = 0;
+    operationSystem.bind(bindings, agentStore);
     cityControlSystem.bind(bindings);
     economySystem.bind(bindings);
     boroughVitalitySystem.bind(bindings);
+    systems[systemCount++] = &operationSystem;
     systems[systemCount++] = &cityControlSystem;
     systems[systemCount++] = &economySystem;
     systems[systemCount++] = &boroughVitalitySystem;

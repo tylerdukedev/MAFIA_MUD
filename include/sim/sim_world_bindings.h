@@ -1,6 +1,7 @@
 #pragma once
 
 #include "character/player_profile.h"
+#include "game/player_operations.h"
 #include "game/player_wallet.h"
 #include "sim/sim_event_queue.h"
 #include "world/chunk_store.h"
@@ -20,6 +21,7 @@ struct SimWorldBindings {
     CityControlStore* cityControlStore = nullptr;
     SimEventQueue* eventQueue = nullptr;
     PlayerProfile* playerProfile = nullptr;
+    PlayerOperationsStore* playerOperationsStore = nullptr;
 };
 
 } // namespace Core

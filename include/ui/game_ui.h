@@ -3,7 +3,10 @@
 #include "character/character_draft.h"
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
+#include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "sim/character_agent.h"
+#include "ui/panel_visibility.h"
 #include "sim/sim_event_queue.h"
 #include "sim/system_registry.h"
 #include "world/city_control.h"
@@ -37,6 +40,7 @@ struct ApplicationMenuBarParams {
     bool hasSaveFile;
     bool isWorldReady;
     HelpManualState* helpManualState;
+    GamePanelVisibility* panelVisibility;
 };
 
 struct ApplicationMenuBarEvents {
@@ -59,12 +63,15 @@ FrontendUiEvents renderFrontendUi(
 void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
-    const ChunkStore& chunkStore,
+    ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
     PlayerWallet& playerWallet,
+    PlayerOperationsStore& playerOperationsStore,
+    CharacterAgentStore& characterAgentStore,
     CityControlStore& cityControlStore,
     SimEventQueue& simEventQueue,
     bool& mapCrimeOverlayEnabled,
+    GamePanelVisibility& panelVisibility,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,

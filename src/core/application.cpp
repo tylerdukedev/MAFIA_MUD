@@ -184,6 +184,7 @@ void Application::renderFrame() {
     menuBarParams.hasSaveFile = hasSaveFile;
     menuBarParams.isWorldReady = isWorldReady;
     menuBarParams.helpManualState = &helpManualState;
+    menuBarParams.panelVisibility = frontendScreen == FrontendScreen::InGame ? &panelVisibility : nullptr;
     ApplicationMenuBarEvents menuBarEvents = renderApplicationMenuBar(menuBarParams);
     if (menuBarEvents.requestedExitGame) {
         isRunning = false;
@@ -225,9 +226,12 @@ void Application::renderFrame() {
             chunkStore,
             boroughVitalityStore,
             playerWallet,
+            playerOperationsStore,
+            characterAgentStore,
             cityControlStore,
             simEventQueue,
             mapCrimeOverlayEnabled,
+            panelVisibility,
             systemRegistry,
             mapCamera,
             viewportPickState,
@@ -241,6 +245,8 @@ void Application::renderFrame() {
     DevConsoleGameplaySnapshot devGameplaySnapshot{};
     devGameplaySnapshot.playerWallet = isWorldReady ? &playerWallet : nullptr;
     devGameplaySnapshot.cityControlStore = isWorldReady ? &cityControlStore : nullptr;
+    devGameplaySnapshot.playerOperationsStore = isWorldReady ? &playerOperationsStore : nullptr;
+    devGameplaySnapshot.characterAgentStore = isWorldReady ? &characterAgentStore : nullptr;
     devGameplaySnapshot.isWorldReady = isWorldReady;
     devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile, &devGameplaySnapshot);
 #endif
@@ -258,6 +264,8 @@ void Application::startNewSimulation() {
     playerProfile = buildPlayerProfile(characterDraft);
     resetBoroughVitalityStore(boroughVitalityStore);
     resetCityControlStore(cityControlStore);
+    resetPlayerOperationsStore(playerOperationsStore);
+    initializeCharacterAgentStore(characterAgentStore);
     clearSimEventQueue(simEventQueue);
     playerWallet = PlayerWallet{};
     playerWallet.cashCents = characterDraft.startingCashCents;
@@ -272,9 +280,11 @@ void Application::startNewSimulation() {
         &playerWallet,
         &cityControlStore,
         &simEventQueue,
-        &playerProfile};
-    systemRegistry.initialize(simBindings);
+        &playerProfile,
+        &playerOperationsStore};
+    systemRegistry.initialize(simBindings, &characterAgentStore);
     requestDefaultDockLayoutOnNextFrame();
+    panelVisibility = GamePanelVisibility{};
     mapCamera = MapCamera{};
     const LandmarkDefinition* startCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
     if (startCity != nullptr) {
@@ -293,7 +303,18 @@ bool Application::saveCurrentGame() {
         return false;
     }
     SaveGameSnapshot snapshot{};
-    if (!buildSaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore, boroughVitalityStore, playerWallet, cityControlStore)) {
+    if (!buildSaveSnapshot(
+            snapshot,
+            worldSeed,
+            characterDraft,
+            simClock,
+            mapCamera,
+            chunkStore,
+            boroughVitalityStore,
+            playerWallet,
+            cityControlStore,
+            playerOperationsStore,
+            characterAgentStore)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
     }
@@ -315,7 +336,17 @@ bool Application::loadSavedGame() {
         setSaveLoadStatusMessage("Load failed: save file is invalid or incompatible.");
         return false;
     }
-    if (!applySaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore, playerWallet, cityControlStore)) {
+    if (!applySaveSnapshot(
+            snapshot,
+            worldSeed,
+            characterDraft,
+            simClock,
+            mapCamera,
+            chunkStore,
+            playerWallet,
+            cityControlStore,
+            playerOperationsStore,
+            characterAgentStore)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
     }
@@ -328,9 +359,11 @@ bool Application::loadSavedGame() {
         &playerWallet,
         &cityControlStore,
         &simEventQueue,
-        &playerProfile};
-    systemRegistry.initialize(simBindings);
+        &playerProfile,
+        &playerOperationsStore};
+    systemRegistry.initialize(simBindings, &characterAgentStore);
     requestDefaultDockLayoutOnNextFrame();
+    panelVisibility = GamePanelVisibility{};
     playerProfile = buildPlayerProfile(characterDraft);
     viewportPickState = ViewportPickState{};
     isWorldReady = true;

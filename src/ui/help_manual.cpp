@@ -8,7 +8,7 @@ namespace {
 
 constexpr const char* P_OVERVIEW[] = {
     "Capital Vice is a data-driven mafia simulation across NYC boroughs and parts of New Jersey.",
-    "This build includes character creation with starting placement, cents-based economy, city landmark claims, borough vitality rollups, map navigation, and save/load v4.",
+    "This build adds headquarters and operation establishment, blue business job nodes, AI contacts with opinions, dockable panels with a Windows menu, and save/load v5.",
     "Open Help > Manual from the top menu bar on any screen. Hold Ctrl for inspect mode to click UI elements for quick help.",
 };
 
@@ -212,7 +212,26 @@ constexpr const char* P_LANDMARKS_OVERVIEW[] = {
 constexpr const char* P_CITY_PANEL[] = {
     "The City panel opens when you click a landmark. It shows the full city name, borough, tile coords, ownership, live heat/difficulty, and claim cost.",
     "LaGuardia Airport uses the map label LGA but the panel and hover tooltip show the full name.",
-    "Establish operation queues a claim that debits cash when CityControlSystem processes it ($5.00 default, $4.00 for Street Hustler background).",
+    "Establish operation requires headquarters first, then era-scale capital ($2,500 default) plus network and reputation gates.",
+};
+
+constexpr const char* P_OPERATIONS_PANEL[] = {
+    "Open Operations from the dock or Windows menu. Your first operation must be a headquarters: rented room, apartment, or family/friend DPA.",
+    "Later entries (rackets, fronts, logistics) unlock by wealth, network access, and reputation after HQ is set.",
+};
+
+constexpr const char* P_BUSINESS_PANEL[] = {
+    "Blue nodes on the map are borough businesses. Click one, then Apply for job in the Business panel for a hiring bonus and employment.",
+    "Businesses feed legit income and borough economy; they are not city control nodes.",
+};
+
+constexpr const char* P_CONTACTS_PANEL[] = {
+    "Contacts lists AI characters with opinion, trust, and respect toward you (Crusader Kings-style foundation).",
+    "Family DPA headquarters can sour family opinions when you lean on their address.",
+};
+
+constexpr const char* P_WINDOWS_MENU[] = {
+    "Windows toggles Simulation, Character, Operations, Contacts, Boroughs, City, Business, Tile Inspector, and Map Viewport visibility.",
 };
 
 constexpr const char* P_LANDMARK_CONTROL[] = {
@@ -269,7 +288,7 @@ constexpr const char* P_CITY_HOT_NODES[] = {
 
 constexpr const char* P_DOCKING[] = {
     "Panels dock and tab via ImGui. Layout saves to capitalvice_layout.ini between sessions.",
-    "Resizing or maximizing the main window rebuilds default dock splits to match the viewport (custom splitter positions are not kept).",
+    "Panels can be dragged and tabbed freely. Resizing the window scales the dock host without resetting your layout.",
     "If panels look stuck or off-screen, use View > Reset Panel Layout or delete capitalvice_layout.ini.",
 };
 
@@ -278,14 +297,14 @@ constexpr const char* P_VIEW_MENU[] = {
 };
 
 constexpr const char* P_SAVE_LOAD[] = {
-    "Binary save capitalvice_save.dat (v4). Stores draft, sim clock, camera, geography, tile vitality, wallet, and city ownership.",
+    "Binary save capitalvice_save.dat (v5). Stores draft, sim clock, camera, geography, tile vitality, wallet, cities, operations, and AI contact opinions.",
     "Save with Ctrl+S or File menu. Load from File menu or main menu. Older save versions are rejected.",
 };
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
 constexpr const char* P_DEV_CONSOLE[] = {
     "Dev builds only. F12 toggles a command console for profile inspection and tweaks.",
-    "Commands: help, log clear, profile dump, draft show (includes starting city/cash), wallet show, cities show (in-game), profile set ..., network/legitimacy/loyalty/culture/paths show.",
+    "Commands: help, log clear, profile dump, draft show, wallet/cities/operations/agents show (in-game), profile set ..., network/legitimacy/loyalty/culture/paths show.",
 };
 #endif
 
@@ -367,12 +386,16 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"boroughs", "World and Map", "Boroughs Panel", "Live borough vitality bars", P_BOROUGHS, 2},
     {"landmarks_overview", "World and Map / Cities", "City Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
     {"city_panel", "World and Map / Cities", "City Panel", "Landmark stats and claims", P_CITY_PANEL, 3},
+    {"operations_panel", "World and Map / Operations", "Operations Panel", "HQ and expansion catalog", P_OPERATIONS_PANEL, 2},
+    {"business_panel", "World and Map / Operations", "Business Panel", "Jobs at blue nodes", P_BUSINESS_PANEL, 2},
     {"landmark_control", "World and Map / Cities", "City Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
 
     {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 3},
     {"view_menu", "Interface", "View Menu", "Reset layout", P_VIEW_MENU, 1},
+    {"windows_menu", "Interface", "Windows Menu", "Toggle panels", P_WINDOWS_MENU, 1},
+    {"contacts_panel", "Simulation / Characters", "Contacts Panel", "AI opinions", P_CONTACTS_PANEL, 2},
 
-    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v4", P_SAVE_LOAD, 2},
+    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v5", P_SAVE_LOAD, 2},
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
     {"dev_console", "Developer Tools", "Dev Console", "F12 commands", P_DEV_CONSOLE, 1},

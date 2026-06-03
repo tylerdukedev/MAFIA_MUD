@@ -6,7 +6,11 @@
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
 #include "game/economy_constants.h"
+#include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "ui/business_renderer.h"
+#include "ui/game_ui_panels.h"
+#include "ui/panel_visibility.h"
 #include "sim/sim_event_queue.h"
 #include "world/city_control.h"
 #include <cstdio>
@@ -15,6 +19,7 @@
 #include <cstring>
 #include "ui/dock_layout.h"
 #include "ui/landmark_renderer.h"
+#include "world/business_node_table.h"
 #include "world/landmark_table.h"
 #include "world/region_table.h"
 #include "world/tile_vitality.h"
@@ -31,6 +36,7 @@ constexpr float MIN_WINDOW_HEIGHT = 540.0f;
 constexpr float SPEED_OPTIONS[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
 constexpr int32_t SPEED_OPTION_COUNT = 5;
 constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
+constexpr float BUSINESS_HIT_RADIUS_PIXELS = 10.0f;
 
 void renderCharacterCreationPreviewPanel(const CharacterDraft& characterDraft) {
     ImGui::BeginChild("CharacterPreviewPanel", ImVec2(0.0f, 0.0f), true);
@@ -251,6 +257,19 @@ ApplicationMenuBarEvents renderApplicationMenuBar(const ApplicationMenuBarParams
             }
             ImGui::EndMenu();
         }
+        if (params.panelVisibility != nullptr && ImGui::BeginMenu("Windows")) {
+            GamePanelVisibility& visibility = *params.panelVisibility;
+            ImGui::MenuItem("Simulation", nullptr, &visibility.showSimulation);
+            ImGui::MenuItem("Character", nullptr, &visibility.showCharacter);
+            ImGui::MenuItem("Operations", nullptr, &visibility.showOperations);
+            ImGui::MenuItem("Contacts", nullptr, &visibility.showContacts);
+            ImGui::MenuItem("Boroughs", nullptr, &visibility.showBoroughs);
+            ImGui::MenuItem("City", nullptr, &visibility.showCity);
+            ImGui::MenuItem("Business", nullptr, &visibility.showBusiness);
+            ImGui::MenuItem("Tile Inspector", nullptr, &visibility.showTileInspector);
+            ImGui::MenuItem("Map Viewport", nullptr, &visibility.showMapViewport);
+            ImGui::EndMenu();
+        }
     }
     if (ImGui::BeginMenu("Help")) {
         if (params.helpManualState != nullptr) {
@@ -280,9 +299,19 @@ void renderSimulationPanel(
     bool& mapCrimeOverlayEnabled,
     const SystemRegistry& systemRegistry,
     uint64_t worldSeed,
+    GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
+    if (!panelVisibility.showSimulation) {
+        return;
+    }
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("Simulation")) {
+    bool isOpen = true;
+    if (!ImGui::Begin("Simulation", &isOpen)) {
+        ImGui::End();
+        panelVisibility.showSimulation = isOpen;
+        return;
+    }
+    panelVisibility.showSimulation = isOpen;
         contextHelpPanelTag(
             "Simulation Panel",
             "Clock status, speed controls, and world summary.",
@@ -292,7 +321,7 @@ void renderSimulationPanel(
             ImGui::TextWrapped("%s", saveLoadStatusMessage);
             ImGui::Separator();
         }
-        ImGui::Text("Phase 6 - Economy & Cities");
+        ImGui::Text("Operations, business jobs, and city claims");
         ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
@@ -389,20 +418,29 @@ void renderSimulationPanel(
         ImGui::Checkbox("Crime heat overlay", &mapCrimeOverlayEnabled);
         ImGui::Separator();
         ImGui::TextDisabled("Space = pause/resume | S = step tick | Ctrl = inspect help");
-    }
     ImGui::End();
 }
 
 int64_t computeClaimCostCentsForProfile(const PlayerProfile& playerProfile) {
-    if (playerProfile.draft.backgroundId == BackgroundId::StreetHustler) {
-        return STREET_HUSTLER_CLAIM_COST_CENTS;
-    }
-    return DEFAULT_CLAIM_CITY_COST_CENTS;
+    return computeCityEstablishCostCents(playerProfile);
 }
 
-void renderCharacterPanel(const PlayerProfile& playerProfile, const PlayerWallet& playerWallet, ContextHelpState& contextHelpState) {
+void renderCharacterPanel(
+    const PlayerProfile& playerProfile,
+    const PlayerWallet& playerWallet,
+    GamePanelVisibility& panelVisibility,
+    ContextHelpState& contextHelpState) {
+    if (!panelVisibility.showCharacter) {
+        return;
+    }
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 400.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("Character")) {
+    bool isOpen = true;
+    if (!ImGui::Begin("Character", &isOpen)) {
+        ImGui::End();
+        panelVisibility.showCharacter = isOpen;
+        return;
+    }
+    panelVisibility.showCharacter = isOpen;
         contextHelpPanelTag(
             "Character Panel",
             "Your identity and foundational trait profile during play.",
@@ -643,13 +681,24 @@ void renderCharacterPanel(const PlayerProfile& playerProfile, const PlayerWallet
                 "stat_corporate",
                 contextHelpState);
         }
-    }
     ImGui::End();
 }
 
-void renderBoroughsPanel(const BoroughVitalityStore& boroughVitalityStore, ContextHelpState& contextHelpState) {
+void renderBoroughsPanel(
+    const BoroughVitalityStore& boroughVitalityStore,
+    GamePanelVisibility& panelVisibility,
+    ContextHelpState& contextHelpState) {
+    if (!panelVisibility.showBoroughs) {
+        return;
+    }
     ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("Boroughs")) {
+    bool isOpen = true;
+    if (!ImGui::Begin("Boroughs", &isOpen)) {
+        ImGui::End();
+        panelVisibility.showBoroughs = isOpen;
+        return;
+    }
+    panelVisibility.showBoroughs = isOpen;
         contextHelpPanelTag(
             "Boroughs Panel",
             "Playable boroughs with live vitality bars.",
@@ -685,7 +734,6 @@ void renderBoroughsPanel(const BoroughVitalityStore& boroughVitalityStore, Conte
             ImGui::Separator();
             ImGui::PopID();
         }
-    }
     ImGui::End();
 }
 
@@ -694,13 +742,24 @@ void renderCityPanel(
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
     const CityControlStore& cityControlStore,
+    const PlayerOperationsStore& playerOperationsStore,
     const PlayerWallet& playerWallet,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
     const ViewportPickState& viewportPickState,
+    GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
+    if (!panelVisibility.showCity) {
+        return;
+    }
     ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, 220.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("City")) {
+    bool isOpen = true;
+    if (!ImGui::Begin("City", &isOpen)) {
+        ImGui::End();
+        panelVisibility.showCity = isOpen;
+        return;
+    }
+    panelVisibility.showCity = isOpen;
         contextHelpPanelTag("City Panel", "Stats for a selected map landmark city node.", "city_panel", contextHelpState);
         if (!viewportPickState.hasLandmarkSelection || viewportPickState.selectedLandmarkIndex < 0) {
             ImGui::TextDisabled("Click a labeled city landmark on the map.");
@@ -764,24 +823,25 @@ void renderCityPanel(
                     ImGui::Text("Control status: Contested");
                 } else {
                     ImGui::Text("Control status: Unclaimed");
-                    const int64_t claimCostCents = computeClaimCostCentsForProfile(playerProfile);
+                    int64_t claimCostCents = 0;
+                    const bool canClaimCity = canEstablishCityOperation(playerOperationsStore, playerProfile, playerWallet, claimCostCents);
                     char claimCostBuffer[32];
                     formatCashCents(claimCostBuffer, sizeof(claimCostBuffer), claimCostCents);
-                    if (!canAffordCash(playerWallet, claimCostCents)) {
-                        ImGui::BeginDisabled();
+                    if (!hasPlayerHeadquarters(playerOperationsStore)) {
+                        ImGui::TextWrapped("Requires headquarters (Operations panel) before a city claim.");
+                    } else if (!canClaimCity) {
+                        ImGui::TextDisabled("Need $500+ cash, network, and reputation for era-scale city claims.");
+                    } else {
+                        if (ImGui::Button("Establish operation")) {
+                            pushSimEvent(simEventQueue, SimEventType::ClaimCity, landmarkIndex);
+                            panelVisibility.showOperations = true;
+                        }
+                        ImGui::SameLine();
+                        ImGui::Text("(%s)", claimCostBuffer);
                     }
-                    if (ImGui::Button("Establish operation")) {
-                        pushSimEvent(simEventQueue, SimEventType::ClaimCity, landmarkIndex);
-                    }
-                    if (!canAffordCash(playerWallet, claimCostCents)) {
-                        ImGui::EndDisabled();
-                    }
-                    ImGui::SameLine();
-                    ImGui::Text("(%s)", claimCostBuffer);
                 }
             }
         }
-    }
     ImGui::End();
 }
 
@@ -790,9 +850,19 @@ void renderTileInspectorPanel(
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
     const ViewportPickState& viewportPickState,
+    GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
+    if (!panelVisibility.showTileInspector) {
+        return;
+    }
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 140.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("Tile Inspector")) {
+    bool isOpen = true;
+    if (!ImGui::Begin("Tile Inspector", &isOpen)) {
+        ImGui::End();
+        panelVisibility.showTileInspector = isOpen;
+        return;
+    }
+    panelVisibility.showTileInspector = isOpen;
         contextHelpPanelTag("Tile Inspector", "Details for the hovered or selected map tile.", "tile_inspector", contextHelpState);
         if (!viewportPickState.hasHover && !viewportPickState.hasSelection) {
             ImGui::TextDisabled("Hover or click the map viewport to inspect tiles.");
@@ -833,7 +903,6 @@ void renderTileInspectorPanel(
                 }
             }
         }
-    }
     ImGui::End();
 }
 
@@ -856,9 +925,19 @@ void renderMapViewportPanel(
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
     bool showCrimeOverlay,
+    GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
+    if (!panelVisibility.showMapViewport) {
+        return;
+    }
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("Map Viewport")) {
+    bool isOpen = true;
+    if (!ImGui::Begin("Map Viewport", &isOpen)) {
+        ImGui::End();
+        panelVisibility.showMapViewport = isOpen;
+        return;
+    }
+    panelVisibility.showMapViewport = isOpen;
         contextHelpPanelTag("Map Viewport", "Pan, zoom, and pick tiles on the world map.", "map_viewport", contextHelpState);
         const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
@@ -889,13 +968,39 @@ void renderMapViewportPanel(
             } else {
                 viewportPickState.hasLandmarkHover = false;
                 viewportPickState.hoveredLandmarkIndex = -1;
-                const int32_t landmarkIndex = findLandmarkIndexAtScreenPoint(
+                viewportPickState.hasBusinessHover = false;
+                viewportPickState.hoveredBusinessIndex = -1;
+                const int32_t businessIndex = pickBusinessNodeAtScreen(
+                    io.MousePos.x,
+                    io.MousePos.y,
+                    mapCamera,
+                    canvasPos,
+                    canvasSize,
+                    BUSINESS_HIT_RADIUS_PIXELS);
+                if (businessIndex >= 0) {
+                    const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
+                    if (business != nullptr) {
+                        viewportPickState.hasBusinessHover = true;
+                        viewportPickState.hoveredBusinessIndex = businessIndex;
+                        const WorldCoord businessCoord{business->tileX, business->tileY};
+                        updateViewportPickFromWorldCoord(viewportPickState, worldConfig, businessCoord, false);
+                        ImGui::SetTooltip("%s (business)", business->fullName);
+                        if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                            viewportPickState.hasBusinessSelection = true;
+                            viewportPickState.selectedBusinessIndex = businessIndex;
+                            viewportPickState.hasLandmarkSelection = false;
+                            viewportPickState.selectedLandmarkIndex = -1;
+                            updateViewportPickFromWorldCoord(viewportPickState, worldConfig, businessCoord, true);
+                        }
+                    }
+                }
+                const int32_t landmarkIndex = businessIndex < 0 ? findLandmarkIndexAtScreenPoint(
                     mapCamera,
                     io.MousePos.x,
                     io.MousePos.y,
                     canvasPos,
                     canvasSize,
-                    LANDMARK_HIT_RADIUS_PIXELS);
+                    LANDMARK_HIT_RADIUS_PIXELS) : -1;
                 if (landmarkIndex >= 0) {
                     const LandmarkDefinition* landmark = getLandmarkDefinition(landmarkIndex);
                     if (landmark != nullptr) {
@@ -907,10 +1012,12 @@ void renderMapViewportPanel(
                         if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                             viewportPickState.hasLandmarkSelection = true;
                             viewportPickState.selectedLandmarkIndex = landmarkIndex;
+                            viewportPickState.hasBusinessSelection = false;
+                            viewportPickState.selectedBusinessIndex = -1;
                             updateViewportPickFromWorldCoord(viewportPickState, worldConfig, landmarkCoord, true);
                         }
                     }
-                } else {
+                } else if (businessIndex < 0) {
                     float worldX = 0.0f;
                     float worldY = 0.0f;
                     mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
@@ -932,6 +1039,7 @@ void renderMapViewportPanel(
                 hoveredTileCoord = &viewportPickState.hoveredCoord;
             }
             renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize, hoveredTileCoord, showCrimeOverlay);
+            renderBusinessNodesOnMap(drawList, mapCamera, canvasPos, canvasSize, viewportPickState);
             renderLandmarkOverlays(drawList, mapCamera, canvasPos, canvasSize, viewportPickState);
         }
         drawList->PopClipRect();
@@ -948,9 +1056,6 @@ void renderMapViewportPanel(
                 IM_COL32(220, 224, 232, 230),
                 overlayBuffer);
         }
-    } else {
-        viewportPickState.hasHover = false;
-    }
     ImGui::End();
 }
 } // namespace
@@ -991,21 +1096,25 @@ FrontendUiEvents renderFrontendUi(
 void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
-    const ChunkStore& chunkStore,
+    ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
     PlayerWallet& playerWallet,
+    PlayerOperationsStore& playerOperationsStore,
+    CharacterAgentStore& characterAgentStore,
     CityControlStore& cityControlStore,
     SimEventQueue& simEventQueue,
     bool& mapCrimeOverlayEnabled,
+    GamePanelVisibility& panelVisibility,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
     uint64_t worldSeed,
     const PlayerProfile& playerProfile,
     ContextHelpState& contextHelpState) {
+    (void)chunkStore;
     beginMainDockSpace();
     setupDefaultDockLayoutIfNeeded();
-    renderCharacterPanel(playerProfile, playerWallet, contextHelpState);
+    renderCharacterPanel(playerProfile, playerWallet, panelVisibility, contextHelpState);
     renderSimulationPanel(
         simClock,
         worldConfig,
@@ -1014,20 +1123,34 @@ void renderGameUi(
         mapCrimeOverlayEnabled,
         systemRegistry,
         worldSeed,
+        panelVisibility,
         contextHelpState);
-    renderBoroughsPanel(boroughVitalityStore, contextHelpState);
-    renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, contextHelpState);
+    renderOperationsPanel(playerOperationsStore, playerWallet, simEventQueue, playerProfile, panelVisibility, contextHelpState);
+    renderContactsPanel(characterAgentStore, panelVisibility, contextHelpState);
+    renderBoroughsPanel(boroughVitalityStore, panelVisibility, contextHelpState);
+    renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, panelVisibility, contextHelpState);
     renderCityPanel(
         worldConfig,
         chunkStore,
         boroughVitalityStore,
         cityControlStore,
+        playerOperationsStore,
         playerWallet,
         simEventQueue,
         playerProfile,
         viewportPickState,
+        panelVisibility,
         contextHelpState);
-    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, mapCrimeOverlayEnabled, contextHelpState);
+    renderBusinessPanel(
+        worldConfig,
+        playerOperationsStore,
+        playerWallet,
+        simEventQueue,
+        playerProfile,
+        viewportPickState,
+        panelVisibility,
+        contextHelpState);
+    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, mapCrimeOverlayEnabled, panelVisibility, contextHelpState);
 }
 
 } // namespace Core

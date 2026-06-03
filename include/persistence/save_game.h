@@ -2,7 +2,9 @@
 
 #include "character/character_draft.h"
 #include "core/sim_clock.h"
+#include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "sim/character_agent.h"
 #include "ui/map_camera.h"
 #include "world/chunk_store.h"
 #include "world/city_control.h"
@@ -28,6 +30,12 @@ struct SaveGameSnapshot {
     int64_t lifetimeLegitCents = 0;
     int64_t lifetimeCrimeCents = 0;
     std::vector<uint8_t> cityOwnerIds;
+    HeadquartersKind headquartersKind = HeadquartersKind::None;
+    int32_t employedBusinessIndex = -1;
+    int32_t activeOperationCount = 0;
+    int32_t activeCatalogIndices[MAX_OPERATION_CATALOG_COUNT]{};
+    int32_t familyOpinionPenalty = 0;
+    CharacterAgentStore characterAgentStore{};
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
     std::vector<int16_t> elevations;
@@ -51,7 +59,9 @@ bool buildSaveSnapshot(
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
     const PlayerWallet& playerWallet,
-    const CityControlStore& cityControlStore);
+    const CityControlStore& cityControlStore,
+    const PlayerOperationsStore& playerOperationsStore,
+    const CharacterAgentStore& characterAgentStore);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,
@@ -60,7 +70,9 @@ bool applySaveSnapshot(
     MapCamera& mapCamera,
     ChunkStore& chunkStore,
     PlayerWallet& playerWallet,
-    CityControlStore& cityControlStore);
+    CityControlStore& cityControlStore,
+    PlayerOperationsStore& playerOperationsStore,
+    CharacterAgentStore& characterAgentStore);
 bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot);
 bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot);
 

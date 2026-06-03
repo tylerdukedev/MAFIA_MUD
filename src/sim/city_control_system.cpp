@@ -1,5 +1,5 @@
 #include "sim/city_control_system.h"
-#include "game/economy_constants.h"
+#include "game/player_operations.h"
 #include "game/player_wallet.h"
 #include "world/landmark_table.h"
 #include "world/tile_vitality.h"
@@ -53,7 +53,13 @@ void CityControlSystem::processClaimCityEvent(const SimEvent& event, uint64_t ti
     if (isCityClaimed(*bindings.cityControlStore, landmarkIndex)) {
         return;
     }
-    const int64_t claimCostCents = computeClaimCostCents(bindings.playerProfile);
+    if (bindings.playerOperationsStore == nullptr || bindings.playerProfile == nullptr) {
+        return;
+    }
+    int64_t claimCostCents = 0;
+    if (!canEstablishCityOperation(*bindings.playerOperationsStore, *bindings.playerProfile, *bindings.playerWallet, claimCostCents)) {
+        return;
+    }
     if (!tryDebitCash(*bindings.playerWallet, claimCostCents)) {
         return;
     }

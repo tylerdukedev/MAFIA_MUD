@@ -9,8 +9,11 @@
 #include "ui/context_help.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
+#include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
+#include "ui/panel_visibility.h"
 #include "world/chunk_store.h"
 #include "world/city_control.h"
 #include "world/tile_vitality.h"
@@ -41,7 +44,10 @@ private:
     ChunkStore chunkStore;
     BoroughVitalityStore boroughVitalityStore{};
     PlayerWallet playerWallet{};
+    PlayerOperationsStore playerOperationsStore{};
+    CharacterAgentStore characterAgentStore{};
     CityControlStore cityControlStore{};
+    GamePanelVisibility panelVisibility{};
     SimEventQueue simEventQueue{};
     bool mapCrimeOverlayEnabled = false;
     SimClock simClock;

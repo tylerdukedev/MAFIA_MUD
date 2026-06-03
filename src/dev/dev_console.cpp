@@ -2,7 +2,9 @@
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
 #include "game/economy_constants.h"
+#include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "sim/character_agent.h"
 #include "world/city_control.h"
 #include "world/landmark_table.h"
 #include "imgui.h"
@@ -172,13 +174,33 @@ void logProfileDump(DevConsoleLog& log, const CharacterDraft& draft, const Playe
     logProfileAxis(log, "[Opportunity Paths]", lineOne, "");
 }
 
+void logOperationsFields(DevConsoleLog& log, const PlayerOperationsStore& store) {
+    char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+    std::snprintf(buffer, sizeof(buffer), "HQ kind: %d active ops: %d employed business: %d", static_cast<int>(store.headquartersKind), store.activeOperationCount, store.employedBusinessIndex);
+    devConsoleLogAppend(log, buffer);
+}
+
+void logAgentsFields(DevConsoleLog& log, const CharacterAgentStore& store) {
+    const int32_t agentCount = getCharacterAgentDefinitionCount();
+    for (int32_t agentIndex = 0; agentIndex < agentCount; ++agentIndex) {
+        const AgentDefinition* definition = getCharacterAgentDefinition(agentIndex);
+        const CharacterAgentState* state = getCharacterAgentState(store, agentIndex);
+        if (definition == nullptr || state == nullptr) {
+            continue;
+        }
+        char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+        std::snprintf(buffer, sizeof(buffer), "%s opinion=%d trust=%d", definition->displayName, state->opinionOfPlayer, state->trust);
+        devConsoleLogAppend(log, buffer);
+    }
+}
+
 void logHelp(DevConsoleLog& log) {
-    devConsoleLogAppend(log, "Build: Phase 6 economy + cities (save v4)");
+    devConsoleLogAppend(log, "Build: operations layer + AI contacts (save v5)");
     devConsoleLogAppend(log, "Commands:");
     devConsoleLogAppend(log, "  help");
     devConsoleLogAppend(log, "  log clear");
     devConsoleLogAppend(log, "  profile dump | draft show");
-    devConsoleLogAppend(log, "  wallet show | cities show  (in-game only)");
+    devConsoleLogAppend(log, "  wallet show | cities show | operations show | agents show  (in-game)");
     devConsoleLogAppend(log, "  profile set generation <immigrant|first|second|third>");
     devConsoleLogAppend(log, "  profile set heritage <name> | nationality <name> | age <16-25>");
     devConsoleLogAppend(log, "  network show | legitimacy show | loyalty show | culture show | paths show");
@@ -429,6 +451,30 @@ void devConsoleExecuteCommand(
             return;
         }
         logCityControlFields(log, *gameplaySnapshot->cityControlStore);
+        return;
+    }
+    if (std::strcmp(token, "operations") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken)) || std::strcmp(subToken, "show") != 0) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->playerOperationsStore == nullptr) {
+            devConsoleLogAppend(log, "operations show requires an active in-game session.");
+            return;
+        }
+        logOperationsFields(log, *gameplaySnapshot->playerOperationsStore);
+        return;
+    }
+    if (std::strcmp(token, "agents") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken)) || std::strcmp(subToken, "show") != 0) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->characterAgentStore == nullptr) {
+            devConsoleLogAppend(log, "agents show requires an active in-game session.");
+            return;
+        }
+        logAgentsFields(log, *gameplaySnapshot->characterAgentStore);
         return;
     }
     devConsoleLogAppend(log, "Unknown command. Type help.");

@@ -17,6 +17,8 @@ struct CharacterDraft {
     int32_t startingCityLandmarkIndex = -1;
     int64_t startingCashCents = 0;
     uint64_t characterRollSeed = 0;
+    bool hasFamilyInCountry = false;
+    bool hasFriendsInCountry = false;
 };
 
 } // namespace Core

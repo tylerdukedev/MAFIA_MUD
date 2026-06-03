@@ -13,6 +13,10 @@ struct ViewportPickState {
     bool hasLandmarkSelection = false;
     int32_t hoveredLandmarkIndex = -1;
     int32_t selectedLandmarkIndex = -1;
+    bool hasBusinessHover = false;
+    bool hasBusinessSelection = false;
+    int32_t hoveredBusinessIndex = -1;
+    int32_t selectedBusinessIndex = -1;
 };
 
 } // namespace Core

@@ -1,4 +1,5 @@
 #include "persistence/save_game.h"
+#include "sim/character_agent.h"
 #include "world/landmark_table.h"
 #include <cstdio>
 #include <cstring>
@@ -7,7 +8,7 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 4U;
+constexpr uint32_t SAVE_VERSION = 5U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -35,6 +36,13 @@ struct SaveGameHeader {
     float pixelsPerTile;
     int32_t worldWidthTiles;
     int32_t worldHeightTiles;
+    uint8_t headquartersKind;
+    uint8_t hasFamilyInCountry;
+    uint8_t hasFriendsInCountry;
+    uint8_t savePadding;
+    int32_t employedBusinessIndex;
+    int32_t activeOperationCount;
+    int32_t familyOpinionPenalty;
 };
 
 bool writeAllBytes(FILE* fileHandle, const void* data, size_t byteCount) {
@@ -75,7 +83,9 @@ bool buildSaveSnapshot(
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
     const PlayerWallet& playerWallet,
-    const CityControlStore& cityControlStore) {
+    const CityControlStore& cityControlStore,
+    const PlayerOperationsStore& playerOperationsStore,
+    const CharacterAgentStore& characterAgentStore) {
     (void)boroughVitalityStore;
     outSnapshot.worldSeed = worldSeed;
     outSnapshot.characterDraft = characterDraft;
@@ -86,6 +96,14 @@ bool buildSaveSnapshot(
     for (int32_t landmarkIndex = 0; landmarkIndex < getLandmarkCount(); ++landmarkIndex) {
         outSnapshot.cityOwnerIds[static_cast<size_t>(landmarkIndex)] = cityControlStore.slots[landmarkIndex].ownerId;
     }
+    outSnapshot.headquartersKind = playerOperationsStore.headquartersKind;
+    outSnapshot.employedBusinessIndex = playerOperationsStore.employedBusinessIndex;
+    outSnapshot.activeOperationCount = playerOperationsStore.activeOperationCount;
+    outSnapshot.familyOpinionPenalty = playerOperationsStore.familyOpinionPenalty;
+    for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
+        outSnapshot.activeCatalogIndices[index] = playerOperationsStore.activeCatalogIndices[index];
+    }
+    outSnapshot.characterAgentStore = characterAgentStore;
     outSnapshot.tickCount = simClock.getTickCount();
     outSnapshot.isPaused = simClock.isPaused();
     outSnapshot.speedMultiplier = simClock.getSpeedMultiplier();
@@ -129,7 +147,9 @@ bool applySaveSnapshot(
     MapCamera& mapCamera,
     ChunkStore& chunkStore,
     PlayerWallet& playerWallet,
-    CityControlStore& cityControlStore) {
+    CityControlStore& cityControlStore,
+    PlayerOperationsStore& playerOperationsStore,
+    CharacterAgentStore& characterAgentStore) {
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.terrainIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.elevations.size()) != SAVE_GAME_TILE_COUNT
@@ -176,6 +196,14 @@ bool applySaveSnapshot(
             cityControlStore.slots[landmarkIndex].ownerId = snapshot.cityOwnerIds[static_cast<size_t>(landmarkIndex)];
         }
     }
+    playerOperationsStore.headquartersKind = snapshot.headquartersKind;
+    playerOperationsStore.employedBusinessIndex = snapshot.employedBusinessIndex;
+    playerOperationsStore.activeOperationCount = snapshot.activeOperationCount;
+    playerOperationsStore.familyOpinionPenalty = snapshot.familyOpinionPenalty;
+    for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
+        playerOperationsStore.activeCatalogIndices[index] = snapshot.activeCatalogIndices[index];
+    }
+    characterAgentStore = snapshot.characterAgentStore;
     return true;
 }
 
@@ -212,6 +240,13 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     header.pixelsPerTile = snapshot.mapCamera.pixelsPerTile;
     header.worldWidthTiles = WorldConfig::WORLD_WIDTH_TILES;
     header.worldHeightTiles = WorldConfig::WORLD_HEIGHT_TILES;
+    header.headquartersKind = static_cast<uint8_t>(snapshot.headquartersKind);
+    header.hasFamilyInCountry = snapshot.characterDraft.hasFamilyInCountry ? 1U : 0U;
+    header.hasFriendsInCountry = snapshot.characterDraft.hasFriendsInCountry ? 1U : 0U;
+    header.savePadding = 0U;
+    header.employedBusinessIndex = snapshot.employedBusinessIndex;
+    header.activeOperationCount = snapshot.activeOperationCount;
+    header.familyOpinionPenalty = snapshot.familyOpinionPenalty;
     const bool headerWritten = writeAllBytes(fileHandle, &header, sizeof(header));
     const bool regionsWritten = writeAllBytes(fileHandle, snapshot.regionIds.data(), snapshot.regionIds.size());
     const bool terrainsWritten = writeAllBytes(fileHandle, snapshot.terrainIds.data(), snapshot.terrainIds.size());
@@ -225,9 +260,14 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     const bool playerInfluencesWritten = writeAllBytes(fileHandle, snapshot.playerInfluences.data(), snapshot.playerInfluences.size());
     const bool oppositionInfluencesWritten = writeAllBytes(fileHandle, snapshot.oppositionInfluences.data(), snapshot.oppositionInfluences.size());
     const bool cityOwnersWritten = writeAllBytes(fileHandle, snapshot.cityOwnerIds.data(), snapshot.cityOwnerIds.size());
+    const int32_t agentCount = getCharacterAgentDefinitionCount();
+    const bool catalogWritten = writeAllBytes(fileHandle, snapshot.activeCatalogIndices, sizeof(snapshot.activeCatalogIndices));
+    const bool agentsWritten = writeAllBytes(fileHandle, snapshot.characterAgentStore.states, sizeof(CharacterAgentState) * static_cast<size_t>(MAX_CHARACTER_AGENT_COUNT));
+    const bool agentCountWritten = writeAllBytes(fileHandle, &agentCount, sizeof(agentCount));
     const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
         && economicWeightsWritten && populationsWritten && crimePressuresWritten && lawPressuresWritten
-        && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten && cityOwnersWritten;
+        && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten && cityOwnersWritten
+        && catalogWritten && agentsWritten && agentCountWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -267,6 +307,12 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     outSnapshot.characterDraft.selectedBoroughIndex = header.selectedBoroughIndex;
     outSnapshot.characterDraft.startingCityLandmarkIndex = header.startingCityLandmarkIndex;
     outSnapshot.characterDraft.hasInitializedDefaults = header.hasInitializedDefaults != 0U;
+    outSnapshot.characterDraft.hasFamilyInCountry = header.hasFamilyInCountry != 0U;
+    outSnapshot.characterDraft.hasFriendsInCountry = header.hasFriendsInCountry != 0U;
+    outSnapshot.headquartersKind = static_cast<HeadquartersKind>(header.headquartersKind);
+    outSnapshot.employedBusinessIndex = header.employedBusinessIndex;
+    outSnapshot.activeOperationCount = header.activeOperationCount;
+    outSnapshot.familyOpinionPenalty = header.familyOpinionPenalty;
     outSnapshot.cashCents = header.cashCents;
     outSnapshot.lifetimeLegitCents = header.lifetimeLegitCents;
     outSnapshot.lifetimeCrimeCents = header.lifetimeCrimeCents;
@@ -301,9 +347,15 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     const bool playerInfluencesRead = readAllBytes(fileHandle, outSnapshot.playerInfluences.data(), outSnapshot.playerInfluences.size());
     const bool oppositionInfluencesRead = readAllBytes(fileHandle, outSnapshot.oppositionInfluences.data(), outSnapshot.oppositionInfluences.size());
     const bool cityOwnersRead = readAllBytes(fileHandle, outSnapshot.cityOwnerIds.data(), outSnapshot.cityOwnerIds.size());
+    const bool catalogRead = readAllBytes(fileHandle, outSnapshot.activeCatalogIndices, sizeof(outSnapshot.activeCatalogIndices));
+    const bool agentsRead = readAllBytes(fileHandle, outSnapshot.characterAgentStore.states, sizeof(CharacterAgentState) * static_cast<size_t>(MAX_CHARACTER_AGENT_COUNT));
+    int32_t agentCount = 0;
+    const bool agentCountRead = readAllBytes(fileHandle, &agentCount, sizeof(agentCount));
+    (void)agentCount;
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead
-        && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead && cityOwnersRead;
+        && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead && cityOwnersRead
+        && catalogRead && agentsRead && agentCountRead;
     std::fclose(fileHandle);
     return didLoad;
 }

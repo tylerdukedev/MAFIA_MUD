@@ -73,9 +73,13 @@ set(CAPITAL_VICE_SOURCES
     src/sim/system_registry.cpp
     src/sim/borough_vitality_system.cpp
     src/sim/city_control_system.cpp
+    src/sim/operation_system.cpp
     src/sim/economy_system.cpp
     src/sim/sim_event_queue.cpp
+    src/sim/character_agent_store.cpp
     src/game/player_wallet.cpp
+    src/game/player_operations.cpp
+    src/game/operation_catalog.cpp
     src/world/city_control.cpp
     src/character/character_start.cpp
     src/procgen/world_generator.cpp
@@ -84,12 +88,15 @@ set(CAPITAL_VICE_SOURCES
     src/world/chunk_store.cpp
     src/world/region_table.cpp
     src/world/landmark_table.cpp
+    src/world/business_node_table.cpp
     src/world/tile_vitality.cpp
     src/persistence/save_game.cpp
     src/ui/dock_layout.cpp
     src/ui/map_camera.cpp
     src/ui/map_renderer.cpp
     src/ui/landmark_renderer.cpp
+    src/ui/business_renderer.cpp
+    src/ui/game_ui_panels.cpp
     src/ui/help_manual.cpp
     src/ui/context_help.cpp
     src/ui/game_ui.cpp
@@ -168,11 +175,34 @@ add_executable(save_game_test
     src/world/landmark_table.cpp
     src/world/city_control.cpp
     src/game/player_wallet.cpp
+    src/game/player_operations.cpp
+    src/game/operation_catalog.cpp
+    src/sim/character_agent_store.cpp
     src/core/sim_clock.cpp
 )
 target_include_directories(save_game_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(save_game_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(save_game_test)
+
+add_executable(player_operations_test
+    test/player_operations_test.cpp
+    src/game/player_operations.cpp
+    src/game/operation_catalog.cpp
+    src/game/player_wallet.cpp
+    src/utils/seed_hash.cpp
+    ${CHARACTER_SOURCES}
+)
+target_include_directories(player_operations_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(player_operations_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(player_operations_test)
+
+add_executable(business_node_test
+    test/business_node_test.cpp
+    src/world/business_node_table.cpp
+)
+target_include_directories(business_node_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(business_node_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(business_node_test)
 
 add_executable(profile_builder_test
     test/profile_builder_test.cpp
@@ -186,6 +216,9 @@ add_executable(dev_console_test
     test/dev_console_test.cpp
     src/dev/dev_console.cpp
     src/game/player_wallet.cpp
+    src/game/player_operations.cpp
+    src/game/operation_catalog.cpp
+    src/sim/character_agent_store.cpp
     src/world/city_control.cpp
     src/world/landmark_table.cpp
     src/utils/seed_hash.cpp

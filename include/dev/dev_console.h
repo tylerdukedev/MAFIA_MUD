@@ -2,7 +2,9 @@
 
 #include "character/character_draft.h"
 #include "character/player_profile.h"
+#include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "sim/character_agent.h"
 #include "world/city_control.h"
 #include <cstddef>
 #include <cstdint>
@@ -29,6 +31,8 @@ struct DevConsoleLog {
 struct DevConsoleGameplaySnapshot {
     const PlayerWallet* playerWallet = nullptr;
     const CityControlStore* cityControlStore = nullptr;
+    const PlayerOperationsStore* playerOperationsStore = nullptr;
+    const CharacterAgentStore* characterAgentStore = nullptr;
     bool isWorldReady = false;
 };
 

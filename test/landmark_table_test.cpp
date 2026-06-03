@@ -32,4 +32,9 @@ TEST_CASE("LandmarkTable contains expected districts", "[landmark_table]") {
     REQUIRE(coneyIsland != nullptr);
     REQUIRE(std::strcmp(coneyIsland->fullName, "Coney Island") == 0);
     REQUIRE(findLandmarkIndexAtTile(195, 468) < 0);
+    const int32_t newarkPennIndex = findLandmarkIndexAtTile(112, 174);
+    REQUIRE(newarkPennIndex >= 0);
+    const LandmarkDefinition* newarkPenn = getLandmarkDefinition(newarkPennIndex);
+    REQUIRE(newarkPenn != nullptr);
+    REQUIRE(std::strcmp(newarkPenn->fullName, "Newark Penn Station") == 0);
 }
