@@ -185,6 +185,10 @@ catch_discover_tests(profile_builder_test)
 add_executable(dev_console_test
     test/dev_console_test.cpp
     src/dev/dev_console.cpp
+    src/game/player_wallet.cpp
+    src/world/city_control.cpp
+    src/world/landmark_table.cpp
+    src/utils/seed_hash.cpp
     ${CHARACTER_SOURCES}
 )
 target_include_directories(dev_console_test PRIVATE ${CMAKE_SOURCE_DIR}/include)

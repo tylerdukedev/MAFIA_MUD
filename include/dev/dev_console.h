@@ -2,6 +2,8 @@
 
 #include "character/character_draft.h"
 #include "character/player_profile.h"
+#include "game/player_wallet.h"
+#include "world/city_control.h"
 #include <cstddef>
 #include <cstdint>
 
@@ -24,6 +26,12 @@ struct DevConsoleLog {
     int32_t lineCount = 0;
 };
 
+struct DevConsoleGameplaySnapshot {
+    const PlayerWallet* playerWallet = nullptr;
+    const CityControlStore* cityControlStore = nullptr;
+    bool isWorldReady = false;
+};
+
 void devConsoleLogAppend(DevConsoleLog& log, const char* message);
 void devConsoleLogClear(DevConsoleLog& log);
 void devConsoleToggleVisibility(DevConsoleState& state);
@@ -31,8 +39,14 @@ void devConsoleExecuteCommand(
     DevConsoleLog& log,
     const char* commandLine,
     CharacterDraft& draft,
-    PlayerProfile& profile);
-void devConsoleRender(DevConsoleState& state, DevConsoleLog& log, CharacterDraft& draft, PlayerProfile& profile);
+    PlayerProfile& profile,
+    const DevConsoleGameplaySnapshot* gameplaySnapshot = nullptr);
+void devConsoleRender(
+    DevConsoleState& state,
+    DevConsoleLog& log,
+    CharacterDraft& draft,
+    PlayerProfile& profile,
+    const DevConsoleGameplaySnapshot* gameplaySnapshot = nullptr);
 bool devConsoleParseProfileSetCommand(
     const char* commandLine,
     CharacterDraft& draft,

@@ -1,6 +1,10 @@
 #include "dev/dev_console.h"
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
+#include "game/economy_constants.h"
+#include "game/player_wallet.h"
+#include "world/city_control.h"
+#include "world/landmark_table.h"
 #include "imgui.h"
 #include <cctype>
 #include <cstdio>
@@ -61,6 +65,58 @@ void logDraftFields(DevConsoleLog& log, const CharacterDraft& draft) {
         static_cast<int>(getBoroughPreferenceName(draft.selectedBoroughIndex).size()),
         getBoroughPreferenceName(draft.selectedBoroughIndex).data());
     devConsoleLogAppend(log, buffer);
+    const LandmarkDefinition* startingCity = getLandmarkDefinition(draft.startingCityLandmarkIndex);
+    char cashBuffer[32];
+    formatCashCents(cashBuffer, sizeof(cashBuffer), draft.startingCashCents);
+    if (startingCity != nullptr) {
+        std::snprintf(
+            buffer,
+            sizeof(buffer),
+            "Start: city=%s (idx %d) cash=%s rollSeed=%llu",
+            startingCity->fullName,
+            draft.startingCityLandmarkIndex,
+            cashBuffer,
+            static_cast<unsigned long long>(draft.characterRollSeed));
+    } else {
+        std::snprintf(
+            buffer,
+            sizeof(buffer),
+            "Start: city=unrolled cash=%s rollSeed=%llu",
+            cashBuffer,
+            static_cast<unsigned long long>(draft.characterRollSeed));
+    }
+    devConsoleLogAppend(log, buffer);
+}
+
+void logWalletFields(DevConsoleLog& log, const PlayerWallet& wallet) {
+    char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+    char cashBuffer[32];
+    formatCashCents(cashBuffer, sizeof(cashBuffer), wallet.cashCents);
+    std::snprintf(buffer, sizeof(buffer), "Wallet: cash=%s legit=%lld crime=%lld", cashBuffer, static_cast<long long>(wallet.lifetimeLegitCents), static_cast<long long>(wallet.lifetimeCrimeCents));
+    devConsoleLogAppend(log, buffer);
+    std::snprintf(
+        buffer,
+        sizeof(buffer),
+        "Income/tick: legit=%.3f crime=%.3f (paid every %d ticks)",
+        wallet.legitIncomePerTickCents,
+        wallet.crimeIncomePerTickCents,
+        ECONOMY_INCOME_APPLY_INTERVAL_TICKS);
+    devConsoleLogAppend(log, buffer);
+    std::snprintf(buffer, sizeof(buffer), "Broke threshold: %s", isWalletBroke(wallet) ? "yes" : "no");
+    devConsoleLogAppend(log, buffer);
+}
+
+void logCityControlFields(DevConsoleLog& log, const CityControlStore& cityControlStore) {
+    char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+    const int32_t ownedCount = countPlayerOwnedCities(cityControlStore);
+    std::snprintf(buffer, sizeof(buffer), "Cities: player-owned=%d / %d landmarks", ownedCount, getLandmarkCount());
+    devConsoleLogAppend(log, buffer);
+    char claimBuffer[32];
+    formatCashCents(claimBuffer, sizeof(claimBuffer), DEFAULT_CLAIM_CITY_COST_CENTS);
+    char hustlerBuffer[32];
+    formatCashCents(hustlerBuffer, sizeof(hustlerBuffer), STREET_HUSTLER_CLAIM_COST_CENTS);
+    std::snprintf(buffer, sizeof(buffer), "Claim cost: default=%s street_hustler=%s", claimBuffer, hustlerBuffer);
+    devConsoleLogAppend(log, buffer);
 }
 
 void logProfileDump(DevConsoleLog& log, const CharacterDraft& draft, const PlayerProfile& profile) {
@@ -117,10 +173,12 @@ void logProfileDump(DevConsoleLog& log, const CharacterDraft& draft, const Playe
 }
 
 void logHelp(DevConsoleLog& log) {
+    devConsoleLogAppend(log, "Build: Phase 6 economy + cities (save v4)");
     devConsoleLogAppend(log, "Commands:");
     devConsoleLogAppend(log, "  help");
     devConsoleLogAppend(log, "  log clear");
     devConsoleLogAppend(log, "  profile dump | draft show");
+    devConsoleLogAppend(log, "  wallet show | cities show  (in-game only)");
     devConsoleLogAppend(log, "  profile set generation <immigrant|first|second|third>");
     devConsoleLogAppend(log, "  profile set heritage <name> | nationality <name> | age <16-25>");
     devConsoleLogAppend(log, "  network show | legitimacy show | loyalty show | culture show | paths show");
@@ -223,7 +281,8 @@ void devConsoleExecuteCommand(
     DevConsoleLog& log,
     const char* commandLine,
     CharacterDraft& draft,
-    PlayerProfile& profile) {
+    PlayerProfile& profile,
+    const DevConsoleGameplaySnapshot* gameplaySnapshot) {
     if (commandLine == nullptr || commandLine[0] == '\0') {
         return;
     }
@@ -348,10 +407,39 @@ void devConsoleExecuteCommand(
         }
         return;
     }
+    if (std::strcmp(token, "wallet") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken)) || std::strcmp(subToken, "show") != 0) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->playerWallet == nullptr) {
+            devConsoleLogAppend(log, "wallet show requires an active in-game session.");
+            return;
+        }
+        logWalletFields(log, *gameplaySnapshot->playerWallet);
+        return;
+    }
+    if (std::strcmp(token, "cities") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken)) || std::strcmp(subToken, "show") != 0) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->cityControlStore == nullptr) {
+            devConsoleLogAppend(log, "cities show requires an active in-game session.");
+            return;
+        }
+        logCityControlFields(log, *gameplaySnapshot->cityControlStore);
+        return;
+    }
     devConsoleLogAppend(log, "Unknown command. Type help.");
 }
 
-void devConsoleRender(DevConsoleState& state, DevConsoleLog& log, CharacterDraft& draft, PlayerProfile& profile) {
+void devConsoleRender(
+    DevConsoleState& state,
+    DevConsoleLog& log,
+    CharacterDraft& draft,
+    PlayerProfile& profile,
+    const DevConsoleGameplaySnapshot* gameplaySnapshot) {
     if (!state.isVisible) {
         return;
     }
@@ -379,7 +467,7 @@ void devConsoleRender(DevConsoleState& state, DevConsoleLog& log, CharacterDraft
     }
     if (ImGui::InputText("##DevConsoleInput", state.inputBuffer, sizeof(state.inputBuffer), inputFlags)) {
         devConsoleLogAppend(log, state.inputBuffer);
-        devConsoleExecuteCommand(log, state.inputBuffer, draft, profile);
+        devConsoleExecuteCommand(log, state.inputBuffer, draft, profile, gameplaySnapshot);
         state.inputBuffer[0] = '\0';
     }
     ImGui::End();

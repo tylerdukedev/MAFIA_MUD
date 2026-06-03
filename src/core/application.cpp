@@ -238,7 +238,11 @@ void Application::renderFrame() {
     renderContextHelpCursorOverlay(contextHelpState);
     renderContextHelpInspectPopup(contextHelpState, helpManualState);
 #if defined(CAPITALVICE_DEV_CONSOLE)
-    devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile);
+    DevConsoleGameplaySnapshot devGameplaySnapshot{};
+    devGameplaySnapshot.playerWallet = isWorldReady ? &playerWallet : nullptr;
+    devGameplaySnapshot.cityControlStore = isWorldReady ? &cityControlStore : nullptr;
+    devGameplaySnapshot.isWorldReady = isWorldReady;
+    devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile, &devGameplaySnapshot);
 #endif
     ImGui::Render();
     int framebufferWidth = 0;

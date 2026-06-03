@@ -8,7 +8,7 @@ namespace {
 
 constexpr const char* P_OVERVIEW[] = {
     "Capital Vice is a data-driven mafia simulation across NYC boroughs and parts of New Jersey.",
-    "This build is a foundational layer: character creation, world generation, map navigation, simulation timing, and save/load.",
+    "This build includes character creation with starting placement, cents-based economy, city landmark claims, borough vitality rollups, map navigation, and save/load v4.",
     "Open Help > Manual from the top menu bar on any screen. Hold Ctrl for inspect mode to click UI elements for quick help.",
 };
 
@@ -31,6 +31,7 @@ constexpr const char* P_CONTEXT_HELP[] = {
 constexpr const char* P_CHAR_CREATION[] = {
     "Character Creation uses a two-panel layout: choices on the left, live preview on the right.",
     "Every field updates the preview and rebuilds your foundational profile in the background.",
+    "Changing Starting Borough rerolls your starting city landmark and starting cash ($0.00-$25.00, weighted low). The map camera centers on that city when you enter the game.",
 };
 
 constexpr const char* P_CHAR_NAME[] = {
@@ -59,8 +60,9 @@ constexpr const char* P_PROFILE_BUILDER[] = {
 };
 
 constexpr const char* P_CHARACTER_PANEL[] = {
-    "The Character panel appears in-game after you start. It shows identity, description, and foundational trait bars.",
+    "The Character panel appears in-game after you start. It shows identity, cash on hand, per-tick legit/crime income, starting city, description, and foundational trait bars.",
     "Hover any row for a tooltip. Hold Ctrl and click a row to open detailed help with a Manual link.",
+    "A broke warning appears when cash falls below the configured threshold.",
 };
 
 constexpr const char* P_AXIS_NETWORK[] = {
@@ -179,7 +181,8 @@ constexpr const char* P_SIM_CLOCK[] = {
 
 constexpr const char* P_SYSTEM_REGISTRY[] = {
     "Each tick, the System Registry calls every registered ISimSystem in order.",
-    "DebugSystem is the current placeholder. Future economy, heat, and racket systems register here.",
+    "Current order: CityControlSystem (claim events), EconomySystem (income and starting borough influence), BoroughVitalitySystem (rollup), DebugSystem.",
+    "The Simulation panel lists registered systems and last tick counts for debugging.",
 };
 
 constexpr const char* P_WORLD_DATA[] = {
@@ -191,8 +194,9 @@ constexpr const char* P_PROCGEN[] = {
 };
 
 constexpr const char* P_MAP_VIEWPORT[] = {
-    "Scroll to zoom, drag to pan, hover to highlight tiles, and click to inspect tiles or district landmarks.",
+    "Scroll to zoom, drag to pan, hover to highlight tiles, and click to inspect tiles or city landmarks.",
     "Zoom in to see city labels. Landmarks show a marker and name; LaGuardia displays as LGA with the full name on hover.",
+    "Toggle Crime heat overlay in the Simulation panel to tint land tiles by live crime pressure.",
 };
 
 constexpr const char* P_TILE_INSPECTOR[] = {
@@ -206,9 +210,9 @@ constexpr const char* P_LANDMARKS_OVERVIEW[] = {
 };
 
 constexpr const char* P_CITY_PANEL[] = {
-    "The City panel opens when you click a landmark. It shows the full city name, borough, tile coords, and foundational stats.",
+    "The City panel opens when you click a landmark. It shows the full city name, borough, tile coords, ownership, live heat/difficulty, and claim cost.",
     "LaGuardia Airport uses the map label LGA but the panel and hover tooltip show the full name.",
-    "Establish operation spends cash to claim the node; Street Hustler pays a reduced claim cost.",
+    "Establish operation queues a claim that debits cash when CityControlSystem processes it ($5.00 default, $4.00 for Street Hustler background).",
 };
 
 constexpr const char* P_LANDMARK_CONTROL[] = {
@@ -219,7 +223,13 @@ constexpr const char* P_LANDMARK_CONTROL[] = {
 
 constexpr const char* P_ECONOMY_OVERVIEW[] = {
     "Money is tracked in cents. Starting cash rolls $0.00-$25.00 with heavier weight at the low end.",
-    "Legit and crime income accrue each tick from your background and owned cities. Claims debit cash immediately.",
+    "Legit and crime income accrue from your background and owned cities; EconomySystem applies bundled payouts every 20 ticks.",
+    "Claims debit cash when processed. Owned cities raise passive income on the Character panel.",
+};
+
+constexpr const char* P_CHAR_STARTING_BOROUGH[] = {
+    "Starting Borough is a preference used to roll a random landmark city inside that borough when you commit or reroll the field.",
+    "Preview shows the rolled city name and starting cash before you start. Your spawn camera centers on that landmark tile.",
 };
 
 constexpr const char* P_BOROUGHS[] = {
@@ -259,6 +269,8 @@ constexpr const char* P_CITY_HOT_NODES[] = {
 
 constexpr const char* P_DOCKING[] = {
     "Panels dock and tab via ImGui. Layout saves to capitalvice_layout.ini between sessions.",
+    "Resizing or maximizing the main window rebuilds default dock splits to match the viewport (custom splitter positions are not kept).",
+    "If panels look stuck or off-screen, use View > Reset Panel Layout or delete capitalvice_layout.ini.",
 };
 
 constexpr const char* P_VIEW_MENU[] = {
@@ -273,6 +285,7 @@ constexpr const char* P_SAVE_LOAD[] = {
 #if defined(CAPITALVICE_DEV_CONSOLE)
 constexpr const char* P_DEV_CONSOLE[] = {
     "Dev builds only. F12 toggles a command console for profile inspection and tweaks.",
+    "Commands: help, log clear, profile dump, draft show (includes starting city/cash), wallet show, cities show (in-game), profile set ..., network/legitimacy/loyalty/culture/paths show.",
 };
 #endif
 
@@ -295,14 +308,15 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"new_game", "Getting Started", "New Game Flow", "Creation to simulation", P_NEW_GAME, 2},
     {"context_help", "Getting Started", "Inspect Mode (Ctrl)", "Click-to-help cursor", P_CONTEXT_HELP, 3},
 
-    {"char_creation", "Character / Identity", "Character Creation Screen", "Two-panel setup", P_CHAR_CREATION, 2},
+    {"char_creation", "Character / Identity", "Character Creation Screen", "Two-panel setup", P_CHAR_CREATION, 3},
+    {"char_starting_borough", "Character / Identity", "Starting Borough", "Roll city and cash", P_CHAR_STARTING_BOROUGH, 2},
     {"char_name", "Character / Identity", "Name Field", "Display name", P_CHAR_NAME, 1},
     {"char_generation", "Character / Identity", "Generation Choice", "Tradeoffs by generation", P_CHAR_GENERATION, 2},
 
     {"profile_overview", "Character / Profile", "Player Profile", "Foundational derived data", P_PROFILE_OVERVIEW, 2},
     {"trait_axes", "Character / Profile", "Trait Axes Overview", "One profile layer among many", P_TRAIT_AXES, 3},
     {"profile_builder", "Character / Profile", "Profile Builder", "Draft to numbers", P_PROFILE_BUILDER, 2},
-    {"character_panel", "Character / Profile", "Character Panel", "In-game stats UI", P_CHARACTER_PANEL, 2},
+    {"character_panel", "Character / Profile", "Character Panel", "In-game stats UI", P_CHARACTER_PANEL, 3},
 
     {"axis_network", "Character / Trait Axes", "Network Access Axis", "Contacts and pipelines", P_AXIS_NETWORK, 2},
     {"stat_ethnic_network", "Character / Trait Axes", "Ethnic Network", "Enclave ties", P_STAT_ETHNIC_NETWORK, 1},
@@ -337,7 +351,7 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"stat_corporate", "Character / Trait Axes", "Corporate Path", "White-collar infiltration", P_STAT_CORPORATE, 1},
 
     {"sim_clock", "Simulation", "Simulation Clock", "20 Hz tick loop", P_SIM_CLOCK, 2},
-    {"system_registry", "Simulation", "System Registry", "Tick pipeline", P_SYSTEM_REGISTRY, 2},
+    {"system_registry", "Simulation", "System Registry", "Tick pipeline", P_SYSTEM_REGISTRY, 3},
     {"borough_vitality_overview", "Simulation / Borough Vitality", "Borough Vitality Overview", "Tiles as signals, boroughs as scoreboard", P_BOROUGH_VITALITY_OVERVIEW, 2},
     {"tile_economic_weight", "Simulation / Borough Vitality", "Tile Economic Weight", "Static contribution to rollup", P_TILE_ECONOMIC_WEIGHT, 2},
     {"borough_health_formula", "Simulation / Borough Vitality", "Borough Health Formula", "What moves economic health", P_BOROUGH_HEALTH_FORMULA, 2},
@@ -348,14 +362,14 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
 
     {"world_data", "World and Map", "World Data", "512x512 ChunkStore", P_WORLD_DATA, 1},
     {"procgen", "World and Map", "World Generation", "Seed and borough mask", P_PROCGEN, 1},
-    {"map_viewport", "World and Map", "Map Viewport", "Pan zoom pick", P_MAP_VIEWPORT, 2},
+    {"map_viewport", "World and Map", "Map Viewport", "Pan zoom pick", P_MAP_VIEWPORT, 3},
     {"tile_inspector", "World and Map", "Tile Inspector", "Single tile details", P_TILE_INSPECTOR, 1},
     {"boroughs", "World and Map", "Boroughs Panel", "Live borough vitality bars", P_BOROUGHS, 2},
     {"landmarks_overview", "World and Map / Cities", "City Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
-    {"city_panel", "World and Map / Cities", "City Panel", "Landmark stats and claims", P_CITY_PANEL, 2},
+    {"city_panel", "World and Map / Cities", "City Panel", "Landmark stats and claims", P_CITY_PANEL, 3},
     {"landmark_control", "World and Map / Cities", "City Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
 
-    {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 1},
+    {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 3},
     {"view_menu", "Interface", "View Menu", "Reset layout", P_VIEW_MENU, 1},
 
     {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v4", P_SAVE_LOAD, 2},
