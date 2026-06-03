@@ -192,7 +192,7 @@ constexpr const char* P_PROCGEN[] = {
 
 constexpr const char* P_MAP_VIEWPORT[] = {
     "Scroll to zoom, drag to pan, hover to highlight tiles, and click to inspect tiles or district landmarks.",
-    "Zoom in to see district labels. Landmarks show a marker and name; LaGuardia displays as LGA with the full name on hover.",
+    "Zoom in to see city labels. Landmarks show a marker and name; LaGuardia displays as LGA with the full name on hover.",
 };
 
 constexpr const char* P_TILE_INSPECTOR[] = {
@@ -200,20 +200,26 @@ constexpr const char* P_TILE_INSPECTOR[] = {
 };
 
 constexpr const char* P_LANDMARKS_OVERVIEW[] = {
-    "District landmarks are fixed strategic nodes placed on specific map tiles across all boroughs.",
+    "City landmarks are fixed strategic nodes placed on specific map tiles across all boroughs.",
     "Each landmark inherits its borough from the underlying tile region data. Add new entries in landmark_table.cpp.",
-    "Click a landmark on the map to open the District panel. Labels appear when zoomed in.",
+    "Click a landmark on the map to open the City panel. Labels appear when zoomed in.",
 };
 
-constexpr const char* P_DISTRICT_PANEL[] = {
-    "The District panel opens when you click a landmark. It shows the full district name, borough, tile coords, and foundational stats.",
+constexpr const char* P_CITY_PANEL[] = {
+    "The City panel opens when you click a landmark. It shows the full city name, borough, tile coords, and foundational stats.",
     "LaGuardia Airport uses the map label LGA but the panel and hover tooltip show the full name.",
+    "Establish operation spends cash to claim the node; Street Hustler pays a reduced claim cost.",
 };
 
 constexpr const char* P_LANDMARK_CONTROL[] = {
-    "Districts are always-hot control nodes: higher baseline heat and the highest capture difficulty.",
-    "Holding districts weighs more toward borough-wide influence than ordinary tiles (see LANDMARK_BOROUGH_INFLUENCE_WEIGHT).",
-    "The District panel shows live crime heat and difficulty adjusted by player influence on the landmark tile.",
+    "Cities are always-hot control nodes: higher baseline heat and the highest capture difficulty.",
+    "Holding cities weighs more toward borough-wide influence than ordinary tiles (see LANDMARK_BOROUGH_INFLUENCE_WEIGHT).",
+    "The City panel shows live crime heat and difficulty adjusted by player influence on the landmark tile.",
+};
+
+constexpr const char* P_ECONOMY_OVERVIEW[] = {
+    "Money is tracked in cents. Starting cash rolls $0.00-$25.00 with heavier weight at the low end.",
+    "Legit and crime income accrue each tick from your background and owned cities. Claims debit cash immediately.",
 };
 
 constexpr const char* P_BOROUGHS[] = {
@@ -246,9 +252,9 @@ constexpr const char* P_CRIME_LAW_OPPOSITION[] = {
     "Opponent stub periodically raises law pressure and opposition while eroding player influence in a random borough.",
 };
 
-constexpr const char* P_DISTRICT_HOT_NODES[] = {
+constexpr const char* P_CITY_HOT_NODES[] = {
     "Landmark tiles seed max economic weight, higher crime heat, and boosted business vitality within heat radius.",
-    "District panel heat and difficulty read live tile pressures; borough lines show rollup context.",
+    "City panel heat and difficulty read live tile pressures; borough lines show rollup context.",
 };
 
 constexpr const char* P_DOCKING[] = {
@@ -260,7 +266,7 @@ constexpr const char* P_VIEW_MENU[] = {
 };
 
 constexpr const char* P_SAVE_LOAD[] = {
-    "Binary save capitalvice_save.dat (v3). Stores draft, sim clock, camera, geography, and tile vitality arrays.",
+    "Binary save capitalvice_save.dat (v4). Stores draft, sim clock, camera, geography, tile vitality, wallet, and city ownership.",
     "Save with Ctrl+S or File menu. Load from File menu or main menu. Older save versions are rejected.",
 };
 
@@ -337,21 +343,22 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"borough_health_formula", "Simulation / Borough Vitality", "Borough Health Formula", "What moves economic health", P_BOROUGH_HEALTH_FORMULA, 2},
     {"population_model", "Simulation / Borough Vitality", "Population Model", "Borough stock-flow", P_POPULATION_MODEL, 2},
     {"crime_law_opposition", "Simulation / Borough Vitality", "Crime, Law, and Opposition", "Competing pressures", P_CRIME_LAW_OPPOSITION, 2},
-    {"district_hot_nodes", "Simulation / Borough Vitality", "District Hot Nodes", "Landmark vitality seeding", P_DISTRICT_HOT_NODES, 2},
+    {"city_hot_nodes", "Simulation / Borough Vitality", "City Hot Nodes", "Landmark vitality seeding", P_CITY_HOT_NODES, 2},
+    {"economy_overview", "Simulation / Economy", "Economy Overview", "Cash and income", P_ECONOMY_OVERVIEW, 2},
 
     {"world_data", "World and Map", "World Data", "512x512 ChunkStore", P_WORLD_DATA, 1},
     {"procgen", "World and Map", "World Generation", "Seed and borough mask", P_PROCGEN, 1},
     {"map_viewport", "World and Map", "Map Viewport", "Pan zoom pick", P_MAP_VIEWPORT, 2},
     {"tile_inspector", "World and Map", "Tile Inspector", "Single tile details", P_TILE_INSPECTOR, 1},
-    {"landmarks_overview", "World and Map / Districts", "District Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
-    {"district_panel", "World and Map / Districts", "District Panel", "Landmark stats UI", P_DISTRICT_PANEL, 2},
-    {"landmark_control", "World and Map / Districts", "District Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
     {"boroughs", "World and Map", "Boroughs Panel", "Live borough vitality bars", P_BOROUGHS, 2},
+    {"landmarks_overview", "World and Map / Cities", "City Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
+    {"city_panel", "World and Map / Cities", "City Panel", "Landmark stats and claims", P_CITY_PANEL, 2},
+    {"landmark_control", "World and Map / Cities", "City Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
 
     {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 1},
     {"view_menu", "Interface", "View Menu", "Reset layout", P_VIEW_MENU, 1},
 
-    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v3", P_SAVE_LOAD, 2},
+    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v4", P_SAVE_LOAD, 2},
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
     {"dev_console", "Developer Tools", "Dev Console", "F12 commands", P_DEV_CONSOLE, 1},
@@ -418,8 +425,9 @@ void renderHelpManualWindow(HelpManualState& state) {
     ImGui::BeginChild("ManualSidebar", ImVec2(sidebarWidth, 0.0f), true);
     int32_t topicIndex = 0;
     while (topicIndex < HELP_MANUAL_TOPIC_COUNT) {
+        const int32_t chapterStartIndex = topicIndex;
         const char* chapterTitle = HELP_MANUAL_TOPICS[topicIndex].chapterTitle;
-        ImGui::PushID(chapterTitle);
+        ImGui::PushID(chapterStartIndex);
         if (ImGui::CollapsingHeader(chapterTitle, ImGuiTreeNodeFlags_DefaultOpen)) {
             while (topicIndex < HELP_MANUAL_TOPIC_COUNT && HELP_MANUAL_TOPICS[topicIndex].chapterTitle == chapterTitle) {
                 const HelpManualTopicEntry& entry = HELP_MANUAL_TOPICS[topicIndex];

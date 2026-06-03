@@ -26,5 +26,7 @@ int32_t getLandmarkCount();
 const LandmarkDefinition* getLandmarkDefinition(int32_t landmarkIndex);
 int32_t findLandmarkIndexAtTile(int32_t tileX, int32_t tileY);
 const char* getLandmarkTooltipText(int32_t landmarkIndex);
-
+RegionId getLandmarkRegionId(int32_t landmarkIndex);
+RegionId regionIdFromBoroughPreferenceIndex(int32_t boroughIndex);
+int32_t pickRandomLandmarkIndexInRegion(RegionId regionId, uint64_t seed, int32_t salt);
 } // namespace Core

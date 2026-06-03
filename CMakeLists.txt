@@ -72,6 +72,12 @@ set(CAPITAL_VICE_SOURCES
     src/core/sim_clock.cpp
     src/sim/system_registry.cpp
     src/sim/borough_vitality_system.cpp
+    src/sim/city_control_system.cpp
+    src/sim/economy_system.cpp
+    src/sim/sim_event_queue.cpp
+    src/game/player_wallet.cpp
+    src/world/city_control.cpp
+    src/character/character_start.cpp
     src/procgen/world_generator.cpp
     src/utils/seed_hash.cpp
     src/world/world_config.cpp
@@ -122,6 +128,7 @@ catch_discover_tests(chunk_store_test)
 add_executable(landmark_table_test
     test/landmark_table_test.cpp
     src/world/landmark_table.cpp
+    src/utils/seed_hash.cpp
 )
 target_include_directories(landmark_table_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(landmark_table_test PRIVATE Catch2::Catch2WithMain)
@@ -159,6 +166,8 @@ add_executable(save_game_test
     src/world/region_table.cpp
     src/world/tile_vitality.cpp
     src/world/landmark_table.cpp
+    src/world/city_control.cpp
+    src/game/player_wallet.cpp
     src/core/sim_clock.cpp
 )
 target_include_directories(save_game_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -194,3 +203,22 @@ add_executable(tile_vitality_test
 target_include_directories(tile_vitality_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(tile_vitality_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(tile_vitality_test)
+
+add_executable(player_wallet_test
+    test/player_wallet_test.cpp
+    src/game/player_wallet.cpp
+    src/utils/seed_hash.cpp
+)
+target_include_directories(player_wallet_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(player_wallet_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(player_wallet_test)
+
+add_executable(city_control_test
+    test/city_control_test.cpp
+    src/world/city_control.cpp
+    src/world/landmark_table.cpp
+    src/utils/seed_hash.cpp
+)
+target_include_directories(city_control_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(city_control_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(city_control_test)

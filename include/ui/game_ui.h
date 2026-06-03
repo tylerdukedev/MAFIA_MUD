@@ -3,7 +3,10 @@
 #include "character/character_draft.h"
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
+#include "game/player_wallet.h"
+#include "sim/sim_event_queue.h"
 #include "sim/system_registry.h"
+#include "world/city_control.h"
 #include "ui/context_help.h"
 #include "ui/help_manual.h"
 #include "ui/map_camera.h"
@@ -47,13 +50,21 @@ const char* getSaveLoadStatusMessage();
 
 ApplicationMenuBarEvents renderApplicationMenuBar(const ApplicationMenuBarParams& params);
 
-FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterDraft& characterDraft, bool hasSaveFile);
+FrontendUiEvents renderFrontendUi(
+    FrontendScreen& frontendScreen,
+    CharacterDraft& characterDraft,
+    bool hasSaveFile,
+    uint64_t worldSeed);
 
 void renderGameUi(
     SimClock& simClock,
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
+    PlayerWallet& playerWallet,
+    CityControlStore& cityControlStore,
+    SimEventQueue& simEventQueue,
+    bool& mapCrimeOverlayEnabled,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,

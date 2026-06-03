@@ -32,6 +32,21 @@ constexpr float MAP_GRID_EDGE_SCALE = 0.90f;
 constexpr ImU32 MAP_TILE_HOVER_FILL = IM_COL32(255, 255, 255, 90);
 constexpr ImU32 MAP_TILE_HOVER_BORDER = IM_COL32(255, 255, 255, 230);
 constexpr float MAP_MIN_GRID_PIXELS_PER_TILE = 6.0f;
+constexpr ImU32 MAP_CRIME_HEAT_COLOR = IM_COL32(220, 48, 56, 255);
+constexpr float MAP_CRIME_OVERLAY_BLEND = 0.65f;
+ImU32 blendCrimeHeatColor(ImU32 baseColor, uint8_t crimePressure) {
+    const float blend = (static_cast<float>(crimePressure) / 255.0f) * MAP_CRIME_OVERLAY_BLEND;
+    const int baseRed = static_cast<int>((baseColor >> IM_COL32_R_SHIFT) & 0xFF);
+    const int baseGreen = static_cast<int>((baseColor >> IM_COL32_G_SHIFT) & 0xFF);
+    const int baseBlue = static_cast<int>((baseColor >> IM_COL32_B_SHIFT) & 0xFF);
+    const int heatRed = static_cast<int>((MAP_CRIME_HEAT_COLOR >> IM_COL32_R_SHIFT) & 0xFF);
+    const int heatGreen = static_cast<int>((MAP_CRIME_HEAT_COLOR >> IM_COL32_G_SHIFT) & 0xFF);
+    const int heatBlue = static_cast<int>((MAP_CRIME_HEAT_COLOR >> IM_COL32_B_SHIFT) & 0xFF);
+    const int red = static_cast<int>(baseRed + (heatRed - baseRed) * blend);
+    const int green = static_cast<int>(baseGreen + (heatGreen - baseGreen) * blend);
+    const int blue = static_cast<int>(baseBlue + (heatBlue - baseBlue) * blend);
+    return IM_COL32(red, green, blue, 255);
+}
 } // namespace
 
 ImU32 getTileColor(RegionId regionId, TerrainId terrainId, int16_t elevation) {
@@ -59,7 +74,8 @@ void renderMapTiles(
     const ChunkStore& chunkStore,
     const ImVec2& canvasOrigin,
     const ImVec2& canvasSize,
-    const WorldCoord* hoveredTileCoord) {
+    const WorldCoord* hoveredTileCoord,
+    bool showCrimeOverlay) {
     const float canvasWidthPixels = canvasSize.x;
     const float canvasHeightPixels = canvasSize.y;
     if (canvasWidthPixels <= 1.0f || canvasHeightPixels <= 1.0f) {
@@ -91,7 +107,10 @@ void renderMapTiles(
             const TerrainId terrainId = chunkStore.getTerrainAt(coord);
             const RegionId regionId = chunkStore.getRegionAt(coord);
             const int16_t elevation = chunkStore.getElevationAt(coord);
-            const ImU32 tileColor = getTileColor(regionId, terrainId, elevation);
+            ImU32 tileColor = getTileColor(regionId, terrainId, elevation);
+            if (showCrimeOverlay && terrainId != TerrainId::Water) {
+                tileColor = blendCrimeHeatColor(tileColor, chunkStore.getCrimePressureAt(coord));
+            }
             const float screenMinX = canvasCenterX + (static_cast<float>(tileX) - camera.centerWorldX) * tileSizePixels;
             const float screenMinY = canvasCenterY + (static_cast<float>(tileY) - camera.centerWorldY) * tileSizePixels;
             const float screenMaxX = screenMinX + tileSizePixels;

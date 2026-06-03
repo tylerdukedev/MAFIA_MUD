@@ -1,4 +1,5 @@
 #include "persistence/save_game.h"
+#include "world/landmark_table.h"
 #include <cstdio>
 #include <cstring>
 
@@ -6,7 +7,7 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 3U;
+constexpr uint32_t SAVE_VERSION = 4U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -19,8 +20,11 @@ struct SaveGameHeader {
     uint8_t backgroundId;
     int32_t age;
     int32_t selectedBoroughIndex;
+    int32_t startingCityLandmarkIndex;
     uint8_t hasInitializedDefaults;
-    uint8_t headerPadding[3];
+    int64_t cashCents;
+    int64_t lifetimeLegitCents;
+    int64_t lifetimeCrimeCents;
     uint64_t tickCount;
     uint8_t isPaused;
     uint8_t tickPadding[7];
@@ -69,10 +73,19 @@ bool buildSaveSnapshot(
     const SimClock& simClock,
     const MapCamera& mapCamera,
     const ChunkStore& chunkStore,
-    const BoroughVitalityStore& boroughVitalityStore) {
+    const BoroughVitalityStore& boroughVitalityStore,
+    const PlayerWallet& playerWallet,
+    const CityControlStore& cityControlStore) {
     (void)boroughVitalityStore;
     outSnapshot.worldSeed = worldSeed;
     outSnapshot.characterDraft = characterDraft;
+    outSnapshot.cashCents = playerWallet.cashCents;
+    outSnapshot.lifetimeLegitCents = playerWallet.lifetimeLegitCents;
+    outSnapshot.lifetimeCrimeCents = playerWallet.lifetimeCrimeCents;
+    outSnapshot.cityOwnerIds.assign(static_cast<size_t>(getLandmarkCount()), 0U);
+    for (int32_t landmarkIndex = 0; landmarkIndex < getLandmarkCount(); ++landmarkIndex) {
+        outSnapshot.cityOwnerIds[static_cast<size_t>(landmarkIndex)] = cityControlStore.slots[landmarkIndex].ownerId;
+    }
     outSnapshot.tickCount = simClock.getTickCount();
     outSnapshot.isPaused = simClock.isPaused();
     outSnapshot.speedMultiplier = simClock.getSpeedMultiplier();
@@ -114,7 +127,9 @@ bool applySaveSnapshot(
     CharacterDraft& outCharacterDraft,
     SimClock& simClock,
     MapCamera& mapCamera,
-    ChunkStore& chunkStore) {
+    ChunkStore& chunkStore,
+    PlayerWallet& playerWallet,
+    CityControlStore& cityControlStore) {
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.terrainIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.elevations.size()) != SAVE_GAME_TILE_COUNT
@@ -151,6 +166,16 @@ bool applySaveSnapshot(
     outCharacterDraft = snapshot.characterDraft;
     simClock.restoreSnapshot(snapshot.tickCount, snapshot.isPaused, snapshot.speedMultiplier, snapshot.accumulatorSeconds);
     mapCamera = snapshot.mapCamera;
+    playerWallet.cashCents = snapshot.cashCents;
+    playerWallet.lifetimeLegitCents = snapshot.lifetimeLegitCents;
+    playerWallet.lifetimeCrimeCents = snapshot.lifetimeCrimeCents;
+    resetCityControlStore(cityControlStore);
+    const int32_t landmarkCount = getLandmarkCount();
+    if (static_cast<int32_t>(snapshot.cityOwnerIds.size()) == landmarkCount) {
+        for (int32_t landmarkIndex = 0; landmarkIndex < landmarkCount; ++landmarkIndex) {
+            cityControlStore.slots[landmarkIndex].ownerId = snapshot.cityOwnerIds[static_cast<size_t>(landmarkIndex)];
+        }
+    }
     return true;
 }
 
@@ -173,7 +198,11 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     header.backgroundId = static_cast<uint8_t>(snapshot.characterDraft.backgroundId);
     header.age = snapshot.characterDraft.age;
     header.selectedBoroughIndex = snapshot.characterDraft.selectedBoroughIndex;
+    header.startingCityLandmarkIndex = snapshot.characterDraft.startingCityLandmarkIndex;
     header.hasInitializedDefaults = snapshot.characterDraft.hasInitializedDefaults ? 1U : 0U;
+    header.cashCents = snapshot.cashCents;
+    header.lifetimeLegitCents = snapshot.lifetimeLegitCents;
+    header.lifetimeCrimeCents = snapshot.lifetimeCrimeCents;
     header.tickCount = snapshot.tickCount;
     header.isPaused = snapshot.isPaused ? 1U : 0U;
     header.speedMultiplier = snapshot.speedMultiplier;
@@ -195,9 +224,10 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     const bool businessVitalitiesWritten = writeAllBytes(fileHandle, snapshot.businessVitalities.data(), snapshot.businessVitalities.size());
     const bool playerInfluencesWritten = writeAllBytes(fileHandle, snapshot.playerInfluences.data(), snapshot.playerInfluences.size());
     const bool oppositionInfluencesWritten = writeAllBytes(fileHandle, snapshot.oppositionInfluences.data(), snapshot.oppositionInfluences.size());
+    const bool cityOwnersWritten = writeAllBytes(fileHandle, snapshot.cityOwnerIds.data(), snapshot.cityOwnerIds.size());
     const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
         && economicWeightsWritten && populationsWritten && crimePressuresWritten && lawPressuresWritten
-        && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten;
+        && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten && cityOwnersWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -235,7 +265,11 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     outSnapshot.characterDraft.backgroundId = static_cast<BackgroundId>(header.backgroundId);
     outSnapshot.characterDraft.age = header.age;
     outSnapshot.characterDraft.selectedBoroughIndex = header.selectedBoroughIndex;
+    outSnapshot.characterDraft.startingCityLandmarkIndex = header.startingCityLandmarkIndex;
     outSnapshot.characterDraft.hasInitializedDefaults = header.hasInitializedDefaults != 0U;
+    outSnapshot.cashCents = header.cashCents;
+    outSnapshot.lifetimeLegitCents = header.lifetimeLegitCents;
+    outSnapshot.lifetimeCrimeCents = header.lifetimeCrimeCents;
     outSnapshot.tickCount = header.tickCount;
     outSnapshot.isPaused = header.isPaused != 0U;
     outSnapshot.speedMultiplier = header.speedMultiplier;
@@ -254,6 +288,7 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     outSnapshot.businessVitalities.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
     outSnapshot.playerInfluences.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
     outSnapshot.oppositionInfluences.assign(static_cast<size_t>(SAVE_GAME_TILE_COUNT), 0U);
+    outSnapshot.cityOwnerIds.assign(static_cast<size_t>(getLandmarkCount()), 0U);
     const bool regionsRead = readAllBytes(fileHandle, outSnapshot.regionIds.data(), outSnapshot.regionIds.size());
     const bool terrainsRead = readAllBytes(fileHandle, outSnapshot.terrainIds.data(), outSnapshot.terrainIds.size());
     const bool elevationsRead = readAllBytes(fileHandle, outSnapshot.elevations.data(), outSnapshot.elevations.size() * sizeof(int16_t));
@@ -265,9 +300,10 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     const bool businessVitalitiesRead = readAllBytes(fileHandle, outSnapshot.businessVitalities.data(), outSnapshot.businessVitalities.size());
     const bool playerInfluencesRead = readAllBytes(fileHandle, outSnapshot.playerInfluences.data(), outSnapshot.playerInfluences.size());
     const bool oppositionInfluencesRead = readAllBytes(fileHandle, outSnapshot.oppositionInfluences.data(), outSnapshot.oppositionInfluences.size());
+    const bool cityOwnersRead = readAllBytes(fileHandle, outSnapshot.cityOwnerIds.data(), outSnapshot.cityOwnerIds.size());
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead
-        && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead;
+        && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead && cityOwnersRead;
     std::fclose(fileHandle);
     return didLoad;
 }

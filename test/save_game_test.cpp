@@ -1,6 +1,8 @@
 #include "persistence/save_game.h"
 #include "procgen/world_generator.h"
 #include "world/tile_vitality.h"
+#include "world/city_control.h"
+#include "game/player_wallet.h"
 #include "character/profile_builder.h"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdio>
@@ -39,8 +41,24 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     sourceCamera.pixelsPerTile = 3.5f;
     BoroughVitalityStore sourceVitality{};
     rollupBoroughVitality(config, sourceStore, sourceVitality);
+    PlayerWallet sourceWallet{};
+    sourceWallet.cashCents = 1250;
+    sourceWallet.lifetimeLegitCents = 300;
+    sourceWallet.lifetimeCrimeCents = 950;
+    CityControlStore sourceCities{};
+    resetCityControlStore(sourceCities);
+    REQUIRE(tryClaimCityForPlayer(sourceCities, 3, 7U));
     SaveGameSnapshot snapshot{};
-    REQUIRE(buildSaveSnapshot(snapshot, DEFAULT_WORLD_SEED, sourceDraft, sourceClock, sourceCamera, sourceStore, sourceVitality));
+    REQUIRE(buildSaveSnapshot(
+        snapshot,
+        DEFAULT_WORLD_SEED,
+        sourceDraft,
+        sourceClock,
+        sourceCamera,
+        sourceStore,
+        sourceVitality,
+        sourceWallet,
+        sourceCities));
     REQUIRE(saveGameToFile(TEST_SAVE_PATH, snapshot));
     REQUIRE(saveFileExists(TEST_SAVE_PATH));
     SaveGameSnapshot loadedSnapshot{};
@@ -49,8 +67,18 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     SimClock loadedClock(WorldConfig::DEFAULT_TICK_RATE_HZ);
     MapCamera loadedCamera{};
     CharacterDraft loadedDraft{};
+    PlayerWallet loadedWallet{};
+    CityControlStore loadedCities{};
     uint64_t loadedSeed = 0;
-    REQUIRE(applySaveSnapshot(loadedSnapshot, loadedSeed, loadedDraft, loadedClock, loadedCamera, loadedStore));
+    REQUIRE(applySaveSnapshot(
+        loadedSnapshot,
+        loadedSeed,
+        loadedDraft,
+        loadedClock,
+        loadedCamera,
+        loadedStore,
+        loadedWallet,
+        loadedCities));
     const WorldCoord sampleCoord{200, 180};
     REQUIRE(loadedSeed == DEFAULT_WORLD_SEED);
     REQUIRE(loadedDraft.heritageId == sourceDraft.heritageId);
@@ -64,6 +92,10 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     REQUIRE(loadedStore.getElevationAt(sampleCoord) == sourceStore.getElevationAt(sampleCoord));
     REQUIRE(loadedStore.getEconomicWeightAt(sampleCoord) == sourceStore.getEconomicWeightAt(sampleCoord));
     REQUIRE(loadedStore.getPopulationAt(sampleCoord) == sourceStore.getPopulationAt(sampleCoord));
+    REQUIRE(loadedWallet.cashCents == sourceWallet.cashCents);
+    REQUIRE(loadedWallet.lifetimeLegitCents == sourceWallet.lifetimeLegitCents);
+    REQUIRE(loadedWallet.lifetimeCrimeCents == sourceWallet.lifetimeCrimeCents);
+    REQUIRE(getCityOwnerId(loadedCities, 3) == PLAYER_OWNER_ID);
     removeTestSaveFile();
 }
 

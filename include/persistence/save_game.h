@@ -2,8 +2,10 @@
 
 #include "character/character_draft.h"
 #include "core/sim_clock.h"
+#include "game/player_wallet.h"
 #include "ui/map_camera.h"
 #include "world/chunk_store.h"
+#include "world/city_control.h"
 #include "world/tile_vitality.h"
 #include "world/world_config.h"
 #include <cstdint>
@@ -22,6 +24,10 @@ struct SaveGameSnapshot {
     double speedMultiplier = 1.0;
     double accumulatorSeconds = 0.0;
     MapCamera mapCamera{};
+    int64_t cashCents = 0;
+    int64_t lifetimeLegitCents = 0;
+    int64_t lifetimeCrimeCents = 0;
+    std::vector<uint8_t> cityOwnerIds;
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
     std::vector<int16_t> elevations;
@@ -43,14 +49,18 @@ bool buildSaveSnapshot(
     const SimClock& simClock,
     const MapCamera& mapCamera,
     const ChunkStore& chunkStore,
-    const BoroughVitalityStore& boroughVitalityStore);
+    const BoroughVitalityStore& boroughVitalityStore,
+    const PlayerWallet& playerWallet,
+    const CityControlStore& cityControlStore);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,
     CharacterDraft& outCharacterDraft,
     SimClock& simClock,
     MapCamera& mapCamera,
-    ChunkStore& chunkStore);
+    ChunkStore& chunkStore,
+    PlayerWallet& playerWallet,
+    CityControlStore& cityControlStore);
 bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot);
 bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot);
 

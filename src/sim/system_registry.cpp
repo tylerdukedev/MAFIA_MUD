@@ -21,14 +21,18 @@ uint64_t DebugSystem::getProcessedTickCount() const {
 
 SystemRegistry::SystemRegistry()
     : systemCount(0) {
-    for (int32_t index = 0; index < 8; ++index) {
+    for (int32_t index = 0; index < 10; ++index) {
         systems[index] = nullptr;
     }
 }
 
 void SystemRegistry::initialize(const SimWorldBindings& bindings) {
     systemCount = 0;
+    cityControlSystem.bind(bindings);
+    economySystem.bind(bindings);
     boroughVitalitySystem.bind(bindings);
+    systems[systemCount++] = &cityControlSystem;
+    systems[systemCount++] = &economySystem;
     systems[systemCount++] = &boroughVitalitySystem;
     systems[systemCount++] = &debugSystem;
 }

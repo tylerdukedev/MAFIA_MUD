@@ -1,4 +1,5 @@
 #include "world/landmark_table.h"
+#include "utils/seed_hash.h"
 #include <cstring>
 
 namespace Core {
@@ -41,13 +42,23 @@ constexpr LandmarkDefinition LANDMARK_DEFINITIONS[] = {
     {"eltingville", 90, 457, "Eltingville", "Eltingville", 1, 200},
     {"hells_kitchen", 248, 215, "Hell's Kitchen", "Hell's Kitchen", 1, 210},
     {"dumbo", 262, 278, "DUMBO", "DUMBO", 1, 215},
-    {"coney_island", 268, 418, "Coney Island", "Coney Island", 2, 205},
+    {"coney_island", 251, 411, "Coney Island", "Coney Island", 2, 205},
     {"yankee_stadium", 318, 108, "Yankee Stadium", "Yankee Stadium", 2, 220},
     {"newark_penn", 168, 318, "Newark Penn Station", "Newark Penn", 1, 210},
-    {"atlantic_city", 195, 468, "Atlantic City", "Atlantic City", 2, 205},
 };
 
 constexpr int32_t LANDMARK_COUNT = static_cast<int32_t>(sizeof(LANDMARK_DEFINITIONS) / sizeof(LANDMARK_DEFINITIONS[0]));
+
+constexpr RegionId LANDMARK_REGION_IDS[] = {
+    RegionId::Manhattan, RegionId::Manhattan, RegionId::Manhattan, RegionId::Manhattan, RegionId::Manhattan,
+    RegionId::Manhattan, RegionId::Manhattan, RegionId::Manhattan, RegionId::Manhattan,
+    RegionId::Bronx, RegionId::Bronx, RegionId::Bronx, RegionId::Bronx, RegionId::Bronx, RegionId::Bronx,
+    RegionId::Brooklyn, RegionId::Brooklyn, RegionId::Brooklyn, RegionId::Brooklyn, RegionId::Brooklyn,
+    RegionId::Brooklyn, RegionId::Brooklyn, RegionId::Brooklyn, RegionId::Brooklyn,
+    RegionId::Queens, RegionId::Queens, RegionId::Queens, RegionId::Queens, RegionId::Queens,
+    RegionId::StatenIsland, RegionId::StatenIsland, RegionId::StatenIsland, RegionId::StatenIsland, RegionId::StatenIsland,
+    RegionId::Manhattan, RegionId::Brooklyn, RegionId::Bronx, RegionId::Brooklyn, RegionId::NewJersey,
+};
 
 } // namespace
 
@@ -78,6 +89,41 @@ const char* getLandmarkTooltipText(int32_t landmarkIndex) {
         return "";
     }
     return landmark->fullName;
+}
+
+RegionId getLandmarkRegionId(int32_t landmarkIndex) {
+    if (landmarkIndex < 0 || landmarkIndex >= LANDMARK_COUNT) {
+        return RegionId::None;
+    }
+    return LANDMARK_REGION_IDS[landmarkIndex];
+}
+
+RegionId regionIdFromBoroughPreferenceIndex(int32_t boroughIndex) {
+    switch (boroughIndex) {
+    case 0: return RegionId::Manhattan;
+    case 1: return RegionId::Brooklyn;
+    case 2: return RegionId::Queens;
+    case 3: return RegionId::Bronx;
+    case 4: return RegionId::StatenIsland;
+    default: return RegionId::Manhattan;
+    }
+}
+
+int32_t pickRandomLandmarkIndexInRegion(RegionId regionId, uint64_t seed, int32_t salt) {
+    int32_t matches[MAX_LANDMARK_COUNT];
+    int32_t matchCount = 0;
+    for (int32_t landmarkIndex = 0; landmarkIndex < LANDMARK_COUNT; ++landmarkIndex) {
+        if (LANDMARK_REGION_IDS[landmarkIndex] != regionId) {
+            continue;
+        }
+        matches[matchCount] = landmarkIndex;
+        ++matchCount;
+    }
+    if (matchCount <= 0) {
+        return -1;
+    }
+    const uint32_t pick = Utils::hashSeedMix(seed, salt, static_cast<int32_t>(regionId)) % static_cast<uint32_t>(matchCount);
+    return matches[pick];
 }
 
 } // namespace Core

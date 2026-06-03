@@ -1,9 +1,14 @@
 #include "core/application.h"
 #include "ui/game_ui.h"
+#include "ui/dock_layout.h"
 #include "procgen/world_generator.h"
 #include "persistence/save_game.h"
 #include "sim/sim_world_bindings.h"
 #include "world/tile_vitality.h"
+#include "world/landmark_table.h"
+#include "game/player_wallet.h"
+#include "world/city_control.h"
+#include "sim/sim_event_queue.h"
 #include "character/profile_builder.h"
 #if defined(CAPITALVICE_DEV_CONSOLE)
 #include "dev/dev_console.h"
@@ -190,7 +195,7 @@ void Application::renderFrame() {
         saveCurrentGame();
     }
     renderHelpManualWindow(helpManualState);
-    FrontendUiEvents frontendUiEvents = renderFrontendUi(frontendScreen, characterDraft, hasSaveFile);
+    FrontendUiEvents frontendUiEvents = renderFrontendUi(frontendScreen, characterDraft, hasSaveFile, worldSeed);
     if (frontendUiEvents.requestedExitGame) {
         isRunning = false;
     }
@@ -219,6 +224,10 @@ void Application::renderFrame() {
             worldConfig,
             chunkStore,
             boroughVitalityStore,
+            playerWallet,
+            cityControlStore,
+            simEventQueue,
+            mapCrimeOverlayEnabled,
             systemRegistry,
             mapCamera,
             viewportPickState,
@@ -244,6 +253,10 @@ void Application::renderFrame() {
 void Application::startNewSimulation() {
     playerProfile = buildPlayerProfile(characterDraft);
     resetBoroughVitalityStore(boroughVitalityStore);
+    resetCityControlStore(cityControlStore);
+    clearSimEventQueue(simEventQueue);
+    playerWallet = PlayerWallet{};
+    playerWallet.cashCents = characterDraft.startingCashCents;
     WorldGenerator worldGenerator;
     worldGenerator.generate(worldConfig, chunkStore, worldSeed);
     rollupBoroughVitality(worldConfig, chunkStore, boroughVitalityStore);
@@ -251,10 +264,20 @@ void Application::startNewSimulation() {
         &chunkStore,
         &boroughVitalityStore,
         &worldConfig,
-        &worldSeed};
+        &worldSeed,
+        &playerWallet,
+        &cityControlStore,
+        &simEventQueue,
+        &playerProfile};
     systemRegistry.initialize(simBindings);
+    requestDefaultDockLayoutOnNextFrame();
     mapCamera = MapCamera{};
-    initializeMapCameraForStartingBorough(mapCamera, characterDraft.selectedBoroughIndex);
+    const LandmarkDefinition* startCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
+    if (startCity != nullptr) {
+        mapCamera.centerOnTile(startCity->tileX, startCity->tileY, DEFAULT_MAP_PIXELS_PER_TILE);
+    } else {
+        initializeMapCameraForStartingBorough(mapCamera, characterDraft.selectedBoroughIndex);
+    }
     viewportPickState = ViewportPickState{};
     simClock = SimClock(WorldConfig::DEFAULT_TICK_RATE_HZ);
     isWorldReady = true;
@@ -266,7 +289,7 @@ bool Application::saveCurrentGame() {
         return false;
     }
     SaveGameSnapshot snapshot{};
-    if (!buildSaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore, boroughVitalityStore)) {
+    if (!buildSaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore, boroughVitalityStore, playerWallet, cityControlStore)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
     }
@@ -288,7 +311,7 @@ bool Application::loadSavedGame() {
         setSaveLoadStatusMessage("Load failed: save file is invalid or incompatible.");
         return false;
     }
-    if (!applySaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore)) {
+    if (!applySaveSnapshot(snapshot, worldSeed, characterDraft, simClock, mapCamera, chunkStore, playerWallet, cityControlStore)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
     }
@@ -297,8 +320,13 @@ bool Application::loadSavedGame() {
         &chunkStore,
         &boroughVitalityStore,
         &worldConfig,
-        &worldSeed};
+        &worldSeed,
+        &playerWallet,
+        &cityControlStore,
+        &simEventQueue,
+        &playerProfile};
     systemRegistry.initialize(simBindings);
+    requestDefaultDockLayoutOnNextFrame();
     playerProfile = buildPlayerProfile(characterDraft);
     viewportPickState = ViewportPickState{};
     isWorldReady = true;

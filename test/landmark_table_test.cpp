@@ -9,7 +9,7 @@ using Core::getLandmarkTooltipText;
 using Core::LandmarkDefinition;
 
 TEST_CASE("LandmarkTable contains expected districts", "[landmark_table]") {
-    const int32_t expectedLandmarkCount = 39;
+    const int32_t expectedLandmarkCount = 38;
     REQUIRE(getLandmarkCount() == expectedLandmarkCount);
     REQUIRE(getLandmarkCount() <= Core::MAX_LANDMARK_COUNT);
     const LandmarkDefinition* timesSquare = getLandmarkDefinition(findLandmarkIndexAtTile(234, 192));
@@ -26,4 +26,10 @@ TEST_CASE("LandmarkTable contains expected districts", "[landmark_table]") {
     const LandmarkDefinition* hellsKitchen = getLandmarkDefinition(hellsKitchenIndex);
     REQUIRE(hellsKitchen != nullptr);
     REQUIRE(hellsKitchen->economicWeightBonus >= Core::LANDMARK_DEFAULT_ECONOMIC_WEIGHT_BONUS);
+    const int32_t coneyIslandIndex = findLandmarkIndexAtTile(251, 411);
+    REQUIRE(coneyIslandIndex >= 0);
+    const LandmarkDefinition* coneyIsland = getLandmarkDefinition(coneyIslandIndex);
+    REQUIRE(coneyIsland != nullptr);
+    REQUIRE(std::strcmp(coneyIsland->fullName, "Coney Island") == 0);
+    REQUIRE(findLandmarkIndexAtTile(195, 468) < 0);
 }

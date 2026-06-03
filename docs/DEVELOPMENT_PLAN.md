@@ -111,6 +111,24 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
+## Phase 6 — Economy, Cities & Starting Placement ✅
+
+**Goal**: Cents-based money, starting borough → random city landmark, first city claim, and passive income — with save v4.
+
+| Deliverable | Status |
+|-------------|--------|
+| `PlayerWallet` — starting cash roll ($0–$25 weighted), debit/credit, broke threshold | ✅ |
+| Character creation — Starting Borough, roll city + cash preview | ✅ |
+| `CityControlStore` + `SimEventQueue` + `CityControlSystem` (Establish operation) | ✅ |
+| `EconomySystem` — legit/crime income accrual, starting influence at city | ✅ |
+| District panel renamed to **City**; crime heat map overlay toggle | ✅ |
+| Save format v4 (wallet + per-landmark owners) | ✅ |
+| Tests: `player_wallet_test`, `city_control_test`, save round-trip | ✅ |
+
+**Done when**: New game spawns at rolled city with starting cash; player can claim a city when affordable; income ticks in Character panel; save/load preserves wallet and city ownership.
+
+---
+
 ## Architecture Reference
 
 ```

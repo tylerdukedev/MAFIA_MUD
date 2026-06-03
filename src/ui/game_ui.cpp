@@ -2,8 +2,13 @@
 #include "ui/game_ui.h"
 #include "ui/help_manual.h"
 #include "ui/context_help.h"
+#include "character/character_start.h"
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
+#include "game/economy_constants.h"
+#include "game/player_wallet.h"
+#include "sim/sim_event_queue.h"
+#include "world/city_control.h"
 #include <cstdio>
 #include <cfloat>
 #include <algorithm>
@@ -34,6 +39,18 @@ void renderCharacterCreationPreviewPanel(const CharacterDraft& characterDraft) {
     char descriptionBuffer[256];
     buildCharacterDescription(descriptionBuffer, sizeof(descriptionBuffer), characterDraft);
     ImGui::TextWrapped("%s", descriptionBuffer);
+    ImGui::Spacing();
+    ImGui::Separator();
+    char cashBuffer[32];
+    formatCashCents(cashBuffer, sizeof(cashBuffer), characterDraft.startingCashCents);
+    ImGui::Text("Starting cash: %s", cashBuffer);
+    const LandmarkDefinition* startingCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
+    if (startingCity != nullptr) {
+        ImGui::Text("Starting city: %s", startingCity->fullName);
+        ImGui::TextDisabled("Map label: %s", startingCity->mapLabel);
+    } else {
+        ImGui::TextDisabled("Starting city: roll borough to place");
+    }
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::TextWrapped("%s", getGenerationRoleSummary(characterDraft.generationId).data());
@@ -83,7 +100,7 @@ void renderCharacterCreationForm(CharacterDraft& characterDraft, FrontendUiEvent
         characterDraft.backgroundId = backgroundIdFromIndex(backgroundIndex);
     }
     ImGui::Combo(
-        "Starting Borough Preference",
+        "Starting Borough",
         &characterDraft.selectedBoroughIndex,
         [](void*, int index) { return getBoroughPreferenceLabel(index); },
         nullptr,
@@ -142,8 +159,17 @@ void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& fr
     ImGui::End();
 }
 
-void renderCharacterCreationScreen(CharacterDraft& characterDraft, FrontendUiEvents& frontendUiEvents, FrontendScreen& frontendScreen) {
+void renderCharacterCreationScreen(
+    CharacterDraft& characterDraft,
+    FrontendUiEvents& frontendUiEvents,
+    FrontendScreen& frontendScreen,
+    uint64_t worldSeed) {
     initializeCharacterDraftDefaults(characterDraft);
+    static int32_t lastRolledBoroughIndex = -1;
+    if (characterDraft.selectedBoroughIndex != lastRolledBoroughIndex) {
+        rollCharacterStartPlacement(characterDraft, worldSeed);
+        lastRolledBoroughIndex = characterDraft.selectedBoroughIndex;
+    }
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 panelSize(960.0f, 520.0f);
     const ImVec2 panelPos(
@@ -251,6 +277,7 @@ void renderSimulationPanel(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
+    bool& mapCrimeOverlayEnabled,
     const SystemRegistry& systemRegistry,
     uint64_t worldSeed,
     ContextHelpState& contextHelpState) {
@@ -265,7 +292,7 @@ void renderSimulationPanel(
             ImGui::TextWrapped("%s", saveLoadStatusMessage);
             ImGui::Separator();
         }
-        ImGui::Text("Phase 5 - Five Boroughs");
+        ImGui::Text("Phase 6 - Economy & Cities");
         ImGui::Text("World seed: %llu", static_cast<unsigned long long>(worldSeed));
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
@@ -354,12 +381,26 @@ void renderSimulationPanel(
             contextHelpTextLine(boroughLine, "Rollup runs every 40 simulation ticks.", "borough_health_formula", contextHelpState);
         }
         ImGui::Separator();
+        contextHelpSectionHeader(
+            "Map Display",
+            "Optional heat tint on the map viewport.",
+            "map_viewport",
+            contextHelpState);
+        ImGui::Checkbox("Crime heat overlay", &mapCrimeOverlayEnabled);
+        ImGui::Separator();
         ImGui::TextDisabled("Space = pause/resume | S = step tick | Ctrl = inspect help");
     }
     ImGui::End();
 }
 
-void renderCharacterPanel(const PlayerProfile& playerProfile, ContextHelpState& contextHelpState) {
+int64_t computeClaimCostCentsForProfile(const PlayerProfile& playerProfile) {
+    if (playerProfile.draft.backgroundId == BackgroundId::StreetHustler) {
+        return STREET_HUSTLER_CLAIM_COST_CENTS;
+    }
+    return DEFAULT_CLAIM_CITY_COST_CENTS;
+}
+
+void renderCharacterPanel(const PlayerProfile& playerProfile, const PlayerWallet& playerWallet, ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 400.0f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Character")) {
         contextHelpPanelTag(
@@ -422,6 +463,33 @@ void renderCharacterPanel(const PlayerProfile& playerProfile, ContextHelpState& 
             static_cast<int>(getBoroughPreferenceName(playerProfile.draft.selectedBoroughIndex).size()),
             getBoroughPreferenceName(playerProfile.draft.selectedBoroughIndex).data());
         contextHelpTextLine(boroughLine, "Preferred starting borough. Gameplay territory links come later.", "profile_builder", contextHelpState);
+        const LandmarkDefinition* startingCity = getLandmarkDefinition(playerProfile.draft.startingCityLandmarkIndex);
+        if (startingCity != nullptr) {
+            char cityLine[96];
+            std::snprintf(cityLine, sizeof(cityLine), "Starting city: %s", startingCity->fullName);
+            contextHelpTextLine(cityLine, "Random landmark node in your starting borough.", "city_panel", contextHelpState);
+        }
+        contextHelpSectionHeader(
+            "Money",
+            "Cash in cents. Legit and crime income accrue each tick.",
+            "economy_overview",
+            contextHelpState);
+        char cashLine[48];
+        formatCashCents(cashLine, sizeof(cashLine), playerWallet.cashCents);
+        contextHelpTextLine(cashLine, "Spendable balance for city claims and future actions.", "economy_overview", contextHelpState);
+        ImGui::Text("Legit income: %.2f c/tick", playerWallet.legitIncomePerTickCents);
+        ImGui::Text("Crime income: %.2f c/tick", playerWallet.crimeIncomePerTickCents);
+        if (playerWallet.lastDeltaKind != WalletDeltaKind::None) {
+            char deltaBuffer[48];
+            formatCashCents(deltaBuffer, sizeof(deltaBuffer), playerWallet.lastDeltaCents < 0 ? -playerWallet.lastDeltaCents : playerWallet.lastDeltaCents);
+            const char* deltaLabel = playerWallet.lastDeltaKind == WalletDeltaKind::Loss ? "Last change"
+                : (playerWallet.lastDeltaKind == WalletDeltaKind::GainLegit ? "Last legit gain" : "Last crime gain");
+            ImGui::Text("%s: %s%s", deltaLabel, playerWallet.lastDeltaCents < 0 ? "-" : "+", deltaBuffer);
+        }
+        if (isWalletBroke(playerWallet)) {
+            ImGui::TextWrapped("You are broke. Scrape together cash or claim a city when you can afford it.");
+        }
+        ImGui::TextDisabled("Aspiration: build income and connections; family vs legit forks come later.");
         char identityLine[128];
         std::snprintf(identityLine, sizeof(identityLine), "Identity label: %s", identityBuffer);
         contextHelpTextLine(identityLine, "Short identity string built from generation and heritage.", "profile_overview", contextHelpState);
@@ -593,6 +661,7 @@ void renderBoroughsPanel(const BoroughVitalityStore& boroughVitalityStore, Conte
             if (snapshot == nullptr) {
                 continue;
             }
+            ImGui::PushID(regionIndex);
             ImGui::Text("%s", RegionTable::getRegionName(regionId).data());
             contextHelpStatBar(
                 "Economic Health",
@@ -614,32 +683,38 @@ void renderBoroughsPanel(const BoroughVitalityStore& boroughVitalityStore, Conte
                 "population_model",
                 contextHelpState);
             ImGui::Separator();
+            ImGui::PopID();
         }
     }
     ImGui::End();
 }
 
-void renderDistrictPanel(
+void renderCityPanel(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
+    const CityControlStore& cityControlStore,
+    const PlayerWallet& playerWallet,
+    SimEventQueue& simEventQueue,
+    const PlayerProfile& playerProfile,
     const ViewportPickState& viewportPickState,
     ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, 220.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("District")) {
-        contextHelpPanelTag("District Panel", "Stats for a selected map landmark district.", "district_panel", contextHelpState);
+    if (ImGui::Begin("City")) {
+        contextHelpPanelTag("City Panel", "Stats for a selected map landmark city node.", "city_panel", contextHelpState);
         if (!viewportPickState.hasLandmarkSelection || viewportPickState.selectedLandmarkIndex < 0) {
-            ImGui::TextDisabled("Click a labeled district landmark on the map.");
-            ImGui::TextWrapped("Districts are high-value control nodes. They run hotter and are harder to take than ordinary tiles.");
+            ImGui::TextDisabled("Click a labeled city landmark on the map.");
+            ImGui::TextWrapped("Cities are high-value control nodes. They run hotter and are harder to take than ordinary tiles.");
         } else {
-            const LandmarkDefinition* landmark = getLandmarkDefinition(viewportPickState.selectedLandmarkIndex);
+            const int32_t landmarkIndex = viewportPickState.selectedLandmarkIndex;
+            const LandmarkDefinition* landmark = getLandmarkDefinition(landmarkIndex);
             if (landmark == nullptr) {
-                ImGui::TextDisabled("Invalid district selection.");
+                ImGui::TextDisabled("Invalid city selection.");
             } else {
                 const WorldCoord coord{landmark->tileX, landmark->tileY};
                 contextHelpTextLine(
                     landmark->fullName,
-                    "Full district name. Map labels may use a short form (e.g. LGA).",
+                    "Full city name. Map labels may use a short form (e.g. LGA).",
                     "landmarks_overview",
                     contextHelpState);
                 ImGui::Text("Map label: %s", landmark->mapLabel);
@@ -660,15 +735,15 @@ void renderDistrictPanel(
                 const BoroughVitalitySnapshot* boroughSnapshot = getBoroughSnapshot(boroughVitalityStore, boroughId);
                 ImGui::Separator();
                 contextHelpSectionHeader(
-                    "District Vitality",
+                    "City Vitality",
                     "Live tile pressures and borough rollup context.",
-                    "district_hot_nodes",
+                    "city_hot_nodes",
                     contextHelpState);
                 contextHelpStatBar(
                     "Heat Index",
                     liveHeat,
                     "Crime pressure at the landmark tile; seeded hotter than surroundings.",
-                    "district_hot_nodes",
+                    "city_hot_nodes",
                     contextHelpState);
                 contextHelpStatBar(
                     "Control Difficulty",
@@ -682,7 +757,28 @@ void renderDistrictPanel(
                     ImGui::Text("Borough health: %.0f", boroughSnapshot->economicHealth);
                     ImGui::Text("Borough crime: %.0f%%", boroughSnapshot->crimeRate * 100.0f);
                 }
-                ImGui::Text("Control status: Unclaimed");
+                const bool isPlayerOwned = getCityOwnerId(cityControlStore, landmarkIndex) == PLAYER_OWNER_ID;
+                if (isPlayerOwned) {
+                    ImGui::Text("Control status: Your operation");
+                } else if (isCityClaimed(cityControlStore, landmarkIndex)) {
+                    ImGui::Text("Control status: Contested");
+                } else {
+                    ImGui::Text("Control status: Unclaimed");
+                    const int64_t claimCostCents = computeClaimCostCentsForProfile(playerProfile);
+                    char claimCostBuffer[32];
+                    formatCashCents(claimCostBuffer, sizeof(claimCostBuffer), claimCostCents);
+                    if (!canAffordCash(playerWallet, claimCostCents)) {
+                        ImGui::BeginDisabled();
+                    }
+                    if (ImGui::Button("Establish operation")) {
+                        pushSimEvent(simEventQueue, SimEventType::ClaimCity, landmarkIndex);
+                    }
+                    if (!canAffordCash(playerWallet, claimCostCents)) {
+                        ImGui::EndDisabled();
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("(%s)", claimCostBuffer);
+                }
             }
         }
     }
@@ -759,6 +855,7 @@ void renderMapViewportPanel(
     const ChunkStore& chunkStore,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
+    bool showCrimeOverlay,
     ContextHelpState& contextHelpState) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
     if (ImGui::Begin("Map Viewport")) {
@@ -834,7 +931,7 @@ void renderMapViewportPanel(
             if (viewportPickState.hasHover) {
                 hoveredTileCoord = &viewportPickState.hoveredCoord;
             }
-            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize, hoveredTileCoord);
+            renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize, hoveredTileCoord, showCrimeOverlay);
             renderLandmarkOverlays(drawList, mapCamera, canvasPos, canvasSize, viewportPickState);
         }
         drawList->PopClipRect();
@@ -870,14 +967,18 @@ const char* getSaveLoadStatusMessage() {
     return saveLoadStatusMessage;
 }
 
-FrontendUiEvents renderFrontendUi(FrontendScreen& frontendScreen, CharacterDraft& characterDraft, bool hasSaveFile) {
+FrontendUiEvents renderFrontendUi(
+    FrontendScreen& frontendScreen,
+    CharacterDraft& characterDraft,
+    bool hasSaveFile,
+    uint64_t worldSeed) {
     FrontendUiEvents frontendUiEvents{};
     switch (frontendScreen) {
     case FrontendScreen::MainMenu:
         renderMainMenuScreen(frontendUiEvents, frontendScreen, hasSaveFile);
         break;
     case FrontendScreen::CharacterCreation:
-        renderCharacterCreationScreen(characterDraft, frontendUiEvents, frontendScreen);
+        renderCharacterCreationScreen(characterDraft, frontendUiEvents, frontendScreen, worldSeed);
         break;
     case FrontendScreen::InGame:
         break;
@@ -892,6 +993,10 @@ void renderGameUi(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
+    PlayerWallet& playerWallet,
+    CityControlStore& cityControlStore,
+    SimEventQueue& simEventQueue,
+    bool& mapCrimeOverlayEnabled,
     SystemRegistry& systemRegistry,
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
@@ -899,12 +1004,30 @@ void renderGameUi(
     const PlayerProfile& playerProfile,
     ContextHelpState& contextHelpState) {
     beginMainDockSpace();
-    renderCharacterPanel(playerProfile, contextHelpState);
-    renderSimulationPanel(simClock, worldConfig, chunkStore, boroughVitalityStore, systemRegistry, worldSeed, contextHelpState);
+    setupDefaultDockLayoutIfNeeded();
+    renderCharacterPanel(playerProfile, playerWallet, contextHelpState);
+    renderSimulationPanel(
+        simClock,
+        worldConfig,
+        chunkStore,
+        boroughVitalityStore,
+        mapCrimeOverlayEnabled,
+        systemRegistry,
+        worldSeed,
+        contextHelpState);
     renderBoroughsPanel(boroughVitalityStore, contextHelpState);
     renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, contextHelpState);
-    renderDistrictPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, contextHelpState);
-    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, contextHelpState);
+    renderCityPanel(
+        worldConfig,
+        chunkStore,
+        boroughVitalityStore,
+        cityControlStore,
+        playerWallet,
+        simEventQueue,
+        playerProfile,
+        viewportPickState,
+        contextHelpState);
+    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, mapCrimeOverlayEnabled, contextHelpState);
 }
 
 } // namespace Core

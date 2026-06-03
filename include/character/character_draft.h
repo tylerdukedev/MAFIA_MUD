@@ -14,6 +14,9 @@ struct CharacterDraft {
     int32_t age = 21;
     BackgroundId backgroundId = BackgroundId::StreetHustler;
     int32_t selectedBoroughIndex = 0;
+    int32_t startingCityLandmarkIndex = -1;
+    int64_t startingCashCents = 0;
+    uint64_t characterRollSeed = 0;
 };
 
 } // namespace Core

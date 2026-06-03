@@ -6,29 +6,47 @@ namespace Core {
 
 namespace {
 constexpr const char* DOCKSPACE_WINDOW_NAME = "CapitalViceDockSpace";
-constexpr const char* DOCKSPACE_HOST_ID = "CapitalViceDockSpaceHostV3";
+constexpr const char* DOCKSPACE_HOST_ID = "CapitalViceDockSpaceHostV4";
 constexpr const char* WINDOW_SIMULATION = "Simulation";
+constexpr const char* WINDOW_CHARACTER = "Character";
 constexpr const char* WINDOW_BOROUGHS = "Boroughs";
+constexpr const char* WINDOW_CITY = "City";
 constexpr const char* WINDOW_TILE_INSPECTOR = "Tile Inspector";
 constexpr const char* WINDOW_MAP_VIEWPORT = "Map Viewport";
+constexpr float DOCK_LEFT_WIDTH_FRACTION = 0.18f;
+constexpr float DOCK_RIGHT_WIDTH_FRACTION = 0.18f;
+constexpr float DOCK_BOTTOM_HEIGHT_FRACTION = 0.24f;
+
+bool isDefaultDockLayoutPending = false;
 
 void buildDefaultDockLayout(ImGuiID dockspaceId, const ImVec2& dockspaceSize) {
     ImGui::DockBuilderRemoveNode(dockspaceId);
     ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_None);
     ImGui::DockBuilderSetNodeSize(dockspaceId, dockspaceSize);
     ImGuiID dockMainId = dockspaceId;
-    ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Left, 0.22f, nullptr, &dockMainId);
-    ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Right, 0.24f, nullptr, &dockMainId);
-    ImGuiID dockBottomId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Down, 0.28f, nullptr, &dockMainId);
+    ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Left, DOCK_LEFT_WIDTH_FRACTION, nullptr, &dockMainId);
+    ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Right, DOCK_RIGHT_WIDTH_FRACTION, nullptr, &dockMainId);
+    ImGuiID dockBottomId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Down, DOCK_BOTTOM_HEIGHT_FRACTION, nullptr, &dockMainId);
+    ImGui::DockBuilderDockWindow(WINDOW_TILE_INSPECTOR, dockLeftId);
     ImGui::DockBuilderDockWindow(WINDOW_SIMULATION, dockLeftId);
+    ImGui::DockBuilderDockWindow(WINDOW_CHARACTER, dockLeftId);
     ImGui::DockBuilderDockWindow(WINDOW_BOROUGHS, dockRightId);
-    ImGui::DockBuilderDockWindow(WINDOW_TILE_INSPECTOR, dockBottomId);
+    ImGui::DockBuilderDockWindow(WINDOW_CITY, dockBottomId);
     ImGui::DockBuilderDockWindow(WINDOW_MAP_VIEWPORT, dockMainId);
     ImGui::DockBuilderFinish(dockspaceId);
 }
 } // namespace
 
+void requestDefaultDockLayoutOnNextFrame() {
+    isDefaultDockLayoutPending = true;
+}
+
 void setupDefaultDockLayoutIfNeeded() {
+    if (!isDefaultDockLayoutPending) {
+        return;
+    }
+    isDefaultDockLayoutPending = false;
+    resetDockLayout();
 }
 
 void beginMainDockSpace() {

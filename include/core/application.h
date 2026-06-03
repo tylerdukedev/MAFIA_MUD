@@ -9,7 +9,10 @@
 #include "ui/context_help.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
+#include "game/player_wallet.h"
+#include "sim/sim_event_queue.h"
 #include "world/chunk_store.h"
+#include "world/city_control.h"
 #include "world/tile_vitality.h"
 #include "world/world_config.h"
 #include <GLFW/glfw3.h>
@@ -37,6 +40,10 @@ private:
     WorldConfig worldConfig;
     ChunkStore chunkStore;
     BoroughVitalityStore boroughVitalityStore{};
+    PlayerWallet playerWallet{};
+    CityControlStore cityControlStore{};
+    SimEventQueue simEventQueue{};
+    bool mapCrimeOverlayEnabled = false;
     SimClock simClock;
     SystemRegistry systemRegistry;
     MapCamera mapCamera;

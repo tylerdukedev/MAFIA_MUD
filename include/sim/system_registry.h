@@ -1,6 +1,8 @@
 #pragma once
 
 #include "sim/borough_vitality_system.h"
+#include "sim/city_control_system.h"
+#include "sim/economy_system.h"
 #include "sim/isim_system.h"
 #include "sim/sim_world_bindings.h"
 #include <cstdint>
@@ -18,8 +20,10 @@ public:
 
 private:
     DebugSystem debugSystem;
+    CityControlSystem cityControlSystem;
+    EconomySystem economySystem;
     BoroughVitalitySystem boroughVitalitySystem;
-    ISimSystem* systems[8];
+    ISimSystem* systems[10];
     int32_t systemCount;
 };
 
