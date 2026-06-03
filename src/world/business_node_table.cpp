@@ -18,6 +18,8 @@ constexpr BusinessNodeDefinition BUSINESS_NODE_DEFINITIONS[] = {
     {"staten_boatyard", 104, 352, "Staten Boatyard Office", "Boatyard", 305, 0.04f},
     {"hells_bar_supply", 246, 218, "Hell's Kitchen Bar Supply", "HK Bar Supply", 315, 0.05f},
     {"coney_amusement", 254, 408, "Coney Amusement Office", "Coney Office", 275, 0.0f},
+    {"manhattan_law", 252, 232, "Mulberry Street Law Office", "Law Office", 0, 0.0f, BusinessNodeKind::LawOffice},
+    {"brooklyn_law", 286, 288, "Bushwick Defense Counsel", "Defense", 0, 0.0f, BusinessNodeKind::LawOffice},
 };
 
 constexpr int32_t BUSINESS_NODE_COUNT = static_cast<int32_t>(sizeof(BUSINESS_NODE_DEFINITIONS) / sizeof(BUSINESS_NODE_DEFINITIONS[0]));
@@ -25,7 +27,7 @@ constexpr int32_t BUSINESS_NODE_COUNT = static_cast<int32_t>(sizeof(BUSINESS_NOD
 constexpr RegionId BUSINESS_NODE_REGION_IDS[] = {
     RegionId::Manhattan, RegionId::Manhattan, RegionId::Manhattan, RegionId::Brooklyn, RegionId::Brooklyn,
     RegionId::Queens, RegionId::NewJersey, RegionId::Queens, RegionId::Bronx, RegionId::StatenIsland,
-    RegionId::Manhattan, RegionId::Brooklyn,
+    RegionId::Manhattan, RegionId::Brooklyn, RegionId::Manhattan, RegionId::Brooklyn,
 };
 
 } // namespace
@@ -56,6 +58,11 @@ RegionId getBusinessNodeRegionId(int32_t businessIndex) {
         return RegionId::None;
     }
     return BUSINESS_NODE_REGION_IDS[businessIndex];
+}
+
+bool isLawOfficeBusinessIndex(int32_t businessIndex) {
+    const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
+    return business != nullptr && business->kind == BusinessNodeKind::LawOffice;
 }
 
 } // namespace Core

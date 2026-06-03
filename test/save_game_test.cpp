@@ -1,4 +1,5 @@
 #include "persistence/save_game.h"
+#include "persistence/save_gameplay_stores.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/street_crime.h"
@@ -81,7 +82,9 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         PlayerOrganizationStore{},
         PlayerLawEnforcementStore{},
         PlayerStreetCrimeStore{},
-        PlayerCriminalJusticeStore{}));
+        PlayerCriminalJusticeStore{},
+        SaveGameplayStores{},
+        0));
     REQUIRE(saveGameToFile(TEST_SAVE_PATH, snapshot));
     REQUIRE(saveFileExists(TEST_SAVE_PATH));
     SaveGameSnapshot loadedSnapshot{};
@@ -115,7 +118,9 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         loadedOrganization,
         loadedLaw,
         loadedStreetCrime,
-        loadedJustice));
+        loadedJustice,
+        SaveGameplayStores{},
+        loadedOperations.workExperienceMonths));
     const WorldCoord sampleCoord{200, 180};
     REQUIRE(loadedSeed == DEFAULT_WORLD_SEED);
     REQUIRE(loadedDraft.heritageId == sourceDraft.heritageId);

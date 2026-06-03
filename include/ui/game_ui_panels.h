@@ -3,6 +3,10 @@
 #include "character/player_profile.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
+#include "game/player_law_intel.h"
+#include "game/player_narrative_archive.h"
+#include "game/legal_counsel.h"
+#include "game/travel_modes.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
 #include "game/street_crime.h"
@@ -25,13 +29,16 @@ void renderOperationsPanel(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    PlayerLawIntelStore& playerLawIntelStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    PlayerLegalCounselStore& legalCounselStore,
+    const PlayerNarrativeArchiveStore& narrativeArchiveStore,
     PlayerWallet& playerWallet,
+    PlayerWorldState& playerWorldState,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
-    PlayerWorldState& playerWorldState,
     GameModalState& gameModalState,
     SimClock& simClock,
     uint64_t tickCount,
@@ -48,12 +55,15 @@ void renderBusinessPanel(
     GameModalState& gameModalState,
     SimClock& simClock,
     const ViewportPickState& viewportPickState,
+    uint64_t worldSeed,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState);
 
 void renderContactsPanel(
     const CharacterAgentStore& characterAgentStore,
     const PlayerOrganizationStore& playerOrganizationStore,
+    const PlayerLawEnforcementStore& playerLawEnforcementStore,
+    const PlayerLawIntelStore& playerLawIntelStore,
     GameModalState& gameModalState,
     SimClock& simClock,
     GamePanelVisibility& panelVisibility,

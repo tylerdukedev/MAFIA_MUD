@@ -1,5 +1,6 @@
 #include "game/player_employment.h"
 #include "game/housing_living_costs.h"
+#include "game/job_catalog.h"
 #include "game/player_operations.h"
 #include "world/business_node_table.h"
 
@@ -27,7 +28,14 @@ bool tryHirePlayerAtBusiness(
     if (getNetworkAccessScore(profile) < business->minNetworkAccess) {
         return false;
     }
+    const char* lockReason = nullptr;
+    if (!evaluateJobEligibility(profile, store, businessNodeIndex, store.workExperienceMonths, lockReason)) {
+        return false;
+    }
     store.employedBusinessIndex = businessNodeIndex;
+    if (store.workExperienceMonths < 240) {
+        store.workExperienceMonths += 1;
+    }
     return true;
 }
 

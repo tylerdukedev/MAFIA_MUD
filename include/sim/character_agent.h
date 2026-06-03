@@ -54,6 +54,7 @@ struct CharacterAgentState {
     char generatedRoleLabel[24]{};
     AgentMotive generatedMotive = AgentMotive::Loyalty;
     AgentPersonalityTrait generatedTrait = AgentPersonalityTrait::Pragmatic;
+    uint16_t relationEventFlags = 0;
 };
 
 struct CharacterAgentStore {

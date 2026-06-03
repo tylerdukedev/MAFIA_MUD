@@ -7,6 +7,11 @@ namespace Core {
 
 constexpr int32_t MAX_BUSINESS_NODE_COUNT = 48;
 
+enum class BusinessNodeKind : uint8_t {
+    Employer = 0,
+    LawOffice = 1,
+};
+
 struct BusinessNodeDefinition {
     const char* id;
     int32_t tileX;
@@ -15,7 +20,10 @@ struct BusinessNodeDefinition {
     const char* mapLabel;
     int64_t jobWageCents;
     float minNetworkAccess;
+    BusinessNodeKind kind = BusinessNodeKind::Employer;
 };
+
+bool isLawOfficeBusinessIndex(int32_t businessIndex);
 
 int32_t getBusinessNodeCount();
 const BusinessNodeDefinition* getBusinessNodeDefinition(int32_t businessIndex);

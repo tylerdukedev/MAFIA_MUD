@@ -70,8 +70,15 @@ set(CHARACTER_SOURCES
 
 set(AGENT_RELATIONSHIP_SOURCES
     src/sim/character_agent_store.cpp
+    src/game/agent_relation_events.cpp
     src/character/character_social_network.cpp
     src/utils/seed_hash.cpp
+)
+
+set(PLAYER_CRIMINAL_JUSTICE_SOURCES
+    src/game/player_criminal_justice.cpp
+    src/game/crime_legal_tier.cpp
+    src/game/legal_counsel.cpp
 )
 
 # --- Main executable ---
@@ -80,6 +87,7 @@ set(CAPITAL_VICE_SOURCES
     src/core/application.cpp
     src/core/sim_clock.cpp
     src/sim/system_registry.cpp
+    src/sim/calendar_system.cpp
     src/sim/borough_vitality_system.cpp
     src/sim/city_control_system.cpp
     src/sim/operation_system.cpp
@@ -112,6 +120,19 @@ set(CAPITAL_VICE_SOURCES
     src/game/landlord_contact.cpp
     src/game/kin_housing.cpp
     src/game/player_employment.cpp
+    src/game/game_calendar.cpp
+    src/game/player_work_schedule.cpp
+    src/game/player_law_intel.cpp
+    src/game/agent_relation_events.cpp
+    src/game/action_reason_catalog.cpp
+    src/game/player_narrative_archive.cpp
+    src/game/covert_action_executor.cpp
+    src/persistence/playthrough_archive.cpp
+    src/game/player_health.cpp
+    src/game/job_catalog.cpp
+    src/game/legal_counsel.cpp
+    src/game/travel_modes.cpp
+    src/persistence/save_gameplay_stores.cpp
     src/ui/game_modal_state.cpp
     src/ui/game_modal_ui.cpp
     src/procgen/world_generator.cpp
@@ -132,6 +153,7 @@ set(CAPITAL_VICE_SOURCES
     src/ui/help_manual.cpp
     src/ui/context_help.cpp
     src/ui/game_ui.cpp
+    src/ui/map_status_hud.cpp
     ${CHARACTER_SOURCES}
 )
 
@@ -198,6 +220,19 @@ catch_discover_tests(map_camera_test)
 add_executable(save_game_test
     test/save_game_test.cpp
     src/persistence/save_game.cpp
+    src/persistence/save_gameplay_stores.cpp
+    src/game/game_calendar.cpp
+    src/game/action_reason_catalog.cpp
+    src/game/player_narrative_archive.cpp
+    src/game/covert_action_executor.cpp
+    src/persistence/playthrough_archive.cpp
+    src/game/player_work_schedule.cpp
+    src/game/player_law_intel.cpp
+    src/game/player_health.cpp
+    src/game/player_world_state.cpp
+    src/game/player_employment.cpp
+    src/game/job_catalog.cpp
+    src/world/business_node_table.cpp
     src/procgen/world_generator.cpp
     src/utils/seed_hash.cpp
     src/world/world_config.cpp
@@ -211,8 +246,7 @@ add_executable(save_game_test
     src/game/operation_catalog.cpp
     src/game/player_organization.cpp
     src/game/player_law_enforcement.cpp
-    src/game/player_criminal_justice.cpp
-    src/game/crime_legal_tier.cpp
+    ${PLAYER_CRIMINAL_JUSTICE_SOURCES}
     src/game/street_crime.cpp
     ${AGENT_RELATIONSHIP_SOURCES}
     src/character/character_name_pools.cpp
@@ -278,6 +312,7 @@ catch_discover_tests(housing_living_costs_test)
 add_executable(game_integration_test
     test/game_integration_test.cpp
     src/game/player_employment.cpp
+    src/game/job_catalog.cpp
     src/game/kin_housing.cpp
     src/game/housing_living_costs.cpp
     src/game/housing_economy.cpp
@@ -299,8 +334,7 @@ catch_discover_tests(game_integration_test)
 
 add_executable(criminal_justice_test
     test/criminal_justice_test.cpp
-    src/game/player_criminal_justice.cpp
-    src/game/crime_legal_tier.cpp
+    ${PLAYER_CRIMINAL_JUSTICE_SOURCES}
     src/game/player_law_enforcement.cpp
     src/game/player_organization.cpp
     src/game/player_operations.cpp
@@ -318,8 +352,7 @@ catch_discover_tests(criminal_justice_test)
 add_executable(street_crime_test
     test/street_crime_test.cpp
     src/game/street_crime.cpp
-    src/game/player_criminal_justice.cpp
-    src/game/crime_legal_tier.cpp
+    ${PLAYER_CRIMINAL_JUSTICE_SOURCES}
     src/game/player_organization.cpp
     src/game/player_law_enforcement.cpp
     src/game/player_operations.cpp
@@ -339,8 +372,7 @@ add_executable(player_organization_test
     src/game/player_organization.cpp
     src/game/player_organization_ui.cpp
     src/game/street_crime.cpp
-    src/game/player_criminal_justice.cpp
-    src/game/crime_legal_tier.cpp
+    ${PLAYER_CRIMINAL_JUSTICE_SOURCES}
     src/game/player_law_enforcement.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
@@ -401,9 +433,36 @@ target_include_directories(profile_builder_test PRIVATE ${CMAKE_SOURCE_DIR}/incl
 target_link_libraries(profile_builder_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(profile_builder_test)
 
+add_executable(calendar_travel_test
+    test/calendar_travel_test.cpp
+    src/game/game_calendar.cpp
+    src/game/travel_modes.cpp
+    src/game/player_world_state.cpp
+    src/game/player_wallet.cpp
+    src/utils/seed_hash.cpp
+)
+target_include_directories(calendar_travel_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(calendar_travel_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(calendar_travel_test)
+
+add_executable(action_reason_test
+    test/action_reason_test.cpp
+    src/game/action_reason_catalog.cpp
+    src/game/agent_relation_events.cpp
+    src/sim/character_agent_store.cpp
+)
+target_include_directories(action_reason_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(action_reason_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(action_reason_test)
+
 add_executable(dev_console_test
     test/dev_console_test.cpp
     src/dev/dev_console.cpp
+    src/game/game_calendar.cpp
+    src/game/action_reason_catalog.cpp
+    src/game/covert_action_executor.cpp
+    src/game/player_narrative_archive.cpp
+    src/game/player_law_intel.cpp
     src/game/player_wallet.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
@@ -419,8 +478,7 @@ add_executable(dev_console_test
     src/world/city_control.cpp
     src/world/landmark_table.cpp
     src/game/player_law_enforcement.cpp
-    src/game/player_criminal_justice.cpp
-    src/game/crime_legal_tier.cpp
+    ${PLAYER_CRIMINAL_JUSTICE_SOURCES}
     src/game/player_organization.cpp
     ${CHARACTER_SOURCES}
 )

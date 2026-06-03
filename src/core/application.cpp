@@ -11,6 +11,8 @@
 #include "world/tile_vitality.h"
 #include "world/landmark_table.h"
 #include "game/player_wallet.h"
+#include "persistence/save_gameplay_stores.h"
+#include "persistence/playthrough_archive.h"
 #include "world/city_control.h"
 #include "sim/sim_event_queue.h"
 #include "character/profile_builder.h"
@@ -237,6 +239,7 @@ void Application::renderFrame() {
             playerStreetCrimeStore,
             playerLawEnforcementStore,
             playerCriminalJusticeStore,
+            gameplayStores,
             characterAgentStore,
             worldEventStore,
             cityControlStore,
@@ -264,6 +267,7 @@ void Application::renderFrame() {
     devGameplaySnapshot.playerCriminalJusticeStore = isWorldReady ? &playerCriminalJusticeStore : nullptr;
     devGameplaySnapshot.characterAgentStore = isWorldReady ? &characterAgentStore : nullptr;
     devGameplaySnapshot.worldEventStore = isWorldReady ? &worldEventStore : nullptr;
+    devGameplaySnapshot.gameplayStores = isWorldReady ? &gameplayStores : nullptr;
     devGameplaySnapshot.tickCount = simClock.getTickCount();
     devGameplaySnapshot.isWorldReady = isWorldReady;
     devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile, &devGameplaySnapshot);
@@ -287,7 +291,8 @@ void Application::startNewSimulation() {
     resetPlayerStreetCrimeStore(playerStreetCrimeStore);
     resetPlayerLawEnforcementStore(playerLawEnforcementStore);
     resetPlayerCriminalJusticeStore(playerCriminalJusticeStore);
-    resetPlayerWorldState(playerWorldState);
+    resetSaveGameplayStores(gameplayStores);
+    playerWorldState = gameplayStores.worldState;
     resetGameModalState(gameModalState);
     resetWorldEventStore(worldEventStore);
     initializeCharacterAgentStore(characterAgentStore);
@@ -314,7 +319,17 @@ void Application::startNewSimulation() {
         &playerStreetCrimeStore,
         &characterAgentStore,
         &worldEventStore};
-    systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore, &playerCriminalJusticeStore);
+    systemRegistry.initialize(
+        simBindings,
+        &characterAgentStore,
+        &playerStreetCrimeStore,
+        &playerLawEnforcementStore,
+        &playerCriminalJusticeStore,
+        &gameplayStores.calendarStore,
+        &gameplayStores.workScheduleStore,
+        &playerWorldState,
+        &gameplayStores.playerHealthStore,
+        &gameplayStores.populationHealthStore);
     requestDefaultGameDockLayout();
     panelVisibility = GamePanelVisibility{};
     mapCamera = MapCamera{};
@@ -326,6 +341,7 @@ void Application::startNewSimulation() {
     } else {
         initializeMapCameraForStartingBorough(mapCamera, characterDraft.selectedBoroughIndex);
     }
+    gameplayStores.worldState = playerWorldState;
     viewportPickState = ViewportPickState{};
     simClock = SimClock(WorldConfig::DEFAULT_TICK_RATE_HZ);
     isWorldReady = true;
@@ -353,14 +369,27 @@ bool Application::saveCurrentGame() {
             playerOrganizationStore,
             playerLawEnforcementStore,
             playerStreetCrimeStore,
-            playerCriminalJusticeStore)) {
+            playerCriminalJusticeStore,
+            gameplayStores,
+            playerOperationsStore.workExperienceMonths)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
     }
+    snapshot.gameplayStores.worldState = playerWorldState;
     if (!saveGameToFile(DEFAULT_SAVE_FILENAME, snapshot)) {
         setSaveLoadStatusMessage("Save failed: could not write save file.");
         return false;
     }
+    PlaythroughArchiveFile playthroughArchive{};
+    loadPlaythroughArchiveFile(playthroughArchive);
+    upsertCurrentPlaythroughSlot(
+        playthroughArchive,
+        characterDraft.nameBuffer,
+        worldSeed,
+        gameplayStores.calendarStore.totalDaysElapsed,
+        playerWallet.cashCents,
+        gameplayStores.narrativeArchiveStore);
+    savePlaythroughArchiveFile(playthroughArchive);
     setSaveLoadStatusMessage("Game saved.");
     return true;
 }
@@ -390,7 +419,9 @@ bool Application::loadSavedGame() {
             playerOrganizationStore,
             playerLawEnforcementStore,
             playerStreetCrimeStore,
-            playerCriminalJusticeStore)) {
+            playerCriminalJusticeStore,
+            gameplayStores,
+            playerOperationsStore.workExperienceMonths)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
     }
@@ -411,7 +442,18 @@ bool Application::loadSavedGame() {
         &playerStreetCrimeStore,
         &characterAgentStore,
         &worldEventStore};
-    systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore, &playerCriminalJusticeStore);
+    systemRegistry.initialize(
+        simBindings,
+        &characterAgentStore,
+        &playerStreetCrimeStore,
+        &playerLawEnforcementStore,
+        &playerCriminalJusticeStore,
+        &gameplayStores.calendarStore,
+        &gameplayStores.workScheduleStore,
+        &playerWorldState,
+        &gameplayStores.playerHealthStore,
+        &gameplayStores.populationHealthStore);
+    playerWorldState = gameplayStores.worldState;
     panelVisibility = GamePanelVisibility{};
     playerProfile = buildPlayerProfile(characterDraft);
     viewportPickState = ViewportPickState{};

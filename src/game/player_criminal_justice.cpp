@@ -1,4 +1,5 @@
 #include "game/player_criminal_justice.h"
+#include "game/legal_counsel.h"
 #include "character/character_social_network.h"
 #include "game/economy_constants.h"
 #include "game/player_wallet.h"
@@ -24,10 +25,12 @@ CrimeLegalTier mapCustodyMaxLegalTier(CustodyPhase phase) {
 CourtOutcome rollCourtOutcome(
     CrimeLegalTier legalTier,
     const PlayerLawEnforcementStore& lawStore,
+    const PlayerLegalCounselStore& legalCounselStore,
     uint64_t worldSeed,
     uint64_t tickCount) {
     const uint32_t roll = static_cast<uint32_t>((worldSeed ^ tickCount ^ static_cast<uint64_t>(lawStore.evidenceScore)) % 100ULL);
-    if (lawStore.evidenceScore < 12 && static_cast<int32_t>(legalTier) <= static_cast<int32_t>(CrimeLegalTier::Street) && roll < 35U) {
+    const int32_t acquittalBonus = rollCourtAcquittalBonusPercent(legalCounselStore, worldSeed, tickCount);
+    if (lawStore.evidenceScore < 12 && static_cast<int32_t>(legalTier) <= static_cast<int32_t>(CrimeLegalTier::Street) && roll < static_cast<uint32_t>(35 + acquittalBonus)) {
         return CourtOutcome::Acquitted;
     }
     if (lawStore.evidenceScore < 32 && roll < 58U) {
@@ -263,12 +266,20 @@ bool tryPayPlayerBond(PlayerCriminalJusticeStore& justiceStore, PlayerWallet& wa
 void resolvePlayerCourt(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerLawEnforcementStore& lawStore,
+    const PlayerLegalCounselStore& legalCounselStore,
     uint64_t worldSeed,
     uint64_t tickCount) {
     clearPlayerCourtModalPending(justiceStore);
     const CrimeLegalTier legalTier = static_cast<CrimeLegalTier>(justiceStore.pendingLegalTier);
-    const CourtOutcome outcome = rollCourtOutcome(legalTier, lawStore, worldSeed, tickCount);
+    const CourtOutcome outcome = rollCourtOutcome(legalTier, lawStore, legalCounselStore, worldSeed, tickCount);
     applyCourtOutcome(justiceStore, lawStore, outcome, legalTier, tickCount);
+    if (outcome == CourtOutcome::Prison) {
+        const int32_t reductionPercent = rollPrisonSentenceReductionPercent(legalCounselStore);
+        justiceStore.phaseTicksRemaining = justiceStore.phaseTicksRemaining * (100 - reductionPercent) / 100;
+        if (justiceStore.phaseTicksRemaining < JUSTICE_PRISON_BASE_TICKS / 2) {
+            justiceStore.phaseTicksRemaining = JUSTICE_PRISON_BASE_TICKS / 2;
+        }
+    }
     refreshInvestigationTier(lawStore);
 }
 
@@ -381,7 +392,8 @@ void tickPlayerCriminalJustice(
     }
     if (getPlayerCustodyPhase(justiceStore) == CustodyPhase::AwaitingCourt && justiceStore.pendingCourtModal == 0
         && justiceStore.phaseTicksRemaining <= 0) {
-        resolvePlayerCourt(justiceStore, lawStore, worldSeed, tickCount);
+        const PlayerLegalCounselStore defaultCounsel{};
+        resolvePlayerCourt(justiceStore, lawStore, defaultCounsel, worldSeed, tickCount);
     }
     if (getPlayerCustodyPhase(justiceStore) == CustodyPhase::InPrison) {
         if (justiceStore.phaseTicksRemaining > 0) {

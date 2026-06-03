@@ -2,6 +2,7 @@
 #include "character/character_social_network.h"
 #include "game/landlord_contact.h"
 #include "game/player_employment.h"
+#include "game/job_catalog.h"
 #include "game/crime_legal_tier.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
@@ -10,6 +11,10 @@
 #include "game/player_organization_ui.h"
 #include "game/operation_types.h"
 #include "game/player_operations.h"
+#include "game/player_work_schedule.h"
+#include "game/covert_action_executor.h"
+#include "game/action_reason_catalog.h"
+#include "game/agent_relation_events.h"
 #include "sim/character_agent.h"
 #include "world/business_node_table.h"
 #include "imgui.h"
@@ -18,36 +23,6 @@
 namespace Core {
 
 namespace {
-
-constexpr int32_t JOB_INTERVIEW_QUESTION_COUNT = 3;
-
-struct JobInterviewQuestion {
-    const char* prompt;
-    const char* answerA;
-    const char* answerB;
-    const char* answerC;
-    int32_t scoreA;
-    int32_t scoreB;
-    int32_t scoreC;
-};
-
-constexpr JobInterviewQuestion JOB_INTERVIEW_QUESTIONS[JOB_INTERVIEW_QUESTION_COUNT] = {
-    {"Why do you want this job?",
-     "I need steady pay and I will show up on time.",
-     "My cousin said you hire anyone.",
-     "I am between rackets and need cover.",
-     3, 1, 0},
-    {"How do you handle a difficult customer?",
-     "Stay calm, listen, and fix what I can.",
-     "I yell back until they leave.",
-     "I know a guy who handles problems.",
-     3, 0, 1},
-    {"What is your biggest weakness?",
-     "I talk too much when I am nervous.",
-     "I have no weaknesses.",
-     "I sometimes borrow from the till.",
-     2, 1, -2},
-};
 
 void closeModal(GameModalState& modal, SimClock& simClock) {
     resetGameModalState(modal);
@@ -99,9 +74,12 @@ void applyApartmentLieConsequences(CharacterAgentStore& agentStore, int32_t answ
 
 } // namespace
 
-void beginJobInterviewModal(GameModalState& modal, int32_t businessNodeIndex, SimClock& simClock) {
+void beginJobInterviewModal(GameModalState& modal, int32_t businessNodeIndex, SimClock& simClock, uint64_t worldSeed) {
     openModal(modal, simClock, GameModalKind::JobInterview, "Job interview in progress.");
     modal.businessNodeIndex = businessNodeIndex;
+    buildJobInterviewSession(modal.interviewSession, businessNodeIndex, worldSeed);
+    modal.interviewQuestionIndex = 0;
+    modal.interviewScore = 0;
 }
 
 void beginApartmentApplicationModal(GameModalState& modal, int32_t catalogIndex, SimClock& simClock) {
@@ -138,6 +116,34 @@ void beginCourtHearingModal(GameModalState& modal, SimClock& simClock) {
     openModal(modal, simClock, GameModalKind::CourtHearing, "Court is in session — the judge will rule on your case.");
 }
 
+void beginCovertActionModal(
+    GameModalState& modal,
+    CovertActionKind actionKind,
+    int32_t targetAgentIndex,
+    const CharacterAgentStore& agentStore,
+    const PlayerOrganizationStore& organizationStore,
+    const PlayerLawEnforcementStore& lawStore,
+    const PlayerLawIntelStore& intelStore,
+    SimClock& simClock) {
+    char statusBuffer[96];
+    std::snprintf(statusBuffer, sizeof(statusBuffer), "%s — choose a reason.", covertActionKindToLabel(actionKind));
+    openModal(modal, simClock, GameModalKind::CovertAction, statusBuffer);
+    modal.covertActionKind = actionKind;
+    modal.targetAgentIndex = targetAgentIndex;
+    modal.selectedCovertReasonIndex = -1;
+    modal.selectedCovertReasonId = ActionReasonId::None;
+    modal.useCrewProxyForCovertAction = false;
+    modal.covertReasonCount = collectCovertActionReasons(
+        actionKind,
+        targetAgentIndex,
+        agentStore,
+        organizationStore,
+        lawStore,
+        intelStore,
+        modal.covertReasonOffers,
+        MAX_ACTION_REASON_OFFERS);
+}
+
 void tickCriminalJusticeModals(
     GameModalState& modal,
     PlayerCriminalJusticeStore& justiceStore,
@@ -155,26 +161,15 @@ void tickCriminalJusticeModals(
     }
 }
 
-void tickWorkDayCommutePrompt(
+void tickWorkScheduleModals(
     GameModalState& modal,
-    PlayerWorldState& playerWorldState,
-    const PlayerOperationsStore& playerOperationsStore,
-    SimClock& simClock,
-    uint64_t tickCount) {
-    constexpr uint64_t WORK_SHIFT_DURATION_TICKS = static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS / 2);
-    if (playerWorldState.isAtWork && playerWorldState.lastWorkDayPromptTick > 0
-        && tickCount >= playerWorldState.lastWorkDayPromptTick + WORK_SHIFT_DURATION_TICKS) {
-        playerWorldState.isAtWork = false;
-    }
-    if (modal.isActive || !isPlayerEmployed(playerOperationsStore) || playerWorldState.isAtWork) {
+    const PlayerWorkScheduleStore& workScheduleStore,
+    const GameCalendarStore& calendarStore,
+    SimClock& simClock) {
+    if (modal.isActive || !shouldOpenWorkCommuteModal(workScheduleStore, calendarStore)) {
         return;
     }
-    if (playerWorldState.lastWorkDayPromptTick > 0
-        && tickCount < playerWorldState.lastWorkDayPromptTick + static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS)) {
-        return;
-    }
-    const bool isLate = (tickCount % static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS)) > static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS / 4);
-    beginWorkDayCommuteModal(modal, isLate, simClock);
+    beginWorkDayCommuteModal(modal, computeWorkDayLateness(workScheduleStore, calendarStore), simClock);
 }
 
 void renderGameModalOverlay(
@@ -184,13 +179,20 @@ void renderGameModalOverlay(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    PlayerLegalCounselStore& legalCounselStore,
+    PlayerHealthStore& playerHealthStore,
+    PlayerLawIntelStore& lawIntelStore,
+    PlayerNarrativeArchiveStore& narrativeArchiveStore,
     PlayerWallet& playerWallet,
     PlayerWorldState& playerWorldState,
+    PlayerWorkScheduleStore& workScheduleStore,
+    GameCalendarStore& calendarStore,
     CharacterAgentStore& characterAgentStore,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
     uint64_t tickCount,
     uint64_t worldSeed) {
+    (void)legalCounselStore;
     (void)simEventQueue;
     if (!modal.isActive) {
         return;
@@ -212,10 +214,19 @@ void renderGameModalOverlay(
             ImGui::TextDisabled("%s", business->fullName);
         }
         ImGui::Separator();
-        if (modal.interviewQuestionIndex >= JOB_INTERVIEW_QUESTION_COUNT) {
+        const JobInterviewSession& session = modal.interviewSession;
+        if (modal.interviewQuestionIndex >= session.questionCount) {
             if (!modal.hasFlowResult) {
-                const bool hired = tryHirePlayerAtBusiness(
-                    playerOperationsStore, playerProfile, modal.businessNodeIndex, modal.interviewScore);
+                const bool passed = evaluateJobInterviewPass(session, modal.businessNodeIndex);
+                const bool hired = passed && tryHirePlayerAtBusiness(
+                    playerOperationsStore, playerProfile, modal.businessNodeIndex, session.totalScore);
+                if (hired) {
+                    const JobDefinitionExtension* extension = getJobDefinitionExtension(modal.businessNodeIndex);
+                    if (extension != nullptr
+                        && (extension->perkFlags & static_cast<uint32_t>(JobPerkFlags::HealthBenefits)) != 0U) {
+                        playerHealthStore.hasHealthCoverage = true;
+                    }
+                }
                 setModalStatus(modal, hired ? "You are hired. Wages accrue while employed." : "They passed on you this time.");
                 modal.hasFlowResult = true;
             }
@@ -224,26 +235,17 @@ void renderGameModalOverlay(
                 closeModal(modal, simClock);
             }
         } else {
-            const JobInterviewQuestion& question = JOB_INTERVIEW_QUESTIONS[modal.interviewQuestionIndex];
+            const JobInterviewQuestionInstance& question = session.questions[modal.interviewQuestionIndex];
+            ImGui::Text("Question %d of %d", modal.interviewQuestionIndex + 1, session.questionCount);
             ImGui::TextWrapped("%s", question.prompt);
             ImGui::Spacing();
-            if (ImGui::Selectable(question.answerA, modal.selectedAnswerIndex == 0)) {
-                modal.selectedAnswerIndex = 0;
-            }
-            if (ImGui::Selectable(question.answerB, modal.selectedAnswerIndex == 1)) {
-                modal.selectedAnswerIndex = 1;
-            }
-            if (ImGui::Selectable(question.answerC, modal.selectedAnswerIndex == 2)) {
-                modal.selectedAnswerIndex = 2;
+            for (int32_t answerIndex = 0; answerIndex < JOB_INTERVIEW_ANSWER_COUNT; ++answerIndex) {
+                if (ImGui::Selectable(question.answers[answerIndex].text, modal.selectedAnswerIndex == answerIndex)) {
+                    modal.selectedAnswerIndex = answerIndex;
+                }
             }
             if (modal.selectedAnswerIndex >= 0 && ImGui::Button("Submit answer", ImVec2(180.0f, 0.0f))) {
-                if (modal.selectedAnswerIndex == 0) {
-                    modal.interviewScore += question.scoreA;
-                } else if (modal.selectedAnswerIndex == 1) {
-                    modal.interviewScore += question.scoreB;
-                } else {
-                    modal.interviewScore += question.scoreC;
-                }
+                modal.interviewSession.totalScore += question.answers[modal.selectedAnswerIndex].scoreDelta;
                 modal.interviewQuestionIndex += 1;
                 modal.selectedAnswerIndex = -1;
             }
@@ -287,25 +289,23 @@ void renderGameModalOverlay(
         }
     } else if (modal.kind == GameModalKind::WorkDayCommute) {
         ImGui::Text("Work Day");
+        char dateLabel[64];
+        formatCalendarDateLabel(calendarStore, dateLabel, sizeof(dateLabel));
+        ImGui::TextDisabled("%s | Shift %d:00-%d:00", dateLabel, workScheduleStore.shiftStartHour, workScheduleStore.shiftEndHour);
         ImGui::Separator();
         ImGui::TextWrapped("%s", modal.statusMessage);
         if (ImGui::Button("Go to work (on time)", ImVec2(200.0f, 0.0f))) {
-            playerWorldState.isAtWork = true;
-            playerWorldState.lastWorkDayPromptTick = tickCount;
-            modal.isLateForWork = false;
+            markWorkShiftStarted(workScheduleStore, playerWorldState, calendarStore, false);
             closeModal(modal, simClock);
         }
         ImGui::SameLine();
         if (ImGui::Button("Go to work (late)", ImVec2(200.0f, 0.0f))) {
-            playerWorldState.isAtWork = true;
-            playerWorldState.lastWorkDayPromptTick = tickCount;
-            modal.isLateForWork = true;
+            markWorkShiftStarted(workScheduleStore, playerWorldState, calendarStore, true);
             setModalStatus(modal, "You clocked in late. Expect reduced pay until travel rules expand.");
             closeModal(modal, simClock);
         }
         if (ImGui::Button("Call out / skip shift", ImVec2(200.0f, 0.0f))) {
-            playerWorldState.isAtWork = false;
-            playerWorldState.lastWorkDayPromptTick = tickCount;
+            markWorkShiftSkipped(workScheduleStore, calendarStore);
             closeModal(modal, simClock);
         }
     } else if (modal.kind == GameModalKind::CrewRecruitment) {
@@ -430,19 +430,77 @@ void renderGameModalOverlay(
             setModalStatus(modal, "You wait it out in county jail.");
             closeModal(modal, simClock);
         }
+    } else if (modal.kind == GameModalKind::CovertAction) {
+        const char* displayName = nullptr;
+        const char* roleLabel = nullptr;
+        tryGetAgentDisplayLabels(characterAgentStore, modal.targetAgentIndex, displayName, roleLabel);
+        ImGui::Text("%s", covertActionKindToLabel(modal.covertActionKind));
+        if (displayName != nullptr) {
+            ImGui::TextDisabled("Target: %s (%s)", displayName, roleLabel);
+        }
+        ImGui::Separator();
+        if (modal.hasFlowResult) {
+            ImGui::TextWrapped("%s", modal.statusMessage);
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else if (modal.covertReasonCount <= 0) {
+            ImGui::TextWrapped("No valid reasons for this target right now. Build intel or change the relationship first.");
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else {
+            ImGui::TextWrapped("Pick why you are doing this. The reason is logged for headlines and your archive.");
+            for (int32_t reasonIndex = 0; reasonIndex < modal.covertReasonCount; ++reasonIndex) {
+                const ActionReasonOffer& offer = modal.covertReasonOffers[reasonIndex];
+                if (ImGui::Selectable(offer.label, modal.selectedCovertReasonIndex == reasonIndex)) {
+                    modal.selectedCovertReasonIndex = reasonIndex;
+                    modal.selectedCovertReasonId = offer.reasonId;
+                }
+                if (modal.selectedCovertReasonIndex == reasonIndex) {
+                    ImGui::TextDisabled("%s", offer.description);
+                }
+            }
+            if (modal.covertActionKind == CovertActionKind::AssassinateTarget && playerOrganizationStore.crewMemberCount > 0) {
+                ImGui::Checkbox("Use crew proxy (more deniable, still risky)", &modal.useCrewProxyForCovertAction);
+            }
+            if (modal.selectedCovertReasonIndex >= 0 && ImGui::Button("Commit action", ImVec2(200.0f, 0.0f))) {
+                const CovertActionResult actionResult = executeCovertActionWithReason(
+                    modal.covertActionKind,
+                    modal.selectedCovertReasonId,
+                    modal.targetAgentIndex,
+                    modal.useCrewProxyForCovertAction,
+                    lawIntelStore,
+                    playerLawEnforcementStore,
+                    characterAgentStore,
+                    playerWallet,
+                    playerOrganizationStore,
+                    narrativeArchiveStore,
+                    calendarStore,
+                    worldSeed,
+                    tickCount);
+                if (actionResult.succeeded) {
+                    setModalStatus(modal, "Done. The city will remember this — check your narrative archive.");
+                } else {
+                    setModalStatus(modal, "Failed or partial. Heat and relationships shifted.");
+                }
+                modal.hasFlowResult = true;
+            }
+        }
     } else if (modal.kind == GameModalKind::CourtHearing) {
         ImGui::Text("Court");
         ImGui::Separator();
         const CrimeLegalTier tier = static_cast<CrimeLegalTier>(playerCriminalJusticeStore.pendingLegalTier);
         ImGui::Text("Charge tier: %s", crimeLegalTierToString(tier));
-        ImGui::Text("Evidence score: %d", playerLawEnforcementStore.evidenceScore);
+        const LawyerTierDefinition* counsel = getLawyerTierDefinition(legalCounselStore.hiredLawyerTier);
+        ImGui::Text("Counsel: %s", counsel->displayName);
         if (modal.hasFlowResult) {
             ImGui::TextWrapped("%s", modal.statusMessage);
             if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
                 closeModal(modal, simClock);
             }
         } else if (ImGui::Button("Enter courtroom", ImVec2(200.0f, 0.0f))) {
-            resolvePlayerCourt(playerCriminalJusticeStore, playerLawEnforcementStore, worldSeed, tickCount);
+            resolvePlayerCourt(playerCriminalJusticeStore, playerLawEnforcementStore, legalCounselStore, worldSeed, tickCount);
             const CourtOutcome outcome = static_cast<CourtOutcome>(playerCriminalJusticeStore.lastCourtOutcome);
             char outcomeBuffer[96];
             std::snprintf(

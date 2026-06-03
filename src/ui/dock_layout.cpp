@@ -7,7 +7,7 @@ namespace Core {
 
 namespace {
 constexpr const char* DOCKSPACE_WINDOW_NAME = "CapitalViceDockSpace";
-constexpr const char* DOCKSPACE_HOST_ID = "CapitalViceDockSpaceHostV8";
+constexpr const char* DOCKSPACE_HOST_ID = "CapitalViceDockSpaceHostV9";
 constexpr float DOCK_LEFT_WIDTH_FRACTION = 0.20f;
 constexpr float DOCK_RIGHT_WIDTH_FRACTION = 0.20f;
 constexpr float DOCK_BOTTOM_HEIGHT_FRACTION = 0.26f;
@@ -70,13 +70,7 @@ void syncDockLayoutToViewport(ImGuiID dockspaceId, const ImVec2& viewportSize) {
         buildDefaultDockLayout(dockspaceId, viewportSize);
         cachedDockViewportSize = viewportSize;
         isDockLayoutCommitted = true;
-        return;
     }
-    if (!hasDockViewportSizeChanged(viewportSize)) {
-        return;
-    }
-    ImGui::DockBuilderSetNodeSize(dockspaceId, viewportSize);
-    cachedDockViewportSize = viewportSize;
 }
 
 void queueLayoutCommand(DockLayoutCommand command) {
@@ -143,6 +137,7 @@ void beginMainDockSpace() {
     ImGui::DockSpace(activeDockspaceId, dockSpaceSize, dockspaceFlags);
     if (!isDockLayoutCommitted && pendingLayoutCommand == DockLayoutCommand::None) {
         syncDockLayoutToViewport(activeDockspaceId, viewport->WorkSize);
+        isDockLayoutCommitted = true;
     }
     ImGui::End();
 }

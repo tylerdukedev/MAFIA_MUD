@@ -7,6 +7,7 @@
 #include "game/player_organization.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "persistence/save_gameplay_stores.h"
 #include "game/street_crime.h"
 #include "sim/character_agent.h"
 #include "sim/world_event_store.h"
@@ -53,6 +54,8 @@ struct SaveGameSnapshot {
     PlayerLawEnforcementStore lawEnforcementStore{};
     PlayerStreetCrimeStore streetCrimeStore{};
     PlayerCriminalJusticeStore criminalJusticeStore{};
+    int32_t workExperienceMonths = 0;
+    SaveGameplayStores gameplayStores{};
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
     std::vector<int16_t> elevations;
@@ -83,7 +86,9 @@ bool buildSaveSnapshot(
     const PlayerOrganizationStore& organizationStore,
     const PlayerLawEnforcementStore& lawEnforcementStore,
     const PlayerStreetCrimeStore& streetCrimeStore,
-    const PlayerCriminalJusticeStore& criminalJusticeStore);
+    const PlayerCriminalJusticeStore& criminalJusticeStore,
+    const SaveGameplayStores& gameplayStores,
+    int32_t workExperienceMonths);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,
@@ -99,7 +104,9 @@ bool applySaveSnapshot(
     PlayerOrganizationStore& organizationStore,
     PlayerLawEnforcementStore& lawEnforcementStore,
     PlayerStreetCrimeStore& streetCrimeStore,
-    PlayerCriminalJusticeStore& criminalJusticeStore);
+    PlayerCriminalJusticeStore& criminalJusticeStore,
+    SaveGameplayStores& gameplayStores,
+    int32_t& workExperienceMonths);
 bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot);
 bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot);
 

@@ -1,6 +1,8 @@
 #include "game/street_crime.h"
 #include "game/economy_constants.h"
 #include "game/player_law_enforcement.h"
+#include "game/agent_relation_events.h"
+#include "character/character_social_network.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
 #include "utils/seed_hash.h"
@@ -192,7 +194,15 @@ bool tryCommitStreetCrime(
     const int32_t successChance = rollSuccessPercent(*crime, profile, agentStore, lawStore, worldSeed, crimeIndex, tickCount);
     const uint32_t roll = Utils::hashSeedMix(worldSeed, static_cast<int32_t>(tickCount), crimeIndex + 0x535563) % 100U;
     const bool isSuccess = static_cast<int32_t>(roll) < successChance;
+    const int32_t witnessesBefore = lawStore.witnessCount;
     rollStreetCrimeWitness(lawStore, organizationStore, profile, wallet, worldSeed, tickCount, crimeIndex, isSuccess);
+    if (lawStore.witnessCount > witnessesBefore) {
+        if (agentStore.states[FRIEND_AGENT_SLOT_INDEX].isActive) {
+            markAgentSnitchedToPolice(agentStore, FRIEND_AGENT_SLOT_INDEX);
+        } else if (agentStore.states[RIVAL_AGENT_SLOT_INDEX].isActive) {
+            markAgentSnitchedToPolice(agentStore, RIVAL_AGENT_SLOT_INDEX);
+        }
+    }
     if (isSuccess) {
         const int64_t payoutCents = rollPayoutCents(*crime, worldSeed, crimeIndex, tickCount);
         creditCrimeCash(wallet, payoutCents);

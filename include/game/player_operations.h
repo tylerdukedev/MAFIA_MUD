@@ -20,6 +20,7 @@ struct PlayerOperationsStore {
     int8_t consecutiveUnpaidRentMonths = 0;
     int32_t rentMultiplierBps = 10000;
     int32_t rentEventAdjustmentBps = 0;
+    int32_t workExperienceMonths = 0;
 };
 
 void resetPlayerOperationsStore(PlayerOperationsStore& store);

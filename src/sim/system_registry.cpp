@@ -21,7 +21,7 @@ uint64_t DebugSystem::getProcessedTickCount() const {
 
 SystemRegistry::SystemRegistry()
     : systemCount(0) {
-    for (int32_t index = 0; index < 10; ++index) {
+    for (int32_t index = 0; index < 13; ++index) {
         systems[index] = nullptr;
     }
 }
@@ -31,7 +31,12 @@ void SystemRegistry::initialize(
     CharacterAgentStore* agentStore,
     PlayerStreetCrimeStore* crimeStore,
     PlayerLawEnforcementStore* lawStore,
-    PlayerCriminalJusticeStore* justiceStore) {
+    PlayerCriminalJusticeStore* justiceStore,
+    GameCalendarStore* calendarStore,
+    PlayerWorkScheduleStore* workScheduleStore,
+    PlayerWorldState* worldState,
+    PlayerHealthStore* playerHealthStore,
+    PopulationHealthStore* populationHealthStore) {
     systemCount = 0;
     streetCrimeSystem.bind(bindings, crimeStore, lawStore, justiceStore);
     operationSystem.bind(bindings, agentStore);
@@ -41,6 +46,16 @@ void SystemRegistry::initialize(
     criminalJusticeSystem.bind(bindings, justiceStore, lawStore);
     economySystem.bind(bindings);
     boroughVitalitySystem.bind(bindings);
+    calendarSystem.bind(
+        bindings,
+        calendarStore,
+        workScheduleStore,
+        worldState,
+        bindings.playerOperationsStore,
+        playerHealthStore,
+        populationHealthStore,
+        agentStore);
+    systems[systemCount++] = &calendarSystem;
     systems[systemCount++] = &criminalJusticeSystem;
     systems[systemCount++] = &policeSystem;
     systems[systemCount++] = &streetCrimeSystem;

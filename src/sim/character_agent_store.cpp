@@ -1,4 +1,5 @@
 #include "sim/character_agent.h"
+#include "game/agent_relation_events.h"
 #include "character/character_social_network.h"
 #include <algorithm>
 #include <cstring>
@@ -63,6 +64,7 @@ void initializeCharacterAgentStore(CharacterAgentStore& store) {
             continue;
         }
         seedAgentState(store.states[slotIndex], *definition);
+        seedDefaultAgentRelationFlags(store, slotIndex);
     }
 }
 
@@ -92,6 +94,7 @@ void adjustAgentOpinion(CharacterAgentStore& store, int32_t agentIndex, int32_t 
     }
     state.opinionOfPlayer = std::clamp(state.opinionOfPlayer + delta, AGENT_OPINION_MIN, AGENT_OPINION_MAX);
     deriveRelationshipStatsFromOpinion(state);
+    evaluateOpinionDeltaRelationEvents(state, delta, false);
     if (delta < -8) {
         state.currentEmotion = AgentEmotion::Angry;
     } else     if (delta > 8) {

@@ -9,6 +9,8 @@
 
 namespace Core {
 
+struct PlayerLegalCounselStore;
+
 enum class CustodyPhase : uint8_t {
     Free = 0,
     Arrested = 1,
@@ -91,6 +93,7 @@ bool tryPayPlayerBond(
 void resolvePlayerCourt(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerLawEnforcementStore& lawStore,
+    const PlayerLegalCounselStore& legalCounselStore,
     uint64_t worldSeed,
     uint64_t tickCount);
 void releasePlayerFromCustody(PlayerCriminalJusticeStore& justiceStore, PlayerLawEnforcementStore& lawStore);

@@ -16,6 +16,7 @@
 #include "sim/system_registry.h"
 #include "world/city_control.h"
 #include "game/player_world_state.h"
+#include "persistence/save_gameplay_stores.h"
 #include "ui/context_help.h"
 #include "ui/game_modal_state.h"
 #include "ui/help_manual.h"
@@ -79,6 +80,7 @@ void renderGameUi(
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    SaveGameplayStores& gameplayStores,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
     CityControlStore& cityControlStore,

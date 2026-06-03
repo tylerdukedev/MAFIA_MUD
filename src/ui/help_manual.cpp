@@ -62,9 +62,15 @@ constexpr const char* P_PROFILE_BUILDER[] = {
 };
 
 constexpr const char* P_CHARACTER_PANEL[] = {
-    "After you begin, the Character panel shows your name, cash on hand, income rates, starting city, and trait bars.",
-    "Legit income is zero until you are employed; crime income still comes from owned cities and your background.",
+    "After you begin, the Character panel shows identity, health, work experience, custody status, and trait bars.",
+    "Cash, legit/illegitimate income, and police heat live on the map HUD (top-right chips). Hover chips for details.",
     "Hover rows for tooltips; Ctrl+click opens deeper help. A broke warning appears when cash is very low.",
+};
+
+constexpr const char* P_MAP_STATUS_HUD[] = {
+    "Money and Heat chips sit on the map viewport. Hover Money for legit and illegitimate income per tick.",
+    "Hover Heat for investigation status. Evidence is hidden. Warrants appear only after intel (bribe, kidnapping, etc.).",
+    "The Date chip tracks the simulation calendar (year, weekday, hour).",
 };
 
 constexpr const char* P_AXIS_NETWORK[] = {
@@ -251,10 +257,10 @@ constexpr const char* P_CRIMINAL_JUSTICE[] = {
 };
 
 constexpr const char* P_BUSINESS_PANEL[] = {
-    "Blue nodes are workplaces (always visible). Labels appear when you zoom in, like city landmarks.",
-    "You must be in the same borough to apply.",
-    "Apply for job opens a paused interview — answer three questions. Pass the interview to be hired; wages accrue over time, not as a lump sum.",
-    "You cannot apply again while already employed.",
+    "Blue nodes are workplaces or law offices (always visible). Labels appear when you zoom in, like city landmarks.",
+    "Jobs require borough presence, network access, and sometimes months of work experience. Perks (health, transit, union) vary by employer.",
+    "Apply opens a procedural interview (3–5 questions). Pass score scales with job difficulty. Wages accrue over time.",
+    "Law offices on the map pair with Operations > Legal counsel retainers before court.",
 };
 
 constexpr const char* P_CONTACTS_PANEL[] = {
@@ -263,9 +269,21 @@ constexpr const char* P_CONTACTS_PANEL[] = {
 };
 
 constexpr const char* P_TRAVEL_AND_SCHEDULE[] = {
-    "You operate only in the borough where you currently are. Travel between boroughs will gate jobs, meetings, and crime (foundation in this build).",
-    "Employed characters receive periodic work-day prompts: go on time, go late, or call out. Shifts can lock some actions while you are at work.",
-    "Future builds will add route risk (heat, rivals, feds) and commute time affecting lateness and pay.",
+    "You operate only in the borough where you currently are. Operations > Travel plans walk, bike, car, or train trips with time and cost.",
+    "The simulation calendar advances hourly. Employed characters get a commute prompt at shift start (weekdays). Bosses can cut weekly hours via events.",
+    "While on shift, some actions are limited. Lateness is tracked for future pay penalties.",
+};
+
+constexpr const char* P_LEGAL_COUNSEL[] = {
+    "Public Defender is free. Paid tiers improve acquittal odds and shorten prison sentences.",
+    "Retain counsel from Operations before court. Law offices on the map are where you meet attorneys in-world.",
+};
+
+constexpr const char* P_LAW_INTEL[] = {
+    "Evidence is internal — you do not see the score. Warrants surface on the heat HUD only when you learn about them.",
+    "Contacts: pick Bribe, Kidnap, or Assassinate, then choose a reason (power play, revenge, silence witness, etc.).",
+    "Dynamic reasons appear when the world flags someone — betrayed you, snitched, crew defector, marked rival.",
+    "Each committed action logs a headline beat in your save and the playthrough archive (Former lives on the main menu).",
 };
 
 constexpr const char* P_WINDOWS_MENU[] = {
@@ -280,7 +298,7 @@ constexpr const char* P_LANDMARK_CONTROL[] = {
 
 constexpr const char* P_ECONOMY_OVERVIEW[] = {
     "Cash is tracked in cents. Starting money is modest ($0–$25, weighted low) and only applied when you begin life in New York — not shown during creation.",
-    "Legit income requires a job. Passive crime income can come from owned cities; street crimes pay lump sums from Operations.",
+    "Legit income requires a job. Illegitimate income can come from owned cities and street crimes (map HUD labels it illegitimate, not crime).",
     "Income bundles into your wallet every 20 simulation ticks.",
 };
 
@@ -350,14 +368,15 @@ constexpr const char* P_VIEW_MENU[] = {
 };
 
 constexpr const char* P_SAVE_LOAD[] = {
-    "Saves to capitalvice_save.dat (v10). Stores character, world, wallet, housing, contacts, crew tier, police, jail/probation/parole, and crime cooldowns.",
-    "Save with Ctrl+S or the File menu while in-game. Load from the main menu or File menu when a save exists.",
+    "Saves to capitalvice_save.dat (v12). Includes narrative action beats, relation flags, calendar, counsel, and intel.",
+    "capitalvice_playthrough_archive.dat keeps archived runs for Former lives (not deleted when you save).",
+    "v10 saves still load; new systems start at defaults. Save with Ctrl+S or the File menu while in-game.",
 };
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
 constexpr const char* P_DEV_CONSOLE[] = {
     "Dev builds only. F12 toggles a command console for profile inspection and tweaks.",
-    "Commands: help, log clear, profile dump, draft show, wallet/cities/operations/crew/law/justice show (in-game), justice arrest|release, profile set ..., network/legitimacy/loyalty/culture/paths show.",
+    "Commands: help, log clear, profile dump, draft show, wallet/cities/operations/crew/law/justice show (in-game), calendar show|hours|skipday, counsel show, intel bribe, justice arrest|release, profile set ..., network/legitimacy/loyalty/culture/paths show.",
 };
 #endif
 
@@ -437,6 +456,7 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"world_data", "World and Map", "World Data", "512x512 ChunkStore", P_WORLD_DATA, 1},
     {"procgen", "World and Map", "World Generation", "Seed and borough mask", P_PROCGEN, 1},
     {"map_viewport", "World and Map", "Map Viewport", "Pan zoom pick", P_MAP_VIEWPORT, 3},
+    {"map_status_hud", "World and Map", "Map Status HUD", "Money heat date chips", P_MAP_STATUS_HUD, 3},
     {"tile_inspector", "World and Map", "Tile Inspector", "Single tile details", P_TILE_INSPECTOR, 1},
     {"boroughs", "World and Map", "Boroughs Panel", "Live borough vitality bars", P_BOROUGHS, 2},
     {"landmarks_overview", "World and Map / Cities", "City Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
@@ -446,6 +466,8 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"police_heat", "Simulation / Law", "Police Heat", "Attention and investigation tier", P_POLICE_HEAT, 4},
     {"business_panel", "World and Map / Operations", "Business Panel", "Jobs at blue nodes", P_BUSINESS_PANEL, 3},
     {"travel_schedule", "World and Map / Operations", "Travel & Work Days", "Borough presence and shifts", P_TRAVEL_AND_SCHEDULE, 3},
+    {"legal_counsel", "Simulation / Law", "Legal Counsel", "Lawyers and court", P_LEGAL_COUNSEL, 3},
+    {"law_intel", "Simulation / Law", "Warrant Intel", "Covert police intel", P_LAW_INTEL, 3},
     {"landmark_control", "World and Map / Cities", "City Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
 
     {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 3},

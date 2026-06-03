@@ -16,6 +16,12 @@
 #include "game/player_organization.h"
 #include "game/street_crime.h"
 #include "game/player_world_state.h"
+#include "game/game_calendar.h"
+#include "game/player_health.h"
+#include "game/player_law_intel.h"
+#include "game/player_work_schedule.h"
+#include "game/legal_counsel.h"
+#include "persistence/save_gameplay_stores.h"
 #include "ui/game_modal_state.h"
 #include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
@@ -58,6 +64,7 @@ private:
     PlayerStreetCrimeStore playerStreetCrimeStore{};
     PlayerLawEnforcementStore playerLawEnforcementStore{};
     PlayerCriminalJusticeStore playerCriminalJusticeStore{};
+    SaveGameplayStores gameplayStores{};
     CharacterAgentStore characterAgentStore{};
     CityControlStore cityControlStore{};
     GamePanelVisibility panelVisibility{};

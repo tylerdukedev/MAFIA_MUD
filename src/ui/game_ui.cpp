@@ -24,6 +24,13 @@
 #include <algorithm>
 #include <cstring>
 #include "ui/dock_layout.h"
+#include "ui/map_status_hud.h"
+#include "persistence/playthrough_archive.h"
+#include "game/game_calendar.h"
+#include "game/player_health.h"
+#include "game/player_work_schedule.h"
+#include "game/player_employment.h"
+#include "game/player_law_intel.h"
 #include "ui/game_dock_panels.h"
 #include "ui/landmark_renderer.h"
 #include "world/business_node_table.h"
@@ -183,6 +190,25 @@ void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& fr
     }
     if (ImGui::Button("Exit Game", ImVec2(-1.0f, 0.0f))) {
         frontendUiEvents.requestedExitGame = true;
+    }
+    ImGui::Separator();
+    ImGui::Text("Former lives (archived on save)");
+    PlaythroughArchiveFile archive{};
+    loadPlaythroughArchiveFile(archive);
+    int32_t occupiedSlots = 0;
+    for (int32_t slotIndex = 0; slotIndex < MAX_PLAYTHROUGH_ARCHIVE_SLOTS; ++slotIndex) {
+        if (archive.slots[slotIndex].isOccupied == 0U) {
+            continue;
+        }
+        occupiedSlots += 1;
+        const PlaythroughArchiveSlot& slot = archive.slots[slotIndex];
+        ImGui::BulletText("%s — %d days, %d story beats", slot.characterName, slot.totalDaysElapsed, slot.narrativeBeatCount);
+        if (slot.narrativeBeatCount > 0) {
+            ImGui::TextDisabled("  Latest: %s", slot.narrativeBeats[slot.narrativeBeatCount - 1].headline);
+        }
+    }
+    if (occupiedSlots == 0) {
+        ImGui::TextDisabled("No archived runs yet. Save in-game to preserve narrative beats.");
     }
     ImGui::End();
 }
@@ -427,6 +453,9 @@ void renderSimulationPanel(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
+    const GameCalendarStore& calendarStore,
+    const PlayerWorkScheduleStore& workScheduleStore,
+    const PlayerOperationsStore& playerOperationsStore,
     bool& mapCrimeOverlayEnabled,
     const SystemRegistry& systemRegistry,
     uint64_t worldSeed,
@@ -470,6 +499,14 @@ void renderSimulationPanel(
         ImGui::Text("Speed: %.2fx", simClock.getSpeedMultiplier());
         ImGui::Text("Tick count: %llu", static_cast<unsigned long long>(simClock.getTickCount()));
         ImGui::Text("Ticks this frame: %d", simClock.getTicksThisFrame());
+        ImGui::Separator();
+        char calendarLine[64];
+        formatCalendarDateLabel(calendarStore, calendarLine, sizeof(calendarLine));
+        ImGui::Text("Calendar: %s", calendarLine);
+        ImGui::Text("Hour: %02d:00 | Week hours: %d / %d", calendarStore.hourOfDay, calendarStore.hoursWorkedThisWeek, calendarStore.scheduledHoursThisWeek);
+        if (isPlayerEmployed(playerOperationsStore)) {
+            ImGui::Text("Shift: %d:00-%d:00", workScheduleStore.shiftStartHour, workScheduleStore.shiftEndHour);
+        }
         ImGui::Separator();
         ImGui::Text("Speed multiplier");
         if (contextHelpState.isInspectMode) {
@@ -559,9 +596,10 @@ int64_t computeClaimCostCentsForProfile(const PlayerProfile& playerProfile) {
 void renderCharacterPanel(
     const PlayerProfile& playerProfile,
     const PlayerWallet& playerWallet,
-    const PlayerLawEnforcementStore& playerLawEnforcementStore,
+    const PlayerHealthStore& playerHealthStore,
     const PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     const PlayerOrganizationStore& playerOrganizationStore,
+    const PlayerOperationsStore& playerOperationsStore,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
     if (!panelVisibility.showCharacter) {
@@ -641,24 +679,9 @@ void renderCharacterPanel(
             std::snprintf(cityLine, sizeof(cityLine), "Starting city: %s", startingCity->fullName);
             contextHelpTextLine(cityLine, "Random landmark node in your starting borough.", "city_panel", contextHelpState);
         }
-        contextHelpSectionHeader(
-            "Money",
-            "Cash in cents. Legit and crime income accrue each tick.",
-            "economy_overview",
-            contextHelpState);
-        char cashLine[48];
-        formatCashCents(cashLine, sizeof(cashLine), playerWallet.cashCents);
-        contextHelpTextLine(cashLine, "Spendable balance for city claims and future actions.", "economy_overview", contextHelpState);
-        ImGui::Text("Legit income: %.2f c/tick", playerWallet.legitIncomePerTickCents);
-        ImGui::Text("Crime income: %.2f c/tick", playerWallet.crimeIncomePerTickCents);
-        contextHelpSectionHeader(
-            "Police attention",
-            "Heat from street crimes; decays when you stay quiet.",
-            "police_heat",
-            contextHelpState);
-        ImGui::Text("Personal heat: %d / %d", playerLawEnforcementStore.personalHeat, PLAYER_HEAT_MAX);
-        ImGui::Text("Status: %s", getPoliceInvestigationLabel(playerLawEnforcementStore.investigationTier));
-        ImGui::Text("Evidence: %d | Warrants: %d | Witnesses: %d", playerLawEnforcementStore.evidenceScore, playerLawEnforcementStore.activeWarrantCount, playerLawEnforcementStore.witnessCount);
+        contextHelpSectionHeader("Health & career", "Vitality and résumé progress.", "player_health", contextHelpState);
+        ImGui::Text("Health: %s", playerHealthStatusLabel(playerHealthStore));
+        ImGui::Text("Work experience: %d months", playerOperationsStore.workExperienceMonths);
         if (getPlayerCustodyPhase(playerCriminalJusticeStore) != CustodyPhase::Free) {
             ImGui::Text("Custody: %s", custodyPhaseToString(getPlayerCustodyPhase(playerCriminalJusticeStore)));
             if (playerCriminalJusticeStore.phaseTicksRemaining > 0) {
@@ -1084,6 +1107,11 @@ void renderMapViewportPanel(
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
     bool showCrimeOverlay,
+    const PlayerWallet& playerWallet,
+    const PlayerLawEnforcementStore& playerLawEnforcementStore,
+    const PlayerLawIntelStore& playerLawIntelStore,
+    const PlayerHealthStore& playerHealthStore,
+    const GameCalendarStore& calendarStore,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
     if (!panelVisibility.showMapViewport) {
@@ -1215,6 +1243,17 @@ void renderMapViewportPanel(
                 IM_COL32(220, 224, 232, 230),
                 overlayBuffer);
         }
+        renderMapStatusHud(
+            playerWallet,
+            playerLawEnforcementStore,
+            playerLawIntelStore,
+            playerHealthStore,
+            calendarStore,
+            viewportPickState,
+            canvasPos.x,
+            canvasPos.y,
+            canvasSize.x,
+            canvasSize.y);
     ImGui::End();
 }
 } // namespace
@@ -1266,6 +1305,7 @@ void renderGameUi(
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    SaveGameplayStores& gameplayStores,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
     CityControlStore& cityControlStore,
@@ -1283,16 +1323,33 @@ void renderGameUi(
     (void)chunkStore;
     const bool blockPanels = shouldBlockGameplayPanels(gameModalState);
     const uint64_t tickCount = simClock.getTickCount();
-    tickWorkDayCommutePrompt(gameModalState, playerWorldState, playerOperationsStore, simClock, tickCount);
+    tickPlayerWorkSchedule(
+        gameplayStores.workScheduleStore,
+        gameplayStores.calendarStore,
+        playerWorldState,
+        playerOperationsStore,
+        gameModalState.isActive);
+    tickWorkScheduleModals(gameModalState, gameplayStores.workScheduleStore, gameplayStores.calendarStore, simClock);
     tickCriminalJusticeModals(gameModalState, playerCriminalJusticeStore, simClock);
     beginMainDockSpace();
     if (!blockPanels) {
-        renderCharacterPanel(playerProfile, playerWallet, playerLawEnforcementStore, playerCriminalJusticeStore, playerOrganizationStore, panelVisibility, contextHelpState);
+        renderCharacterPanel(
+            playerProfile,
+            playerWallet,
+            gameplayStores.playerHealthStore,
+            playerCriminalJusticeStore,
+            playerOrganizationStore,
+            playerOperationsStore,
+            panelVisibility,
+            contextHelpState);
         renderSimulationPanel(
             simClock,
             worldConfig,
             chunkStore,
             boroughVitalityStore,
+            gameplayStores.calendarStore,
+            gameplayStores.workScheduleStore,
+            playerOperationsStore,
             mapCrimeOverlayEnabled,
             systemRegistry,
             worldSeed,
@@ -1303,19 +1360,30 @@ void renderGameUi(
             playerOrganizationStore,
             playerStreetCrimeStore,
             playerLawEnforcementStore,
+            gameplayStores.lawIntelStore,
             playerCriminalJusticeStore,
+            gameplayStores.legalCounselStore,
+            gameplayStores.narrativeArchiveStore,
             playerWallet,
+            playerWorldState,
             characterAgentStore,
             worldEventStore,
             simEventQueue,
             playerProfile,
-            playerWorldState,
             gameModalState,
             simClock,
             tickCount,
             panelVisibility,
             contextHelpState);
-        renderContactsPanel(characterAgentStore, playerOrganizationStore, gameModalState, simClock, panelVisibility, contextHelpState);
+        renderContactsPanel(
+            characterAgentStore,
+            playerOrganizationStore,
+            playerLawEnforcementStore,
+            gameplayStores.lawIntelStore,
+            gameModalState,
+            simClock,
+            panelVisibility,
+            contextHelpState);
         renderBoroughsPanel(boroughVitalityStore, panelVisibility, contextHelpState);
         renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, panelVisibility, contextHelpState);
         renderCityPanel(
@@ -1341,10 +1409,23 @@ void renderGameUi(
             gameModalState,
             simClock,
             viewportPickState,
+            worldSeed,
             panelVisibility,
             contextHelpState);
     }
-    renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, mapCrimeOverlayEnabled, panelVisibility, contextHelpState);
+    renderMapViewportPanel(
+        worldConfig,
+        chunkStore,
+        mapCamera,
+        viewportPickState,
+        mapCrimeOverlayEnabled,
+        playerWallet,
+        playerLawEnforcementStore,
+        gameplayStores.lawIntelStore,
+        gameplayStores.playerHealthStore,
+        gameplayStores.calendarStore,
+        panelVisibility,
+        contextHelpState);
     renderGameModalOverlay(
         gameModalState,
         simClock,
@@ -1352,8 +1433,14 @@ void renderGameUi(
         playerOrganizationStore,
         playerLawEnforcementStore,
         playerCriminalJusticeStore,
+        gameplayStores.legalCounselStore,
+        gameplayStores.playerHealthStore,
+        gameplayStores.lawIntelStore,
+        gameplayStores.narrativeArchiveStore,
         playerWallet,
         playerWorldState,
+        gameplayStores.workScheduleStore,
+        gameplayStores.calendarStore,
         characterAgentStore,
         simEventQueue,
         playerProfile,

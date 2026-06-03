@@ -1,4 +1,6 @@
 #include "persistence/save_game.h"
+#include "persistence/save_gameplay_stores.h"
+#include "game/player_narrative_archive.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
@@ -6,6 +8,7 @@
 #include "sim/character_agent.h"
 #include "sim/world_event_types.h"
 #include "world/landmark_table.h"
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 
@@ -13,7 +16,8 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 10U;
+constexpr uint32_t SAVE_VERSION_MIN = 10U;
+constexpr uint32_t SAVE_VERSION = 12U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -105,7 +109,9 @@ bool buildSaveSnapshot(
     const PlayerOrganizationStore& organizationStore,
     const PlayerLawEnforcementStore& lawEnforcementStore,
     const PlayerStreetCrimeStore& streetCrimeStore,
-    const PlayerCriminalJusticeStore& criminalJusticeStore) {
+    const PlayerCriminalJusticeStore& criminalJusticeStore,
+    const SaveGameplayStores& gameplayStores,
+    int32_t workExperienceMonths) {
     (void)boroughVitalityStore;
     outSnapshot.worldSeed = worldSeed;
     outSnapshot.characterDraft = characterDraft;
@@ -135,6 +141,9 @@ bool buildSaveSnapshot(
     outSnapshot.organizationStore = organizationStore;
     outSnapshot.lawEnforcementStore = lawEnforcementStore;
     outSnapshot.streetCrimeStore = streetCrimeStore;
+    outSnapshot.criminalJusticeStore = criminalJusticeStore;
+    outSnapshot.workExperienceMonths = playerOperationsStore.workExperienceMonths;
+    outSnapshot.gameplayStores = gameplayStores;
     outSnapshot.tickCount = simClock.getTickCount();
     outSnapshot.isPaused = simClock.isPaused();
     outSnapshot.speedMultiplier = simClock.getSpeedMultiplier();
@@ -185,7 +194,9 @@ bool applySaveSnapshot(
     PlayerOrganizationStore& organizationStore,
     PlayerLawEnforcementStore& lawEnforcementStore,
     PlayerStreetCrimeStore& streetCrimeStore,
-    PlayerCriminalJusticeStore& criminalJusticeStore) {
+    PlayerCriminalJusticeStore& criminalJusticeStore,
+    SaveGameplayStores& gameplayStores,
+    int32_t& workExperienceMonths) {
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.terrainIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.elevations.size()) != SAVE_GAME_TILE_COUNT
@@ -243,6 +254,7 @@ bool applySaveSnapshot(
     playerOperationsStore.consecutiveUnpaidRentMonths = snapshot.consecutiveUnpaidRentMonths;
     playerOperationsStore.rentMultiplierBps = snapshot.rentMultiplierBps;
     playerOperationsStore.rentEventAdjustmentBps = snapshot.rentEventAdjustmentBps;
+    playerOperationsStore.workExperienceMonths = snapshot.workExperienceMonths;
     for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
         playerOperationsStore.activeCatalogIndices[index] = snapshot.activeCatalogIndices[index];
     }
@@ -252,6 +264,8 @@ bool applySaveSnapshot(
     lawEnforcementStore = snapshot.lawEnforcementStore;
     streetCrimeStore = snapshot.streetCrimeStore;
     criminalJusticeStore = snapshot.criminalJusticeStore;
+    workExperienceMonths = snapshot.workExperienceMonths;
+    gameplayStores = snapshot.gameplayStores;
     return true;
 }
 
@@ -327,11 +341,13 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     const bool lawWritten = writeAllBytes(fileHandle, &snapshot.lawEnforcementStore, sizeof(snapshot.lawEnforcementStore));
     const bool streetCrimeWritten = writeAllBytes(fileHandle, &snapshot.streetCrimeStore, sizeof(snapshot.streetCrimeStore));
     const bool justiceWritten = writeAllBytes(fileHandle, &snapshot.criminalJusticeStore, sizeof(snapshot.criminalJusticeStore));
+    const bool workExperienceWritten = writeAllBytes(fileHandle, &snapshot.workExperienceMonths, sizeof(snapshot.workExperienceMonths));
+    const bool gameplayWritten = writeAllBytes(fileHandle, &snapshot.gameplayStores, sizeof(snapshot.gameplayStores));
     const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
         && economicWeightsWritten && populationsWritten && crimePressuresWritten && lawPressuresWritten
         && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten && cityOwnersWritten
         && catalogWritten && agentsWritten && agentCountWritten && organizationWritten && lawWritten && streetCrimeWritten
-        && justiceWritten;
+        && justiceWritten && workExperienceWritten && gameplayWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -353,7 +369,7 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
         std::fclose(fileHandle);
         return false;
     }
-    if (header.version != SAVE_VERSION) {
+    if (header.version < SAVE_VERSION_MIN || header.version > SAVE_VERSION) {
         std::fclose(fileHandle);
         return false;
     }
@@ -443,10 +459,25 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
         resetPlayerCriminalJusticeStore(outSnapshot.criminalJusticeStore);
         justiceRead = true;
     }
+    bool workExperienceRead = true;
+    bool gameplayRead = true;
+    if (header.version >= 12U) {
+        workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
+        gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, sizeof(outSnapshot.gameplayStores));
+    } else if (header.version >= 11U) {
+        workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
+        const size_t legacyGameplayBytes = offsetof(SaveGameplayStores, narrativeArchiveStore);
+        gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, legacyGameplayBytes);
+        resetPlayerNarrativeArchiveStore(outSnapshot.gameplayStores.narrativeArchiveStore);
+    } else {
+        outSnapshot.workExperienceMonths = 0;
+        resetSaveGameplayStores(outSnapshot.gameplayStores);
+    }
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead
         && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead && cityOwnersRead
-        && catalogRead && agentsRead && agentCountRead && organizationRead && lawRead && streetCrimeRead && justiceRead;
+        && catalogRead && agentsRead && agentCountRead && organizationRead && lawRead && streetCrimeRead && justiceRead
+        && workExperienceRead && gameplayRead;
     std::fclose(fileHandle);
     return didLoad;
 }

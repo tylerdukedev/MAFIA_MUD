@@ -14,7 +14,13 @@
 #include "sim/world_event_store.h"
 #include <cstdlib>
 #include "game/player_wallet.h"
+#include "game/game_calendar.h"
+#include "game/player_law_intel.h"
+#include "game/covert_action_executor.h"
+#include "game/action_reason_catalog.h"
+#include "game/legal_counsel.h"
 #include "sim/character_agent.h"
+#include <algorithm>
 #include "world/city_control.h"
 #include "world/landmark_table.h"
 #include "imgui.h"
@@ -227,6 +233,8 @@ void logHelp(DevConsoleLog& log) {
     devConsoleLogAppend(log, "  log clear");
     devConsoleLogAppend(log, "  profile dump | draft show");
     devConsoleLogAppend(log, "  wallet show | cities show | operations show | crew show | law show | agents show  (in-game)");
+    devConsoleLogAppend(log, "  calendar show | counsel show | intel bribe | intel flag <slot> <betrayed|snitch>  (in-game)");
+    devConsoleLogAppend(log, "  calendar hours <0-60> | calendar skipday  (in-game)");
     devConsoleLogAppend(log, "  event fire <id> | event flags | agent deactivate <slot>");
     devConsoleLogAppend(log, "  profile set generation <immigrant|first|second|third>");
     devConsoleLogAppend(log, "  profile set heritage <name> | nationality <name> | age <16-25>");
@@ -512,6 +520,122 @@ void devConsoleExecuteCommand(
             organization.crewName,
             organization.organizationName);
         devConsoleLogAppend(log, buffer);
+        return;
+    }
+    if (std::strcmp(token, "calendar") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken))) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->gameplayStores == nullptr) {
+            devConsoleLogAppend(log, "calendar commands require an active in-game session.");
+            return;
+        }
+        GameCalendarStore& calendar = gameplaySnapshot->gameplayStores->calendarStore;
+        if (std::strcmp(subToken, "show") == 0) {
+            char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+            formatCalendarDateLabel(calendar, buffer, sizeof(buffer));
+            devConsoleLogAppend(log, buffer);
+            std::snprintf(
+                buffer,
+                sizeof(buffer),
+                "hour=%d weekHours=%d/%d worked=%d",
+                calendar.hourOfDay,
+                calendar.hoursWorkedThisWeek,
+                calendar.scheduledHoursThisWeek,
+                calendar.hoursWorkedThisWeek);
+            devConsoleLogAppend(log, buffer);
+            return;
+        }
+        if (std::strcmp(subToken, "hours") == 0) {
+            char valueToken[64];
+            if (!readToken(cursor, valueToken, sizeof(valueToken))) {
+                devConsoleLogAppend(log, "Usage: calendar hours <0-60>");
+                return;
+            }
+            calendar.scheduledHoursThisWeek = std::atoi(valueToken);
+            devConsoleLogAppend(log, "Updated scheduled hours this week.");
+            return;
+        }
+        if (std::strcmp(subToken, "skipday") == 0) {
+            advanceGameCalendar(calendar, CALENDAR_TICKS_PER_DAY);
+            devConsoleLogAppend(log, "Skipped one simulation day.");
+            return;
+        }
+        return;
+    }
+    if (std::strcmp(token, "counsel") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken)) || std::strcmp(subToken, "show") != 0) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->gameplayStores == nullptr) {
+            devConsoleLogAppend(log, "counsel show requires an active in-game session.");
+            return;
+        }
+        const PlayerLegalCounselStore& counsel = gameplaySnapshot->gameplayStores->legalCounselStore;
+        const LawyerTierDefinition* lawyer = getLawyerTierDefinition(counsel.hiredLawyerTier);
+        char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+        std::snprintf(buffer, sizeof(buffer), "counsel=%s retainer=%s", lawyer->displayName, counsel.hasRetainer ? "yes" : "no");
+        devConsoleLogAppend(log, buffer);
+        return;
+    }
+    if (std::strcmp(token, "intel") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken))) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady
+            || gameplaySnapshot->gameplayStores == nullptr
+            || gameplaySnapshot->playerLawEnforcementStore == nullptr
+            || gameplaySnapshot->playerWallet == nullptr
+            || gameplaySnapshot->characterAgentStore == nullptr) {
+            devConsoleLogAppend(log, "intel commands require an active in-game session.");
+            return;
+        }
+        if (std::strcmp(subToken, "bribe") == 0) {
+            GameCalendarStore calendarStore{};
+            const CovertActionResult actionResult = executeCovertActionWithReason(
+                CovertActionKind::BribePolice,
+                ActionReasonId::BribeLookOtherWay,
+                BEAT_COP_AGENT_SLOT_INDEX,
+                false,
+                gameplaySnapshot->gameplayStores->lawIntelStore,
+                *gameplaySnapshot->playerLawEnforcementStore,
+                *gameplaySnapshot->characterAgentStore,
+                *gameplaySnapshot->playerWallet,
+                *gameplaySnapshot->playerOrganizationStore,
+                gameplaySnapshot->gameplayStores->narrativeArchiveStore,
+                calendarStore,
+                gameplaySnapshot->tickCount,
+                gameplaySnapshot->tickCount);
+            devConsoleLogAppend(log, actionResult.succeeded ? "Bribe succeeded — logged with reason." : "Bribe failed.");
+            return;
+        }
+        if (std::strcmp(subToken, "flag") == 0) {
+            char slotToken[64];
+            char flagToken[64];
+            if (!readToken(cursor, slotToken, sizeof(slotToken)) || !readToken(cursor, flagToken, sizeof(flagToken))) {
+                devConsoleLogAppend(log, "Usage: intel flag <slot> <betrayed|snitch>");
+                return;
+            }
+            const int32_t slotIndex = std::atoi(slotToken);
+            if (slotIndex < 0 || slotIndex >= MAX_CHARACTER_AGENT_COUNT) {
+                devConsoleLogAppend(log, "Invalid agent slot.");
+                return;
+            }
+            CharacterAgentState& state = gameplaySnapshot->characterAgentStore->states[slotIndex];
+            if (std::strcmp(flagToken, "betrayed") == 0) {
+                setAgentRelationEvent(state, AgentRelationEventFlags::BetrayedPlayer);
+            } else if (std::strcmp(flagToken, "snitch") == 0) {
+                setAgentRelationEvent(state, AgentRelationEventFlags::SnitchedToPolice);
+            } else {
+                devConsoleLogAppend(log, "Unknown flag token.");
+                return;
+            }
+            devConsoleLogAppend(log, "Relation flag applied.");
+            return;
+        }
         return;
     }
     if (std::strcmp(token, "law") == 0) {

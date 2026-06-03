@@ -17,6 +17,11 @@
 #include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
 #include "world/business_node_table.h"
+#include "game/job_catalog.h"
+#include "game/legal_counsel.h"
+#include "game/player_law_intel.h"
+#include "game/agent_relation_events.h"
+#include "game/travel_modes.h"
 #include "imgui.h"
 #include <cstdio>
 
@@ -100,13 +105,16 @@ void renderOperationsPanel(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    PlayerLawIntelStore& playerLawIntelStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    PlayerLegalCounselStore& legalCounselStore,
+    const PlayerNarrativeArchiveStore& narrativeArchiveStore,
     PlayerWallet& playerWallet,
+    PlayerWorldState& playerWorldState,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
-    PlayerWorldState& playerWorldState,
     GameModalState& gameModalState,
     SimClock& simClock,
     uint64_t tickCount,
@@ -275,11 +283,12 @@ void renderOperationsPanel(
         }
     }
     ImGui::Text(
-        "Heat: %d | %s | Evidence: %d | Warrants: %d",
+        "Heat: %d | %s",
         playerLawEnforcementStore.personalHeat,
-        getPoliceInvestigationLabel(playerLawEnforcementStore.investigationTier),
-        playerLawEnforcementStore.evidenceScore,
-        playerLawEnforcementStore.activeWarrantCount);
+        getPoliceInvestigationLabel(playerLawEnforcementStore.investigationTier));
+    if (doesPlayerKnowAboutWarrants(playerLawIntelStore, playerLawEnforcementStore)) {
+        ImGui::Text("Known warrants: %d", getPlayerKnownWarrantCount(playerLawIntelStore, playerLawEnforcementStore));
+    }
     if (playerLawEnforcementStore.witnessCount > 0) {
         ImGui::TextDisabled("Witnesses on record: %d (%s)", playerLawEnforcementStore.witnessCount, playerLawEnforcementStore.lastWitnessLabel);
     }
@@ -325,6 +334,44 @@ void renderOperationsPanel(
             tickCount);
         ImGui::TextDisabled("Bigger scores will tie into racket upkeep and crew payroll in later builds.");
     }
+    ImGui::Separator();
+    contextHelpSectionHeader("Narrative archive", "Logged motives for headlines and former-life collectibles.", "law_intel", contextHelpState);
+    ImGui::Text("Story beats recorded: %d", getNarrativeBeatCount(narrativeArchiveStore));
+    const int32_t beatCount = getNarrativeBeatCount(narrativeArchiveStore);
+    if (beatCount > 0) {
+        ImGui::TextDisabled("Latest: %s", narrativeArchiveStore.beats[beatCount - 1].headline);
+    }
+    ImGui::Separator();
+    contextHelpSectionHeader("Legal counsel", "Hire a lawyer before court for better outcomes.", "legal_counsel", contextHelpState);
+    const LawyerTierDefinition* activeLawyer = getLawyerTierDefinition(legalCounselStore.hiredLawyerTier);
+    ImGui::Text("Retained: %s", activeLawyer->displayName);
+    for (int32_t tierIndex = 0; tierIndex < getLawyerTierCount(); ++tierIndex) {
+        const LawyerTier tier = static_cast<LawyerTier>(tierIndex);
+        const LawyerTierDefinition* tierDef = getLawyerTierDefinition(tier);
+        char hireLabel[64];
+        char costBuffer[32];
+        formatCashCents(costBuffer, sizeof(costBuffer), tierDef->retainerCents);
+        std::snprintf(hireLabel, sizeof(hireLabel), "Hire %s (%s)", tierDef->displayName, costBuffer);
+        if (ImGui::Button(hireLabel)) {
+            tryHireLawyer(legalCounselStore, playerWallet, tier);
+        }
+    }
+    ImGui::Separator();
+    contextHelpSectionHeader("Travel", "Move between boroughs with realistic time costs.", "travel_modes", contextHelpState);
+    ImGui::Text("Location: tile (%d, %d)", playerWorldState.currentTileX, playerWorldState.currentTileY);
+    static int32_t travelTargetX = 240;
+    static int32_t travelTargetY = 240;
+    static int32_t travelModeIndex = 0;
+    ImGui::InputInt("Target X", &travelTargetX);
+    ImGui::InputInt("Target Y", &travelTargetY);
+    ImGui::Combo("Mode", &travelModeIndex, "Walk\0Bicycle\0Car\0Train\0");
+    if (ImGui::Button("Plan / execute travel")) {
+        TravelPlan plan{};
+        const TravelMode mode = static_cast<TravelMode>(travelModeIndex);
+        buildTravelPlan(plan, mode, playerWorldState.currentTileX, playerWorldState.currentTileY, travelTargetX, travelTargetY);
+        const RegionId targetRegion = RegionId::Manhattan;
+        tryExecuteTravelPlan(plan, playerWorldState, targetRegion, tickCount, playerWallet);
+    }
     ImGui::End();
 }
 
@@ -338,6 +385,7 @@ void renderBusinessPanel(
     GameModalState& gameModalState,
     SimClock& simClock,
     const ViewportPickState& viewportPickState,
+    uint64_t worldSeed,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
     if (!panelVisibility.showBusiness) {
@@ -361,35 +409,60 @@ void renderBusinessPanel(
         } else {
             ImGui::Text("%s", business->fullName);
             ImGui::Text("Tile: (%d, %d)", business->tileX, business->tileY);
-            char wageBuffer[32];
-            formatCashCents(wageBuffer, sizeof(wageBuffer), business->jobWageCents);
-            ImGui::Text("Monthly wage (est.): %s", wageBuffer);
             const RegionId businessRegion = getBusinessNodeRegionId(viewportPickState.selectedBusinessIndex);
             const bool isInRegion = canPlayerOperateInRegion(playerWorldState, businessRegion);
-            if (!isInRegion) {
-                ImGui::TextColored(ImVec4(0.95f, 0.55f, 0.35f, 1.0f), "You must be in %s to apply.", RegionTable::getRegionShortName(businessRegion).data());
-            }
-            if (getNetworkAccessScore(playerProfile) < business->minNetworkAccess) {
-                ImGui::BeginDisabled();
-            }
-            if (!isInRegion || isPlayerEmployed(playerOperationsStore)) {
-                ImGui::BeginDisabled();
-            }
-            if (ImGui::Button("Apply for job")) {
-                beginJobInterviewModal(gameModalState, viewportPickState.selectedBusinessIndex, simClock);
-            }
-            if (!isInRegion || isPlayerEmployed(playerOperationsStore)) {
-                ImGui::EndDisabled();
-            }
-            if (getNetworkAccessScore(playerProfile) < business->minNetworkAccess) {
-                ImGui::EndDisabled();
-                ImGui::TextDisabled("Requires higher network access.");
-            }
-            if (isPlayerEmployed(playerOperationsStore) && playerOperationsStore.employedBusinessIndex == viewportPickState.selectedBusinessIndex) {
-                ImGui::Text("Status: Employed here");
-            }
-            if (playerWorldState.isAtWork) {
-                ImGui::TextDisabled("Currently on shift — limited actions.");
+            if (isLawOfficeBusinessIndex(viewportPickState.selectedBusinessIndex)) {
+                if (!isInRegion) {
+                    ImGui::TextColored(ImVec4(0.95f, 0.55f, 0.35f, 1.0f), "Visit this office in person to retain counsel.");
+                } else {
+                    ImGui::TextWrapped("Law office — retain counsel from Operations while a case is active.");
+                }
+            } else {
+                char wageBuffer[32];
+                formatCashCents(wageBuffer, sizeof(wageBuffer), business->jobWageCents);
+                ImGui::Text("Monthly wage (est.): %s", wageBuffer);
+                const JobDefinitionExtension* extension = getJobDefinitionExtension(viewportPickState.selectedBusinessIndex);
+                if (extension != nullptr) {
+                    ImGui::Text("Perks: %s", jobPerkFlagsToShortLabel(extension->perkFlags));
+                    if (extension->minWorkExperienceMonths > 0) {
+                        ImGui::Text("Experience required: %d months", extension->minWorkExperienceMonths);
+                    }
+                }
+                if (!isInRegion) {
+                    ImGui::TextColored(ImVec4(0.95f, 0.55f, 0.35f, 1.0f), "You must be in %s to apply.", RegionTable::getRegionShortName(businessRegion).data());
+                }
+                const char* lockReason = nullptr;
+                const bool isEligible = evaluateJobEligibility(
+                    playerProfile,
+                    playerOperationsStore,
+                    viewportPickState.selectedBusinessIndex,
+                    playerOperationsStore.workExperienceMonths,
+                    lockReason);
+                if (getNetworkAccessScore(playerProfile) < business->minNetworkAccess) {
+                    ImGui::BeginDisabled();
+                }
+                if (!isInRegion || isPlayerEmployed(playerOperationsStore) || !isEligible) {
+                    ImGui::BeginDisabled();
+                }
+                if (ImGui::Button("Apply for job")) {
+                    beginJobInterviewModal(gameModalState, viewportPickState.selectedBusinessIndex, simClock, worldSeed);
+                }
+                if (!isInRegion || isPlayerEmployed(playerOperationsStore) || !isEligible) {
+                    ImGui::EndDisabled();
+                }
+                if (!isEligible && lockReason != nullptr) {
+                    ImGui::TextDisabled("%s", lockReason);
+                }
+                if (getNetworkAccessScore(playerProfile) < business->minNetworkAccess) {
+                    ImGui::EndDisabled();
+                    ImGui::TextDisabled("Requires higher network access.");
+                }
+                if (isPlayerEmployed(playerOperationsStore) && playerOperationsStore.employedBusinessIndex == viewportPickState.selectedBusinessIndex) {
+                    ImGui::Text("Status: Employed here");
+                }
+                if (playerWorldState.isAtWork) {
+                    ImGui::TextDisabled("Currently on shift — limited actions.");
+                }
             }
         }
     }
@@ -399,6 +472,8 @@ void renderBusinessPanel(
 void renderContactsPanel(
     const CharacterAgentStore& characterAgentStore,
     const PlayerOrganizationStore& playerOrganizationStore,
+    const PlayerLawEnforcementStore& playerLawEnforcementStore,
+    const PlayerLawIntelStore& playerLawIntelStore,
     GameModalState& gameModalState,
     SimClock& simClock,
     GamePanelVisibility& panelVisibility,
@@ -426,6 +501,51 @@ void renderContactsPanel(
         ImGui::Text("%s (%s)", displayName, roleLabel);
         ImGui::Text("Opinion: %d | Trust: %d | Respect: %d", state->opinionOfPlayer, state->trust, state->respect);
         ImGui::Text("Loyalty score: %d", computeAgentLoyaltyScore(*state));
+        if (hasAgentRelationEvent(*state, AgentRelationEventFlags::BetrayedPlayer)) {
+            ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.35f, 1.0f), "Flag: betrayed you");
+        }
+        if (hasAgentRelationEvent(*state, AgentRelationEventFlags::SnitchedToPolice)) {
+            ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.35f, 1.0f), "Flag: snitched");
+        }
+        ImGui::PushID(agentIndex + 5000);
+        if (agentIndex == BEAT_COP_AGENT_SLOT_INDEX) {
+            if (ImGui::Button("Bribe")) {
+                beginCovertActionModal(
+                    gameModalState,
+                    CovertActionKind::BribePolice,
+                    agentIndex,
+                    characterAgentStore,
+                    playerOrganizationStore,
+                    playerLawEnforcementStore,
+                    playerLawIntelStore,
+                    simClock);
+            }
+        } else {
+            if (ImGui::Button("Kidnap")) {
+                beginCovertActionModal(
+                    gameModalState,
+                    CovertActionKind::KidnapTarget,
+                    agentIndex,
+                    characterAgentStore,
+                    playerOrganizationStore,
+                    playerLawEnforcementStore,
+                    playerLawIntelStore,
+                    simClock);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Assassinate")) {
+                beginCovertActionModal(
+                    gameModalState,
+                    CovertActionKind::AssassinateTarget,
+                    agentIndex,
+                    characterAgentStore,
+                    playerOrganizationStore,
+                    playerLawEnforcementStore,
+                    playerLawIntelStore,
+                    simClock);
+            }
+        }
+        ImGui::PopID();
         if (playerOrganizationStore.powerTier != PlayerPowerTier::Organization) {
             const CrewRecruitLockReason recruitLock = evaluateCrewRecruitLock(playerOrganizationStore, characterAgentStore, agentIndex);
             ImGui::PushID(agentIndex + 4000);
