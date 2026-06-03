@@ -65,6 +65,7 @@ const AgentDefinition* getCharacterAgentDefinition(int32_t agentIndex);
 void initializeCharacterAgentStore(CharacterAgentStore& store);
 void resetCharacterAgentStore(CharacterAgentStore& store);
 const CharacterAgentState* getCharacterAgentState(const CharacterAgentStore& store, int32_t agentIndex);
+void deriveRelationshipStatsFromOpinion(CharacterAgentState& state);
 void adjustAgentOpinion(CharacterAgentStore& store, int32_t agentIndex, int32_t delta);
 bool tryGetAgentDisplayLabels(
     const CharacterAgentStore& store,

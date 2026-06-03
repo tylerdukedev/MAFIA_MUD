@@ -1,5 +1,8 @@
 #include "ui/game_ui_panels.h"
 #include "game/housing_living_costs.h"
+#include "game/player_employment.h"
+#include "ui/game_modal_ui.h"
+#include "world/region_table.h"
 #include "sim/world_event_store.h"
 #include "game/operation_types.h"
 #include "game/player_wallet.h"
@@ -45,6 +48,9 @@ void renderOperationsPanel(
     const WorldEventStore& worldEventStore,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
+    PlayerWorldState& playerWorldState,
+    GameModalState& gameModalState,
+    SimClock& simClock,
     uint64_t tickCount,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
@@ -150,7 +156,11 @@ void renderOperationsPanel(
             ImGui::BeginDisabled();
         }
         if (ImGui::Button(operation->displayName)) {
-            pushSimEventWithCatalog(simEventQueue, SimEventType::EstablishOperation, catalogIndex);
+            if (operation->headquartersKind == HeadquartersKind::Apartment) {
+                beginApartmentApplicationModal(gameModalState, catalogIndex, simClock);
+            } else {
+                pushSimEventWithCatalog(simEventQueue, SimEventType::EstablishOperation, catalogIndex);
+            }
         }
         if (lockReason != OperationLockReason::None) {
             ImGui::EndDisabled();
@@ -174,6 +184,9 @@ void renderBusinessPanel(
     PlayerWallet& playerWallet,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
+    const PlayerWorldState& playerWorldState,
+    GameModalState& gameModalState,
+    SimClock& simClock,
     const ViewportPickState& viewportPickState,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
@@ -200,19 +213,33 @@ void renderBusinessPanel(
             ImGui::Text("Tile: (%d, %d)", business->tileX, business->tileY);
             char wageBuffer[32];
             formatCashCents(wageBuffer, sizeof(wageBuffer), business->jobWageCents);
-            ImGui::Text("Hiring bonus: %s", wageBuffer);
+            ImGui::Text("Monthly wage (est.): %s", wageBuffer);
+            const RegionId businessRegion = getBusinessNodeRegionId(viewportPickState.selectedBusinessIndex);
+            const bool isInRegion = canPlayerOperateInRegion(playerWorldState, businessRegion);
+            if (!isInRegion) {
+                ImGui::TextColored(ImVec4(0.95f, 0.55f, 0.35f, 1.0f), "You must be in %s to apply.", RegionTable::getRegionShortName(businessRegion).data());
+            }
             if (getNetworkAccessScore(playerProfile) < business->minNetworkAccess) {
                 ImGui::BeginDisabled();
             }
+            if (!isInRegion || isPlayerEmployed(playerOperationsStore)) {
+                ImGui::BeginDisabled();
+            }
             if (ImGui::Button("Apply for job")) {
-                pushSimEventWithJob(simEventQueue, viewportPickState.selectedBusinessIndex);
+                beginJobInterviewModal(gameModalState, viewportPickState.selectedBusinessIndex, simClock);
+            }
+            if (!isInRegion || isPlayerEmployed(playerOperationsStore)) {
+                ImGui::EndDisabled();
             }
             if (getNetworkAccessScore(playerProfile) < business->minNetworkAccess) {
                 ImGui::EndDisabled();
                 ImGui::TextDisabled("Requires higher network access.");
             }
-            if (playerOperationsStore.employedBusinessIndex == viewportPickState.selectedBusinessIndex) {
+            if (isPlayerEmployed(playerOperationsStore) && playerOperationsStore.employedBusinessIndex == viewportPickState.selectedBusinessIndex) {
                 ImGui::Text("Status: Employed here");
+            }
+            if (playerWorldState.isAtWork) {
+                ImGui::TextDisabled("Currently on shift — limited actions.");
             }
         }
     }

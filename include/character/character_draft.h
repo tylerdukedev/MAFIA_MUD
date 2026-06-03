@@ -1,5 +1,6 @@
 #pragma once
 
+#include "character/character_family.h"
 #include "character/character_types.h"
 #include <cstdint>
 
@@ -7,6 +8,9 @@ namespace Core {
 
 struct CharacterDraft {
     bool hasInitializedDefaults = false;
+    char firstName[20]{};
+    char middleName[20]{};
+    char lastName[24]{};
     char nameBuffer[32]{};
     NationalityId nationalityId = NationalityId::American;
     HeritageId heritageId = HeritageId::Italian;
@@ -19,6 +23,9 @@ struct CharacterDraft {
     uint64_t characterRollSeed = 0;
     bool hasFamilyInCountry = false;
     bool hasFriendsInCountry = false;
+    FamilyCulturalProfile familyCulturalProfile{};
+    FamilyMemberRecord familyMembers[MAX_FAMILY_MEMBER_COUNT]{};
+    int32_t familyMemberCount = 0;
 };
 
 } // namespace Core

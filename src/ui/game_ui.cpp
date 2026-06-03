@@ -4,7 +4,10 @@
 #include "ui/context_help.h"
 #include "character/character_start.h"
 #include "character/character_tables.h"
+#include "character/character_name.h"
+#include "character/character_family.h"
 #include "character/profile_builder.h"
+#include "ui/game_modal_ui.h"
 #include "character/character_social_network.h"
 #include "game/economy_constants.h"
 #include "game/player_operations.h"
@@ -39,18 +42,21 @@ constexpr int32_t SPEED_OPTION_COUNT = 5;
 constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
 constexpr float BUSINESS_HIT_RADIUS_PIXELS = 10.0f;
 
-void renderCharacterCreationPreviewPanel(const CharacterDraft& characterDraft) {
+void renderCharacterCreationPreviewPanel(CharacterDraft& characterDraft) {
     ImGui::BeginChild("CharacterPreviewPanel", ImVec2(0.0f, 0.0f), true);
     ImGui::Text("Character Preview");
     ImGui::Separator();
+    normalizeCharacterDraftNames(characterDraft);
+    if (isCharacterNameValid(characterDraft)) {
+        ImGui::Text("Name: %s", characterDraft.nameBuffer);
+    } else {
+        ImGui::TextDisabled("Enter first and last name");
+    }
     char descriptionBuffer[256];
     buildCharacterDescription(descriptionBuffer, sizeof(descriptionBuffer), characterDraft);
     ImGui::TextWrapped("%s", descriptionBuffer);
     ImGui::Spacing();
     ImGui::Separator();
-    char cashBuffer[32];
-    formatCashCents(cashBuffer, sizeof(cashBuffer), characterDraft.startingCashCents);
-    ImGui::Text("Starting cash: %s", cashBuffer);
     char socialBuffer[128];
     formatCharacterSocialSummary(characterDraft, socialBuffer, sizeof(socialBuffer));
     ImGui::TextWrapped("%s", socialBuffer);
@@ -64,6 +70,19 @@ void renderCharacterCreationPreviewPanel(const CharacterDraft& characterDraft) {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::TextWrapped("%s", getGenerationRoleSummary(characterDraft.generationId).data());
+    if (characterDraft.familyMemberCount > 0) {
+        ImGui::Separator();
+        ImGui::Text("Family (cultural profile)");
+        ImGui::TextDisabled(
+            "Duty %.0f%% | Express %.0f%% | Elder auth %.0f%%",
+            characterDraft.familyCulturalProfile.filialDutyWeight * 100.0f,
+            characterDraft.familyCulturalProfile.emotionalExpressiveness * 100.0f,
+            characterDraft.familyCulturalProfile.elderAuthorityWeight * 100.0f);
+        for (int32_t memberIndex = 0; memberIndex < characterDraft.familyMemberCount; ++memberIndex) {
+            const FamilyMemberRecord& member = characterDraft.familyMembers[memberIndex];
+            ImGui::BulletText("%s — %s%s", member.roleLabel, member.displayName, member.isInCountry ? "" : " (abroad)");
+        }
+    }
     ImGui::EndChild();
 }
 
@@ -71,7 +90,15 @@ void renderCharacterCreationForm(CharacterDraft& characterDraft, FrontendUiEvent
     ImGui::BeginChild("CharacterCreationForm", ImVec2(0.0f, 0.0f), false);
     ImGui::Text("Create your character");
     ImGui::Separator();
-    ImGui::InputText("Name", characterDraft.nameBuffer, sizeof(characterDraft.nameBuffer));
+    if (ImGui::InputText("First name", characterDraft.firstName, sizeof(characterDraft.firstName))) {
+        rebuildCharacterFullName(characterDraft);
+    }
+    if (ImGui::InputText("Middle name (optional)", characterDraft.middleName, sizeof(characterDraft.middleName))) {
+        rebuildCharacterFullName(characterDraft);
+    }
+    if (ImGui::InputText("Last name", characterDraft.lastName, sizeof(characterDraft.lastName))) {
+        rebuildCharacterFullName(characterDraft);
+    }
     int32_t nationalityIndex = static_cast<int32_t>(characterDraft.nationalityId) - 1;
     int32_t heritageIndex = static_cast<int32_t>(characterDraft.heritageId) - 1;
     int32_t generationIndex = static_cast<int32_t>(characterDraft.generationId) - 1;
@@ -117,9 +144,17 @@ void renderCharacterCreationForm(CharacterDraft& characterDraft, FrontendUiEvent
         getBoroughPreferenceCount());
     ImGui::Spacing();
     ImGui::Separator();
+    const bool canStart = isCharacterNameValid(characterDraft);
+    if (!canStart) {
+        ImGui::BeginDisabled();
+    }
     if (ImGui::Button("Start New Game", ImVec2(220.0f, 0.0f))) {
-        frontendUiEvents.requestedStartSimulation = true;
-        frontendScreen = FrontendScreen::InGame;
+        normalizeCharacterDraftNames(characterDraft);
+        frontendScreen = FrontendScreen::CharacterFinalize;
+    }
+    if (!canStart) {
+        ImGui::EndDisabled();
+        ImGui::TextDisabled("First and last name required.");
     }
     ImGui::SameLine();
     if (ImGui::Button("Back", ImVec2(120.0f, 0.0f))) {
@@ -165,6 +200,65 @@ void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& fr
     }
     if (ImGui::Button("Exit Game", ImVec2(-1.0f, 0.0f))) {
         frontendUiEvents.requestedExitGame = true;
+    }
+    ImGui::End();
+}
+
+void renderCharacterFinalizeScreen(
+    CharacterDraft& characterDraft,
+    FrontendScreen& frontendScreen,
+    FrontendUiEvents& frontendUiEvents) {
+    normalizeCharacterDraftNames(characterDraft);
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ImVec2 panelSize(640.0f, 480.0f);
+    const ImVec2 panelPos(
+        viewport->WorkPos.x + (viewport->WorkSize.x - panelSize.x) * 0.5f,
+        viewport->WorkPos.y + (viewport->WorkSize.y - panelSize.y) * 0.5f);
+    ImGui::SetNextWindowPos(panelPos, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(panelSize, ImGuiCond_Always);
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    if (!ImGui::Begin("Official Record", nullptr, windowFlags)) {
+        ImGui::End();
+        return;
+    }
+    const bool isImmigrant = characterDraft.generationId == GenerationId::Immigrant;
+    ImGui::SetWindowFontScale(1.35f);
+    ImGui::Text("%s", isImmigrant ? "IMMIGRATION INTAKE RECORD" : "CERTIFICATE OF BIRTH");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Legal name: %s", characterDraft.nameBuffer);
+    ImGui::Text("Age: %d", characterDraft.age);
+    ImGui::Text("Nationality: %s", getNationalityLabel(static_cast<int32_t>(characterDraft.nationalityId) - 1));
+    ImGui::Text("Heritage: %s", getHeritageLabel(static_cast<int32_t>(characterDraft.heritageId) - 1));
+    const LandmarkDefinition* startingCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
+    if (startingCity != nullptr) {
+        ImGui::Text("Declared residence: %s", startingCity->fullName);
+    }
+    if (isImmigrant) {
+        ImGui::Spacing();
+        ImGui::TextWrapped(
+            "Stamped at port of entry. You arrive with what you carry and the name on this form. "
+            "No employment or wages are listed until you find work in the city.");
+    } else {
+        ImGui::Spacing();
+        ImGui::TextWrapped(
+            "Issued by civil registry. Family ties and borough preference are noted for local records only. "
+            "Starting funds are not disclosed on this document.");
+    }
+    ImGui::Spacing();
+    ImGui::Separator();
+    char socialBuffer[128];
+    formatCharacterSocialSummary(characterDraft, socialBuffer, sizeof(socialBuffer));
+    ImGui::TextWrapped("%s", socialBuffer);
+    ImGui::Spacing();
+    if (ImGui::Button("Begin life in New York", ImVec2(240.0f, 36.0f))) {
+        frontendUiEvents.requestedStartSimulation = true;
+        frontendScreen = FrontendScreen::InGame;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Back to editor", ImVec2(160.0f, 36.0f))) {
+        frontendScreen = FrontendScreen::CharacterCreation;
     }
     ImGui::End();
 }
@@ -1089,6 +1183,9 @@ FrontendUiEvents renderFrontendUi(
     case FrontendScreen::CharacterCreation:
         renderCharacterCreationScreen(characterDraft, frontendUiEvents, frontendScreen, worldSeed);
         break;
+    case FrontendScreen::CharacterFinalize:
+        renderCharacterFinalizeScreen(characterDraft, frontendScreen, frontendUiEvents);
+        break;
     case FrontendScreen::InGame:
         break;
     default:
@@ -1115,56 +1212,79 @@ void renderGameUi(
     ViewportPickState& viewportPickState,
     uint64_t worldSeed,
     const PlayerProfile& playerProfile,
+    PlayerWorldState& playerWorldState,
+    GameModalState& gameModalState,
     ContextHelpState& contextHelpState) {
     (void)chunkStore;
+    const bool blockPanels = shouldBlockGameplayPanels(gameModalState);
+    const uint64_t tickCount = simClock.getTickCount();
+    tickWorkDayCommutePrompt(gameModalState, playerWorldState, playerOperationsStore, simClock, tickCount);
     beginMainDockSpace();
     setupDefaultDockLayoutIfNeeded();
-    renderCharacterPanel(playerProfile, playerWallet, panelVisibility, contextHelpState);
-    renderSimulationPanel(
-        simClock,
-        worldConfig,
-        chunkStore,
-        boroughVitalityStore,
-        mapCrimeOverlayEnabled,
-        systemRegistry,
-        worldSeed,
-        panelVisibility,
-        contextHelpState);
-    renderOperationsPanel(
-        playerOperationsStore,
-        playerWallet,
-        characterAgentStore,
-        worldEventStore,
-        simEventQueue,
-        playerProfile,
-        simClock.getTickCount(),
-        panelVisibility,
-        contextHelpState);
-    renderContactsPanel(characterAgentStore, panelVisibility, contextHelpState);
-    renderBoroughsPanel(boroughVitalityStore, panelVisibility, contextHelpState);
-    renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, panelVisibility, contextHelpState);
-    renderCityPanel(
-        worldConfig,
-        chunkStore,
-        boroughVitalityStore,
-        cityControlStore,
-        playerOperationsStore,
-        playerWallet,
-        simEventQueue,
-        playerProfile,
-        viewportPickState,
-        panelVisibility,
-        contextHelpState);
-    renderBusinessPanel(
-        worldConfig,
-        playerOperationsStore,
-        playerWallet,
-        simEventQueue,
-        playerProfile,
-        viewportPickState,
-        panelVisibility,
-        contextHelpState);
+    if (!blockPanels) {
+        renderCharacterPanel(playerProfile, playerWallet, panelVisibility, contextHelpState);
+        renderSimulationPanel(
+            simClock,
+            worldConfig,
+            chunkStore,
+            boroughVitalityStore,
+            mapCrimeOverlayEnabled,
+            systemRegistry,
+            worldSeed,
+            panelVisibility,
+            contextHelpState);
+        renderOperationsPanel(
+            playerOperationsStore,
+            playerWallet,
+            characterAgentStore,
+            worldEventStore,
+            simEventQueue,
+            playerProfile,
+            playerWorldState,
+            gameModalState,
+            simClock,
+            tickCount,
+            panelVisibility,
+            contextHelpState);
+        renderContactsPanel(characterAgentStore, panelVisibility, contextHelpState);
+        renderBoroughsPanel(boroughVitalityStore, panelVisibility, contextHelpState);
+        renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, panelVisibility, contextHelpState);
+        renderCityPanel(
+            worldConfig,
+            chunkStore,
+            boroughVitalityStore,
+            cityControlStore,
+            playerOperationsStore,
+            playerWallet,
+            simEventQueue,
+            playerProfile,
+            viewportPickState,
+            panelVisibility,
+            contextHelpState);
+        renderBusinessPanel(
+            worldConfig,
+            playerOperationsStore,
+            playerWallet,
+            simEventQueue,
+            playerProfile,
+            playerWorldState,
+            gameModalState,
+            simClock,
+            viewportPickState,
+            panelVisibility,
+            contextHelpState);
+    }
     renderMapViewportPanel(worldConfig, chunkStore, mapCamera, viewportPickState, mapCrimeOverlayEnabled, panelVisibility, contextHelpState);
+    renderGameModalOverlay(
+        gameModalState,
+        simClock,
+        playerOperationsStore,
+        playerWallet,
+        playerWorldState,
+        characterAgentStore,
+        simEventQueue,
+        playerProfile,
+        tickCount);
 }
 
 } // namespace Core

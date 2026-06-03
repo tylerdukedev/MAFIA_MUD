@@ -1,6 +1,7 @@
 #include "sim/economy_system.h"
 #include "game/economy_constants.h"
 #include "game/housing_living_costs.h"
+#include "game/player_employment.h"
 #include "game/player_wallet.h"
 #include "world/city_control.h"
 #include "world/landmark_table.h"
@@ -22,10 +23,11 @@ void EconomySystem::recomputeIncomeRates() {
     }
     PlayerWallet& wallet = *bindings.playerWallet;
     const PlayerProfile& profile = *bindings.playerProfile;
-    float legitRate = LEGIT_INCOME_BASE_CENTS_PER_TICK;
-    legitRate += profile.legitimacy.publicFacingJobAccess * 0.08f;
-    legitRate += profile.legitimacy.shellCompanyEase * 0.05f;
-    if (profile.draft.backgroundId == BackgroundId::Bookkeeper) {
+    float legitRate = 0.0f;
+    if (bindings.playerOperationsStore != nullptr) {
+        legitRate = computeEmployedLegitIncomePerTickCents(*bindings.playerOperationsStore);
+    }
+    if (legitRate > 0.0f && profile.draft.backgroundId == BackgroundId::Bookkeeper) {
         legitRate *= BOOKKEEPER_LEGIT_INCOME_SCALE;
     }
     float crimeRate = 0.0f;

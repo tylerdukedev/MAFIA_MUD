@@ -1,4 +1,5 @@
 #include "character/character_social_network.h"
+#include "sim/character_agent.h"
 #include "character/character_types.h"
 #include "utils/seed_hash.h"
 #include <algorithm>
@@ -157,9 +158,7 @@ void seedGeneratedAgent(
     state.generatedTrait = trait;
     state.hasGeneratedIdentity = true;
     state.opinionOfPlayer = baselineOpinion;
-    state.trust = std::clamp(38 + baselineOpinion / 4, 0, 100);
-    state.fear = std::clamp(18 - baselineOpinion / 6, 0, 100);
-    state.respect = std::clamp(32 + baselineOpinion / 3, 0, 100);
+    deriveRelationshipStatsFromOpinion(state);
     state.currentEmotion = emotion;
     state.isActive = true;
 }

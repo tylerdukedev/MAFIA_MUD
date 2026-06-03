@@ -5,9 +5,13 @@ namespace Core {
 
 namespace {
 
-constexpr float BUSINESS_MARKER_SIZE_PIXELS = 3.5f;
-constexpr ImU32 BUSINESS_MARKER_COLOR = IM_COL32(90, 150, 255, 235);
-constexpr ImU32 BUSINESS_MARKER_HOVER_COLOR = IM_COL32(140, 200, 255, 255);
+constexpr float BUSINESS_MARKER_SIZE_PIXELS = 4.0f;
+constexpr float BUSINESS_LABEL_PADDING_X = 3.0f;
+constexpr float BUSINESS_LABEL_PADDING_Y = 1.0f;
+constexpr float BUSINESS_LABEL_OFFSET_Y = 2.0f;
+constexpr ImU32 BUSINESS_MARKER_COLOR = IM_COL32(70, 130, 255, 240);
+constexpr ImU32 BUSINESS_MARKER_OUTLINE_COLOR = IM_COL32(12, 14, 18, 255);
+constexpr ImU32 BUSINESS_MARKER_HOVER_COLOR = IM_COL32(110, 175, 255, 255);
 
 void getBusinessScreenCenter(
     const MapCamera& camera,
@@ -92,9 +96,18 @@ void renderBusinessNodesOnMap(
         const bool isSelected = viewportPickState.hasBusinessSelection && viewportPickState.selectedBusinessIndex == businessIndex;
         const ImU32 color = isHovered || isSelected ? BUSINESS_MARKER_HOVER_COLOR : BUSINESS_MARKER_COLOR;
         drawList->AddCircleFilled(ImVec2(centerX, centerY), BUSINESS_MARKER_SIZE_PIXELS, color);
-        if (isHovered || isSelected) {
-            drawList->AddText(ImVec2(centerX + 6.0f, centerY - 6.0f), IM_COL32(180, 210, 255, 245), business->mapLabel);
-        }
+        drawList->AddCircle(
+            ImVec2(centerX, centerY),
+            BUSINESS_MARKER_SIZE_PIXELS + 1.0f,
+            BUSINESS_MARKER_OUTLINE_COLOR,
+            0,
+            1.5f);
+        const ImVec2 labelSize = ImGui::CalcTextSize(business->mapLabel);
+        const ImVec2 labelPos(centerX - labelSize.x * 0.5f, centerY + BUSINESS_MARKER_SIZE_PIXELS + BUSINESS_LABEL_OFFSET_Y);
+        const ImVec2 labelMin(labelPos.x - BUSINESS_LABEL_PADDING_X, labelPos.y - BUSINESS_LABEL_PADDING_Y);
+        const ImVec2 labelMax(labelPos.x + labelSize.x + BUSINESS_LABEL_PADDING_X, labelPos.y + labelSize.y + BUSINESS_LABEL_PADDING_Y);
+        drawList->AddRectFilled(labelMin, labelMax, IM_COL32(16, 18, 24, 210));
+        drawList->AddText(labelPos, IM_COL32(180, 210, 255, 245), business->mapLabel);
     }
 }
 

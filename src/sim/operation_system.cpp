@@ -40,19 +40,7 @@ void OperationSystem::processEstablishOperationEvent(const SimEvent& event, uint
 }
 
 void OperationSystem::processApplyForJobEvent(const SimEvent& event) {
-    if (bindings.playerOperationsStore == nullptr || bindings.playerWallet == nullptr || bindings.playerProfile == nullptr) {
-        return;
-    }
-    const BusinessNodeDefinition* business = getBusinessNodeDefinition(event.businessNodeIndex);
-    if (business == nullptr) {
-        return;
-    }
-    if (getNetworkAccessScore(*bindings.playerProfile) < business->minNetworkAccess) {
-        return;
-    }
-    PlayerOperationsStore& store = *bindings.playerOperationsStore;
-    store.employedBusinessIndex = event.businessNodeIndex;
-    creditLegitCash(*bindings.playerWallet, business->jobWageCents);
+    (void)event;
 }
 
 void OperationSystem::onTick(uint64_t tickCount) {

@@ -7,9 +7,9 @@ namespace Core {
 namespace {
 
 constexpr const char* P_OVERVIEW[] = {
-    "Capital Vice is a data-driven mafia simulation across NYC boroughs and parts of New Jersey.",
-    "This build adds headquarters and operation establishment, blue business job nodes, AI contacts with opinions, dockable panels with a Windows menu, and save/load v5.",
-    "Open Help > Manual from the top menu bar on any screen. Hold Ctrl for inspect mode to click UI elements for quick help.",
+    "Welcome to Capital Vice — a street-level life sim across NYC and New Jersey where you build cover, cash, and eventually an organization.",
+    "You create a character, pick a borough, find housing, interview for jobs at blue businesses, and manage contacts who judge you by opinion, trust, and respect.",
+    "Open Help > Manual from the menu bar anytime. Hold Ctrl to inspect UI elements for quick tips.",
 };
 
 constexpr const char* P_MAIN_MENU[] = {
@@ -29,13 +29,15 @@ constexpr const char* P_CONTEXT_HELP[] = {
 };
 
 constexpr const char* P_CHAR_CREATION[] = {
-    "Character Creation uses a two-panel layout: choices on the left, live preview on the right.",
-    "Every field updates the preview and rebuilds your foundational profile in the background.",
-    "Changing Starting Borough rerolls your starting city landmark, starting cash ($0.00-$25.00, weighted low), and whether family or friends exist in-country. The map camera centers on that city when you enter the game.",
+    "Character Creation uses two columns: choices on the left, live preview on the right.",
+    "Enter first name, optional middle name, and last name — extra spaces are stripped and names are title-cased automatically.",
+    "Changing Starting Borough rerolls your starting city, family/friend ties, and family tree preview. Cash is hidden until you enter the game.",
+    "Start New Game opens an official record (birth certificate or immigration intake) before you enter the map.",
 };
 
 constexpr const char* P_CHAR_NAME[] = {
-    "Your display name in descriptions and the Character panel. Up to 31 characters.",
+    "Use separate first, middle (optional), and last name fields. Only letters, spaces, hyphens, and apostrophes are kept.",
+    "Both first and last name are required before you can continue.",
 };
 
 constexpr const char* P_CHAR_GENERATION[] = {
@@ -60,9 +62,9 @@ constexpr const char* P_PROFILE_BUILDER[] = {
 };
 
 constexpr const char* P_CHARACTER_PANEL[] = {
-    "The Character panel appears in-game after you start. It shows identity, cash on hand, per-tick legit/crime income, starting city, description, and foundational trait bars.",
-    "Hover any row for a tooltip. Hold Ctrl and click a row to open detailed help with a Manual link.",
-    "A broke warning appears when cash falls below the configured threshold.",
+    "After you begin, the Character panel shows your name, cash on hand, income rates, starting city, and trait bars.",
+    "Legit income is zero until you are employed; crime income still comes from owned cities and your background.",
+    "Hover rows for tooltips; Ctrl+click opens deeper help. A broke warning appears when cash is very low.",
 };
 
 constexpr const char* P_AXIS_NETWORK[] = {
@@ -216,23 +218,28 @@ constexpr const char* P_CITY_PANEL[] = {
 };
 
 constexpr const char* P_OPERATIONS_PANEL[] = {
-    "Open Operations from the dock or Windows menu. Your first operation must be a headquarters: rented room, apartment, or family/friend DPA.",
-    "Move-in is first month plus a small key deposit (rented room about $22, apartment about $42). Monthly bills follow (room about $16.50, apartment about $40.50 with utilities).",
-    "Family and friends in-country are rolled per character; you may have neither, one, or both. Contacts are procedurally generated when you start.",
-    "Family/friend DPA has no cash rent but slowly drains household opinion unless you use upkeep gestures (cook dinner, buy dinner, chores, gifts).",
-    "Monthly rent scales with borough economic health and your local influence. Missed payments or hostile landlords can evict you.",
-    "World events (random, conditional, and watched triggers like a mob boss falling) fire from the simulation event catalog and show in Operations.",
-    "Later entries (rackets, fronts, logistics) unlock by wealth, network access, and reputation after HQ is set.",
+    "Your first step is headquarters: rented room, apartment (rental application event), or family/friend DPA.",
+    "Apartment requires an interactive application — truthful or lying answers matter. Morris Schwartz (landlord) becomes a contact only after approval.",
+    "Monthly rent scales with borough economy and your influence; missed rent or a hostile landlord can trigger eviction events.",
+    "Family/friend DPA has no cash rent but household opinion drifts down unless you use upkeep actions.",
+    "Rackets and fronts unlock later via wealth, network access, and reputation.",
 };
 
 constexpr const char* P_BUSINESS_PANEL[] = {
-    "Blue nodes on the map are borough businesses. Click one, then Apply for job in the Business panel for a hiring bonus and employment.",
-    "Businesses feed legit income and borough economy; they are not city control nodes.",
+    "Blue labeled nodes are workplaces. You must be in the same borough to apply.",
+    "Apply for job opens a paused interview — answer three questions. Pass the interview to be hired; wages accrue over time, not as a lump sum.",
+    "You cannot apply again while already employed.",
 };
 
 constexpr const char* P_CONTACTS_PANEL[] = {
-    "Contacts lists AI characters with opinion, trust, and respect toward you (Crusader Kings-style foundation).",
-    "Family DPA headquarters can sour family opinions when you lean on their address.",
+    "Contacts show opinion (-100 to +100), trust, and respect. Trust and respect are derived from opinion — rivals stay low-trust even if they grudgingly respect you.",
+    "Family and friends are generated at start; the landlord appears only after apartment approval.",
+};
+
+constexpr const char* P_TRAVEL_AND_SCHEDULE[] = {
+    "You operate only in the borough where you currently are. Travel between boroughs will gate jobs, meetings, and crime (foundation in this build).",
+    "Employed characters receive periodic work-day prompts: go on time, go late, or call out. Shifts can lock some actions while you are at work.",
+    "Future builds will add route risk (heat, rivals, feds) and commute time affecting lateness and pay.",
 };
 
 constexpr const char* P_WINDOWS_MENU[] = {
@@ -246,14 +253,20 @@ constexpr const char* P_LANDMARK_CONTROL[] = {
 };
 
 constexpr const char* P_ECONOMY_OVERVIEW[] = {
-    "Money is tracked in cents. Starting cash rolls $0.00-$25.00 with heavier weight at the low end.",
-    "Legit and crime income accrue from your background and owned cities; EconomySystem applies bundled payouts every 20 ticks.",
-    "Claims debit cash when processed. Owned cities raise passive income on the Character panel.",
+    "Cash is tracked in cents. Starting money is modest ($0–$25, weighted low) and only applied when you begin life in New York — not shown during creation.",
+    "Legit income requires a job. Crime income can come from owned cities and certain backgrounds.",
+    "Income bundles into your wallet every 20 simulation ticks.",
 };
 
 constexpr const char* P_CHAR_STARTING_BOROUGH[] = {
-    "Starting Borough is a preference used to roll a random landmark city inside that borough when you commit or reroll the field.",
-    "Preview shows the rolled city name and starting cash before you start. Your spawn camera centers on that landmark tile.",
+    "Starting Borough picks which region rolls your entry city landmark.",
+    "Preview shows the city and family ties, not starting cash. The map centers on your landmark when play begins.",
+};
+
+constexpr const char* P_FAMILY_CULTURE[] = {
+    "Your heritage sets a family cultural profile: filial duty, emotional expressiveness, elder authority, shame sensitivity, and kin loyalty pressure.",
+    "Italian, Irish, Jewish, Chinese, and other backgrounds use different weights — these will steer family events and reactions as systems expand.",
+    "The creation preview lists parents and siblings when applicable.",
 };
 
 constexpr const char* P_BOROUGHS[] = {
@@ -302,8 +315,8 @@ constexpr const char* P_VIEW_MENU[] = {
 };
 
 constexpr const char* P_SAVE_LOAD[] = {
-    "Binary save capitalvice_save.dat (v5). Stores draft, sim clock, camera, geography, tile vitality, wallet, cities, operations, and AI contact opinions.",
-    "Save with Ctrl+S or File menu. Load from File menu or main menu. Older save versions are rejected.",
+    "Saves to capitalvice_save.dat in the game folder. Stores your character, world, wallet, housing, contacts, and simulation clock.",
+    "Save with Ctrl+S or the File menu while in-game. Load from the main menu or File menu when a save exists.",
 };
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
@@ -334,7 +347,8 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
 
     {"char_creation", "Character / Identity", "Character Creation Screen", "Two-panel setup", P_CHAR_CREATION, 3},
     {"char_starting_borough", "Character / Identity", "Starting Borough", "Roll city and cash", P_CHAR_STARTING_BOROUGH, 2},
-    {"char_name", "Character / Identity", "Name Field", "Display name", P_CHAR_NAME, 1},
+    {"char_name", "Character / Identity", "Name Fields", "First, middle, last", P_CHAR_NAME, 2},
+    {"family_culture", "Character / Identity", "Family & Culture", "Heritage family dynamics", P_FAMILY_CULTURE, 3},
     {"char_generation", "Character / Identity", "Generation Choice", "Tradeoffs by generation", P_CHAR_GENERATION, 2},
 
     {"profile_overview", "Character / Profile", "Player Profile", "Foundational derived data", P_PROFILE_OVERVIEW, 2},
@@ -391,8 +405,9 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"boroughs", "World and Map", "Boroughs Panel", "Live borough vitality bars", P_BOROUGHS, 2},
     {"landmarks_overview", "World and Map / Cities", "City Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
     {"city_panel", "World and Map / Cities", "City Panel", "Landmark stats and claims", P_CITY_PANEL, 3},
-    {"operations_panel", "World and Map / Operations", "Operations Panel", "HQ and expansion catalog", P_OPERATIONS_PANEL, 4},
-    {"business_panel", "World and Map / Operations", "Business Panel", "Jobs at blue nodes", P_BUSINESS_PANEL, 2},
+    {"operations_panel", "World and Map / Operations", "Operations Panel", "HQ and expansion catalog", P_OPERATIONS_PANEL, 5},
+    {"business_panel", "World and Map / Operations", "Business Panel", "Jobs at blue nodes", P_BUSINESS_PANEL, 3},
+    {"travel_schedule", "World and Map / Operations", "Travel & Work Days", "Borough presence and shifts", P_TRAVEL_AND_SCHEDULE, 3},
     {"landmark_control", "World and Map / Cities", "City Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
 
     {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 3},

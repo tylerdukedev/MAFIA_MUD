@@ -87,7 +87,14 @@ set(CAPITAL_VICE_SOURCES
     src/game/operation_catalog.cpp
     src/world/city_control.cpp
     src/character/character_start.cpp
+    src/character/character_name.cpp
+    src/character/character_family.cpp
     src/character/character_social_network.cpp
+    src/game/player_world_state.cpp
+    src/game/landlord_contact.cpp
+    src/game/player_employment.cpp
+    src/ui/game_modal_state.cpp
+    src/ui/game_modal_ui.cpp
     src/procgen/world_generator.cpp
     src/utils/seed_hash.cpp
     src/world/world_config.cpp
@@ -271,6 +278,26 @@ add_executable(business_node_test
 target_include_directories(business_node_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(business_node_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(business_node_test)
+
+add_executable(character_name_test
+    test/character_name_test.cpp
+    src/character/character_name.cpp
+)
+target_include_directories(character_name_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(character_name_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(character_name_test)
+
+add_executable(character_agent_relationship_test
+    test/character_agent_relationship_test.cpp
+    src/sim/character_agent_store.cpp
+    src/character/character_social_network.cpp
+    src/character/character_name.cpp
+    src/utils/seed_hash.cpp
+    ${CHARACTER_SOURCES}
+)
+target_include_directories(character_agent_relationship_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(character_agent_relationship_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(character_agent_relationship_test)
 
 add_executable(profile_builder_test
     test/profile_builder_test.cpp

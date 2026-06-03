@@ -1,6 +1,7 @@
 #include "sim/character_agent.h"
 #include "character/character_social_network.h"
 #include <algorithm>
+#include <cstring>
 
 namespace Core {
 
@@ -17,14 +18,26 @@ constexpr int32_t AGENT_DEFINITION_COUNT = static_cast<int32_t>(sizeof(AGENT_DEF
 
 void seedAgentState(CharacterAgentState& state, const AgentDefinition& definition) {
     state.opinionOfPlayer = definition.baselineOpinionOfPlayer;
-    state.trust = std::clamp(40 + definition.baselineOpinionOfPlayer / 4, 0, 100);
-    state.fear = std::clamp(20 - definition.baselineOpinionOfPlayer / 5, 0, 100);
-    state.respect = std::clamp(35 + definition.baselineOpinionOfPlayer / 3, 0, 100);
+    deriveRelationshipStatsFromOpinion(state);
     state.currentEmotion = definition.baselineEmotion;
     state.isActive = true;
 }
 
 } // namespace
+
+void deriveRelationshipStatsFromOpinion(CharacterAgentState& state) {
+    const int32_t opinion = state.opinionOfPlayer;
+    if (opinion >= 0) {
+        state.trust = std::clamp(28 + opinion / 2, 0, 100);
+        state.respect = std::clamp(20 + opinion / 2, 0, 100);
+        state.fear = std::clamp(12 - opinion / 8, 0, 100);
+        return;
+    }
+    const int32_t hostility = -opinion;
+    state.trust = std::clamp(24 - hostility / 2, 0, 100);
+    state.respect = std::clamp(30 - hostility / 3, 0, 100);
+    state.fear = std::clamp(10 + hostility / 4, 0, 100);
+}
 
 int32_t getCharacterAgentDefinitionCount() {
     return AGENT_DEFINITION_COUNT;
@@ -45,6 +58,10 @@ void initializeCharacterAgentStore(CharacterAgentStore& store) {
             continue;
         }
         const int32_t slotIndex = FIRST_COMMUNITY_AGENT_SLOT_INDEX + definitionIndex;
+        if (std::strcmp(definition->id, "landlord_schwartz") == 0) {
+            store.states[slotIndex].isActive = false;
+            continue;
+        }
         seedAgentState(store.states[slotIndex], *definition);
     }
 }
@@ -74,8 +91,7 @@ void adjustAgentOpinion(CharacterAgentStore& store, int32_t agentIndex, int32_t 
         return;
     }
     state.opinionOfPlayer = std::clamp(state.opinionOfPlayer + delta, AGENT_OPINION_MIN, AGENT_OPINION_MAX);
-    state.trust = std::clamp(state.trust + delta / 3, 0, 100);
-    state.respect = std::clamp(state.respect + delta / 4, 0, 100);
+    deriveRelationshipStatsFromOpinion(state);
     if (delta < -8) {
         state.currentEmotion = AgentEmotion::Angry;
     } else     if (delta > 8) {

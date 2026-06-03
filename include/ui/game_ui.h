@@ -11,7 +11,9 @@
 #include "sim/world_event_store.h"
 #include "sim/system_registry.h"
 #include "world/city_control.h"
+#include "game/player_world_state.h"
 #include "ui/context_help.h"
+#include "ui/game_modal_state.h"
 #include "ui/help_manual.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
@@ -25,6 +27,7 @@ namespace Core {
 enum class FrontendScreen : uint8_t {
     MainMenu = 0,
     CharacterCreation,
+    CharacterFinalize,
     InGame
 };
 
@@ -79,6 +82,8 @@ void renderGameUi(
     ViewportPickState& viewportPickState,
     uint64_t worldSeed,
     const PlayerProfile& playerProfile,
+    PlayerWorldState& playerWorldState,
+    GameModalState& gameModalState,
     ContextHelpState& contextHelpState);
 
 } // namespace Core

@@ -1,4 +1,5 @@
 #include "character/profile_builder.h"
+#include "character/character_name.h"
 #include "character/character_tables.h"
 #include <algorithm>
 #include <cmath>
@@ -131,7 +132,9 @@ void initializeCharacterDraftDefaults(CharacterDraft& draft) {
     if (draft.hasInitializedDefaults) {
         return;
     }
-    std::snprintf(draft.nameBuffer, sizeof(draft.nameBuffer), "%s", "New Boss");
+    std::snprintf(draft.firstName, sizeof(draft.firstName), "%s", "Vito");
+    std::snprintf(draft.lastName, sizeof(draft.lastName), "%s", "Russo");
+    rebuildCharacterFullName(draft);
     draft.nationalityId = NationalityId::American;
     draft.heritageId = HeritageId::Italian;
     draft.generationId = GenerationId::FirstGeneration;

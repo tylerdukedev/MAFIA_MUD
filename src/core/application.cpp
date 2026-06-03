@@ -1,4 +1,8 @@
 #include "core/application.h"
+#include "game/player_world_state.h"
+#include "world/region_table.h"
+#include "ui/game_modal_state.h"
+#include "ui/game_modal_ui.h"
 #include "ui/game_ui.h"
 #include "ui/dock_layout.h"
 #include "procgen/world_generator.h"
@@ -154,7 +158,7 @@ void Application::processFrame() {
 }
 
 void Application::updateSimulation() {
-    if (frontendScreen != FrontendScreen::InGame || !isWorldReady) {
+    if (frontendScreen != FrontendScreen::InGame || !isWorldReady || shouldPauseSimulationForModal(gameModalState)) {
         return;
     }
     const double deltaSeconds = ImGui::GetIO().DeltaTime;
@@ -215,7 +219,7 @@ void Application::renderFrame() {
         devConsoleToggleVisibility(devConsoleState);
     }
 #endif
-    if (frontendScreen == FrontendScreen::CharacterCreation) {
+    if (frontendScreen == FrontendScreen::CharacterCreation || frontendScreen == FrontendScreen::CharacterFinalize) {
         playerProfile = buildPlayerProfile(characterDraft);
     }
     if (frontendScreen == FrontendScreen::InGame && isWorldReady) {
@@ -240,6 +244,8 @@ void Application::renderFrame() {
             viewportPickState,
             worldSeed,
             playerProfile,
+            playerWorldState,
+            gameModalState,
             contextHelpState);
     }
     renderContextHelpCursorOverlay(contextHelpState);
@@ -270,6 +276,8 @@ void Application::startNewSimulation() {
     resetBoroughVitalityStore(boroughVitalityStore);
     resetCityControlStore(cityControlStore);
     resetPlayerOperationsStore(playerOperationsStore);
+    resetPlayerWorldState(playerWorldState);
+    resetGameModalState(gameModalState);
     resetWorldEventStore(worldEventStore);
     initializeCharacterAgentStore(characterAgentStore);
     spawnPersonalContactsFromDraft(characterDraft, characterAgentStore);
@@ -298,6 +306,8 @@ void Application::startNewSimulation() {
     const LandmarkDefinition* startCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
     if (startCity != nullptr) {
         mapCamera.centerOnTile(startCity->tileX, startCity->tileY, DEFAULT_MAP_PIXELS_PER_TILE);
+        const RegionId regionId = regionIdFromBoroughPreferenceIndex(characterDraft.selectedBoroughIndex);
+        initializePlayerWorldStateFromStart(playerWorldState, startCity->tileX, startCity->tileY, regionId);
     } else {
         initializeMapCameraForStartingBorough(mapCamera, characterDraft.selectedBoroughIndex);
     }

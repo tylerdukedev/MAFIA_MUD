@@ -11,6 +11,8 @@
 #include "ui/viewport_state.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/player_world_state.h"
+#include "ui/game_modal_state.h"
 #include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
 #include "sim/world_event_store.h"
@@ -45,6 +47,8 @@ private:
     ChunkStore chunkStore;
     BoroughVitalityStore boroughVitalityStore{};
     PlayerWallet playerWallet{};
+    PlayerWorldState playerWorldState{};
+    GameModalState gameModalState{};
     PlayerOperationsStore playerOperationsStore{};
     CharacterAgentStore characterAgentStore{};
     CityControlStore cityControlStore{};
