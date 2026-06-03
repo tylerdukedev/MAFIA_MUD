@@ -1,52 +1,57 @@
 #include "character/character_family.h"
-#include "character/character_social_network.h"
+#include "character/character_name_pools.h"
+#include "character/player_profile.h"
 #include "utils/seed_hash.h"
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 
 namespace Core {
 
 namespace {
 
-constexpr const char* GIVEN_ITALIAN[] = {"Vito", "Rosa", "Antonio", "Giulia", "Salvatore"};
-constexpr const char* GIVEN_IRISH[] = {"Patrick", "Maeve", "Sean", "Bridget", "Tommy"};
-constexpr const char* GIVEN_JEWISH[] = {"Morris", "Ruth", "Hyman", "Sadie", "Louis"};
-constexpr const char* GIVEN_GENERIC[] = {"James", "Mary", "John", "Anna", "Michael"};
-constexpr const char* SURNAME_ITALIAN[] = {"Marino", "Lombardi", "Ricci"};
-constexpr const char* SURNAME_IRISH[] = {"Sullivan", "Murphy", "Kelly"};
-constexpr const char* SURNAME_GENERIC[] = {"Johnson", "Williams", "Brown"};
+constexpr int32_t PRESENCE_SAME_BOROUGH_PERCENT = 55;
+constexpr int32_t PRESENCE_OTHER_BOROUGH_PERCENT = 40;
 
-void pickName(char* outBuffer, size_t bufferSize, const char* const* pool, int32_t poolCount, uint64_t seed, int32_t salt) {
-    if (poolCount <= 0 || outBuffer == nullptr || bufferSize == 0) {
-        return;
+FamilyMemberPresence rollFamilyMemberPresence(uint64_t seed, int32_t salt, bool hasFamilyInCountry) {
+    if (!hasFamilyInCountry) {
+        return FamilyMemberPresence::Abroad;
     }
-    const uint32_t index = Utils::hashSeedMix(seed, salt, 0x4E414D45) % static_cast<uint32_t>(poolCount);
-    std::strncpy(outBuffer, pool[index], bufferSize - 1);
-    outBuffer[bufferSize - 1] = '\0';
+    const uint32_t roll = Utils::hashSeedMix(seed, salt, 0x50524553) % 100U;
+    if (roll < static_cast<uint32_t>(PRESENCE_SAME_BOROUGH_PERCENT)) {
+        return FamilyMemberPresence::SameBorough;
+    }
+    if (roll < static_cast<uint32_t>(PRESENCE_SAME_BOROUGH_PERCENT + PRESENCE_OTHER_BOROUGH_PERCENT)) {
+        return FamilyMemberPresence::OtherBoroughInCity;
+    }
+    return FamilyMemberPresence::Abroad;
 }
 
-void buildMemberName(
-    char* outBuffer,
-    size_t bufferSize,
+void fillFamilyMember(
+    FamilyMemberRecord& member,
+    FamilyMemberRole role,
     HeritageId heritageId,
+    NationalityId nationalityId,
     uint64_t seed,
-    int32_t salt,
-    const char* surname) {
-    const char* const* givenPool = GIVEN_GENERIC;
-    int32_t givenCount = static_cast<int32_t>(sizeof(GIVEN_GENERIC) / sizeof(GIVEN_GENERIC[0]));
-    if (heritageId == HeritageId::Italian || heritageId == HeritageId::Sicilian) {
-        givenPool = GIVEN_ITALIAN;
-        givenCount = static_cast<int32_t>(sizeof(GIVEN_ITALIAN) / sizeof(GIVEN_ITALIAN[0]));
-    } else if (heritageId == HeritageId::Irish) {
-        givenPool = GIVEN_IRISH;
-        givenCount = static_cast<int32_t>(sizeof(GIVEN_IRISH) / sizeof(GIVEN_IRISH[0]));
-    } else if (heritageId == HeritageId::Jewish) {
-        givenPool = GIVEN_JEWISH;
-        givenCount = static_cast<int32_t>(sizeof(GIVEN_JEWISH) / sizeof(GIVEN_JEWISH[0]));
+    int32_t nameSalt,
+    int32_t presenceSalt,
+    bool hasFamilyInCountry,
+    const FamilyCulturalProfile& culturalProfile) {
+    member.role = role;
+    std::strncpy(member.roleLabel, getFamilyMemberRoleLabel(role), sizeof(member.roleLabel) - 1);
+    buildRandomCharacterName(member.displayName, sizeof(member.displayName), heritageId, nationalityId, seed, nameSalt);
+    member.presence = rollFamilyMemberPresence(seed, presenceSalt, hasFamilyInCountry);
+    member.isInCountry = member.presence != FamilyMemberPresence::Abroad;
+    member.isAlive = true;
+    if (role == FamilyMemberRole::Father) {
+        member.baselineOpinion = 22 + static_cast<int32_t>(culturalProfile.filialDutyWeight * 18.0f);
+        return;
     }
-    char given[20]{};
-    pickName(given, sizeof(given), givenPool, givenCount, seed, salt);
-    std::snprintf(outBuffer, bufferSize, "%s %s", given, surname);
+    if (role == FamilyMemberRole::Mother) {
+        member.baselineOpinion = 28 + static_cast<int32_t>(culturalProfile.emotionalExpressiveness * 12.0f);
+        return;
+    }
+    member.baselineOpinion = 10 + static_cast<int32_t>(culturalProfile.kinLoyaltyPressure * 8.0f);
 }
 
 } // namespace
@@ -100,6 +105,36 @@ void buildFamilyCulturalProfile(HeritageId heritageId, NationalityId nationality
     outProfile.kinLoyaltyPressure = 0.55f;
 }
 
+void applyFamilyCulturalProfileToPlayer(const FamilyCulturalProfile& profile, PlayerProfile& playerProfile) {
+    playerProfile.loyaltyBias.kinAlliancePreference = std::min(
+        1.0f, playerProfile.loyaltyBias.kinAlliancePreference + profile.kinLoyaltyPressure * 0.14f);
+    playerProfile.loyaltyBias.ethnicFactionResistance = std::min(
+        1.0f, playerProfile.loyaltyBias.ethnicFactionResistance + profile.filialDutyWeight * 0.08f);
+    playerProfile.culturalCompetency.inGroupNegotiation = std::min(
+        1.0f, playerProfile.culturalCompetency.inGroupNegotiation + profile.emotionalExpressiveness * 0.07f);
+    playerProfile.legitimacy.mainstreamSuspicion = std::min(
+        1.0f, playerProfile.legitimacy.mainstreamSuspicion + profile.shameSensitivity * 0.06f);
+    playerProfile.legitimacy.publicFacingJobAccess = std::min(
+        1.0f, playerProfile.legitimacy.publicFacingJobAccess + profile.elderAuthorityWeight * 0.05f);
+    playerProfile.networkAccess.ethnicNetwork = std::min(
+        1.0f, playerProfile.networkAccess.ethnicNetwork + profile.kinLoyaltyPressure * 0.06f);
+}
+
+void formatFamilyCulturalGameplayLines(const FamilyCulturalProfile& profile, char* outBuffer, size_t bufferSize) {
+    if (outBuffer == nullptr || bufferSize == 0) {
+        return;
+    }
+    std::snprintf(
+        outBuffer,
+        bufferSize,
+        "Duty %.0f%%: kin expect help; ignoring them erodes opinions faster.\n"
+        "Express %.0f%%: family talks hit harder; reconciliations can swing more.\n"
+        "Elder auth %.0f%%: parents/elers nudge job access and ethnic introductions.",
+        profile.filialDutyWeight * 100.0f,
+        profile.emotionalExpressiveness * 100.0f,
+        profile.elderAuthorityWeight * 100.0f);
+}
+
 const char* getFamilyMemberRoleLabel(FamilyMemberRole role) {
     switch (role) {
     case FamilyMemberRole::Father:
@@ -117,42 +152,56 @@ const char* getFamilyMemberRoleLabel(FamilyMemberRole role) {
     }
 }
 
+const char* getFamilyMemberPresenceLabel(FamilyMemberPresence presence) {
+    switch (presence) {
+    case FamilyMemberPresence::SameBorough:
+        return "your borough";
+    case FamilyMemberPresence::OtherBoroughInCity:
+        return "elsewhere in the city";
+    default:
+        return "abroad";
+    }
+}
+
 void generatePlayerFamilyTree(CharacterDraft& draft) {
     draft.familyMemberCount = 0;
     for (int32_t index = 0; index < MAX_FAMILY_MEMBER_COUNT; ++index) {
         draft.familyMembers[index] = FamilyMemberRecord{};
     }
     buildFamilyCulturalProfile(draft.heritageId, draft.nationalityId, draft.familyCulturalProfile);
-    char surname[24]{};
-    if (draft.lastName[0] != '\0') {
-        std::strncpy(surname, draft.lastName, sizeof(surname) - 1);
-    } else {
-        pickName(surname, sizeof(surname), SURNAME_GENERIC, static_cast<int32_t>(sizeof(SURNAME_GENERIC) / sizeof(SURNAME_GENERIC[0])), draft.characterRollSeed, 0x534E5231);
-    }
     const uint64_t seed = draft.characterRollSeed;
     int32_t memberIndex = 0;
-    FamilyMemberRecord father{};
-    father.role = FamilyMemberRole::Father;
-    std::strncpy(father.roleLabel, getFamilyMemberRoleLabel(father.role), sizeof(father.roleLabel) - 1);
-    buildMemberName(father.displayName, sizeof(father.displayName), draft.heritageId, seed, 0x46415431, surname);
-    father.isInCountry = draft.hasFamilyInCountry;
-    father.baselineOpinion = 22 + static_cast<int32_t>(draft.familyCulturalProfile.filialDutyWeight * 18.0f);
-    draft.familyMembers[memberIndex++] = father;
-    FamilyMemberRecord mother{};
-    mother.role = FamilyMemberRole::Mother;
-    std::strncpy(mother.roleLabel, getFamilyMemberRoleLabel(mother.role), sizeof(mother.roleLabel) - 1);
-    buildMemberName(mother.displayName, sizeof(mother.displayName), draft.heritageId, seed, 0x4D4F5431, surname);
-    mother.isInCountry = draft.hasFamilyInCountry;
-    mother.baselineOpinion = 28 + static_cast<int32_t>(draft.familyCulturalProfile.emotionalExpressiveness * 12.0f);
-    draft.familyMembers[memberIndex++] = mother;
+    fillFamilyMember(
+        draft.familyMembers[memberIndex++],
+        FamilyMemberRole::Father,
+        draft.heritageId,
+        draft.nationalityId,
+        seed,
+        0x46415431,
+        0x46415441,
+        draft.hasFamilyInCountry,
+        draft.familyCulturalProfile);
+    fillFamilyMember(
+        draft.familyMembers[memberIndex++],
+        FamilyMemberRole::Mother,
+        draft.heritageId,
+        draft.nationalityId,
+        seed,
+        0x4D4F5431,
+        0x4D4F5441,
+        draft.hasFamilyInCountry,
+        draft.familyCulturalProfile);
     if (draft.generationId != GenerationId::Immigrant) {
-        FamilyMemberRecord sibling{};
-        sibling.role = FamilyMemberRole::Sibling;
-        std::strncpy(sibling.roleLabel, getFamilyMemberRoleLabel(sibling.role), sizeof(sibling.roleLabel) - 1);
-        buildMemberName(sibling.displayName, sizeof(sibling.displayName), draft.heritageId, seed, 0x53494231, surname);
-        sibling.isInCountry = draft.hasFamilyInCountry;
-        sibling.baselineOpinion = 10;
-        draft.familyMembers[memberIndex++] = sibling;
+        fillFamilyMember(
+            draft.familyMembers[memberIndex++],
+            FamilyMemberRole::Sibling,
+            draft.heritageId,
+            draft.nationalityId,
+            seed,
+            0x53494231,
+            0x53494241,
+            draft.hasFamilyInCountry,
+            draft.familyCulturalProfile);
     }
     draft.familyMemberCount = memberIndex;
 }

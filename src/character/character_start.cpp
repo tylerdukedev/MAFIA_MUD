@@ -8,12 +8,21 @@
 
 namespace Core {
 
-void rollCharacterStartPlacement(CharacterDraft& draft, uint64_t worldSeed) {
-    draft.characterRollSeed = worldSeed ^ Utils::hashSeedMix(worldSeed, draft.selectedBoroughIndex, 0x53544152);
-    draft.startingCashCents = rollStartingCashCents(draft.characterRollSeed, draft.selectedBoroughIndex);
+void rollCharacterCreationPreview(CharacterDraft& draft, uint64_t worldSeed, int32_t rollRevision) {
+    const int32_t mixSalt = draft.selectedBoroughIndex
+        + static_cast<int32_t>(draft.heritageId) * 17
+        + static_cast<int32_t>(draft.nationalityId) * 31
+        + static_cast<int32_t>(draft.generationId) * 53
+        + static_cast<int32_t>(draft.backgroundId) * 71
+        + rollRevision * 97;
+    draft.characterRollSeed = Utils::hashSeedMix(worldSeed, mixSalt, 0x43524541);
     rollCharacterSocialNetwork(draft);
-    normalizeCharacterDraftNames(draft);
     generatePlayerFamilyTree(draft);
+}
+
+void rollCharacterStartPlacement(CharacterDraft& draft, uint64_t worldSeed) {
+    draft.startingCashCents = rollStartingCashCents(draft.characterRollSeed, draft.selectedBoroughIndex);
+    normalizeCharacterDraftNames(draft);
     const RegionId regionId = regionIdFromBoroughPreferenceIndex(draft.selectedBoroughIndex);
     draft.startingCityLandmarkIndex = pickRandomLandmarkIndexInRegion(regionId, draft.characterRollSeed, 0x43495459);
 }

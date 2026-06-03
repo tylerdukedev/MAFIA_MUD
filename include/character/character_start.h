@@ -6,5 +6,6 @@
 namespace Core {
 
 void rollCharacterStartPlacement(CharacterDraft& draft, uint64_t worldSeed);
+void rollCharacterCreationPreview(CharacterDraft& draft, uint64_t worldSeed, int32_t rollRevision);
 
 } // namespace Core

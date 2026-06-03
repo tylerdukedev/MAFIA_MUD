@@ -29,10 +29,10 @@ constexpr const char* P_CONTEXT_HELP[] = {
 };
 
 constexpr const char* P_CHAR_CREATION[] = {
-    "Character Creation uses two columns: choices on the left, live preview on the right.",
-    "Enter first name, optional middle name, and last name — extra spaces are stripped and names are title-cased automatically.",
-    "Changing Starting Borough rerolls your starting city, family/friend ties, and family tree preview. Cash is hidden until you enter the game.",
-    "Start New Game opens an official record (birth certificate or immigration intake) before you enter the map.",
+    "Character Creation uses two columns: choices on the left, background profile on the right.",
+    "Enter first, middle (optional), and last name. Extra spaces are stripped and names are title-cased.",
+    "Changing heritage, nationality, generation, background, or borough rerolls the family tree preview with new names.",
+    "Start New Game opens your official record: Immigration Intake (immigrant) or Certificate of Birth (all other generations).",
 };
 
 constexpr const char* P_CHAR_NAME[] = {
@@ -218,22 +218,23 @@ constexpr const char* P_CITY_PANEL[] = {
 };
 
 constexpr const char* P_OPERATIONS_PANEL[] = {
-    "Your first step is headquarters: rented room, apartment (rental application event), or family/friend DPA.",
-    "Apartment requires an interactive application — truthful or lying answers matter. Morris Schwartz (landlord) becomes a contact only after approval.",
-    "Monthly rent scales with borough economy and your influence; missed rent or a hostile landlord can trigger eviction events.",
-    "Family/friend DPA has no cash rent but household opinion drifts down unless you use upkeep actions.",
+    "Your first step is headquarters: rented room, apartment (rental application), or family/friend DPA.",
+    "Apartment uses an interactive application. Morris Schwartz becomes your landlord contact only after approval.",
+    "Family/friend DPA requires a family or friend contact in-country. Your kin becomes the landlord on record while staying a separate contact.",
+    "DPA has no cash rent, but household opinion drifts down unless you use upkeep actions on family or friends.",
     "Rackets and fronts unlock later via wealth, network access, and reputation.",
 };
 
 constexpr const char* P_BUSINESS_PANEL[] = {
-    "Blue labeled nodes are workplaces. You must be in the same borough to apply.",
+    "Blue nodes are workplaces (always visible). Labels appear when you zoom in, like city landmarks.",
+    "You must be in the same borough to apply.",
     "Apply for job opens a paused interview — answer three questions. Pass the interview to be hired; wages accrue over time, not as a lump sum.",
     "You cannot apply again while already employed.",
 };
 
 constexpr const char* P_CONTACTS_PANEL[] = {
-    "Contacts show opinion (-100 to +100), trust, and respect. Trust and respect are derived from opinion — rivals stay low-trust even if they grudgingly respect you.",
-    "Family and friends are generated at start; the landlord appears only after apartment approval.",
+    "Contacts show opinion (-100 to +100), trust, and respect. Trust and respect follow opinion so rivals stay low-trust.",
+    "At start you get generated family/friend contacts plus beat cop, union delegate, and rival. Apartment adds Morris Schwartz; DPA makes your kin the landlord.",
 };
 
 constexpr const char* P_TRAVEL_AND_SCHEDULE[] = {
@@ -260,13 +261,21 @@ constexpr const char* P_ECONOMY_OVERVIEW[] = {
 
 constexpr const char* P_CHAR_STARTING_BOROUGH[] = {
     "Starting Borough picks which region rolls your entry city landmark.",
-    "Preview shows the city and family ties, not starting cash. The map centers on your landmark when play begins.",
+    "The official record lists your city and starting contacts. Cash is applied only when you begin play.",
 };
 
 constexpr const char* P_FAMILY_CULTURE[] = {
-    "Your heritage sets a family cultural profile: filial duty, emotional expressiveness, elder authority, shame sensitivity, and kin loyalty pressure.",
-    "Italian, Irish, Jewish, Chinese, and other backgrounds use different weights — these will steer family events and reactions as systems expand.",
-    "The creation preview lists parents and siblings when applicable.",
+    "Duty, Express, and Elder auth come from your heritage and nationality. They apply to your profile at game start.",
+    "Duty raises kin loyalty and how fast family opinion drops when you ignore them.",
+    "Express affects in-group negotiation; family emotional confrontations hit harder.",
+    "Elder auth nudges respectable job access and ethnic introductions.",
+    "Parents may be in your borough, elsewhere in the city, or abroad. Elsewhere in the city is not the same as abroad.",
+};
+
+constexpr const char* P_OFFICIAL_RECORD[] = {
+    "After creation you review one document before entering the map.",
+    "Immigrants see an Immigration Intake Record. Everyone else sees a Certificate of Birth.",
+    "The record lists your legal name, household, cultural notes, and every starting contact (generated NPCs).",
 };
 
 constexpr const char* P_BOROUGHS[] = {
@@ -305,9 +314,9 @@ constexpr const char* P_CITY_HOT_NODES[] = {
 };
 
 constexpr const char* P_DOCKING[] = {
-    "Panels dock and tab via ImGui. Layout saves to capitalvice_layout.ini between sessions.",
-    "Panels can be dragged and tabbed freely. Resizing the window scales the dock host without resetting your layout.",
-    "If panels look stuck or off-screen, use View > Reset Panel Layout or delete capitalvice_layout.ini.",
+    "Each new game starts with a sensible default layout: map center, tools on the left, boroughs/contacts on the right.",
+    "Drag and tab panels freely afterward. Layout saves to capitalvice_layout.ini between sessions.",
+    "If panels look stuck, use View > Reset Panel Layout or delete capitalvice_layout.ini.",
 };
 
 constexpr const char* P_VIEW_MENU[] = {
@@ -348,7 +357,8 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"char_creation", "Character / Identity", "Character Creation Screen", "Two-panel setup", P_CHAR_CREATION, 3},
     {"char_starting_borough", "Character / Identity", "Starting Borough", "Roll city and cash", P_CHAR_STARTING_BOROUGH, 2},
     {"char_name", "Character / Identity", "Name Fields", "First, middle, last", P_CHAR_NAME, 2},
-    {"family_culture", "Character / Identity", "Family & Culture", "Heritage family dynamics", P_FAMILY_CULTURE, 3},
+    {"family_culture", "Character / Identity", "Family & Culture", "Duty, express, elder auth", P_FAMILY_CULTURE, 4},
+    {"official_record", "Character / Identity", "Official Record", "Birth cert or immigration", P_OFFICIAL_RECORD, 3},
     {"char_generation", "Character / Identity", "Generation Choice", "Tradeoffs by generation", P_CHAR_GENERATION, 2},
 
     {"profile_overview", "Character / Profile", "Player Profile", "Foundational derived data", P_PROFILE_OVERVIEW, 2},

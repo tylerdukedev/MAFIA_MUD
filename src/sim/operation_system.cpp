@@ -1,5 +1,6 @@
 #include "sim/operation_system.h"
 #include "character/character_social_network.h"
+#include "game/kin_housing.h"
 #include "game/operation_types.h"
 #include "game/player_operations.h"
 #include "sim/character_agent.h"
@@ -31,6 +32,7 @@ void OperationSystem::processEstablishOperationEvent(const SimEvent& event, uint
     if (operation->headquartersKind != HeadquartersKind::FamilyFriendDpa || agentStore == nullptr) {
         return;
     }
+    activateKinLandlordFromDpa(*bindings.playerProfile, *agentStore);
     if (agentStore->states[FAMILY_AGENT_SLOT_INDEX].isActive) {
         adjustAgentOpinion(*agentStore, FAMILY_AGENT_SLOT_INDEX, -store.familyOpinionPenalty);
     }

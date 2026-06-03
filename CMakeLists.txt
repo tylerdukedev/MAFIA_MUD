@@ -64,6 +64,8 @@ set(CHARACTER_SOURCES
     src/character/character_tables.cpp
     src/character/profile_builder.cpp
     src/character/character_name.cpp
+    src/character/character_name_pools.cpp
+    src/character/character_family.cpp
 )
 
 set(AGENT_RELATIONSHIP_SOURCES
@@ -95,10 +97,11 @@ set(CAPITAL_VICE_SOURCES
     src/world/city_control.cpp
     src/character/character_start.cpp
     src/character/character_name.cpp
-    src/character/character_family.cpp
+    src/character/character_name_pools.cpp
     src/character/character_social_network.cpp
     src/game/player_world_state.cpp
     src/game/landlord_contact.cpp
+    src/game/kin_housing.cpp
     src/game/player_employment.cpp
     src/ui/game_modal_state.cpp
     src/ui/game_modal_ui.cpp
@@ -198,6 +201,7 @@ add_executable(save_game_test
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
     ${AGENT_RELATIONSHIP_SOURCES}
+    src/character/character_name_pools.cpp
     src/sim/world_event_store.cpp
     src/core/sim_clock.cpp
 )
@@ -297,6 +301,7 @@ catch_discover_tests(character_agent_relationship_test)
 
 add_executable(profile_builder_test
     test/profile_builder_test.cpp
+    src/utils/seed_hash.cpp
     ${CHARACTER_SOURCES}
 )
 target_include_directories(profile_builder_test PRIVATE ${CMAKE_SOURCE_DIR}/include)

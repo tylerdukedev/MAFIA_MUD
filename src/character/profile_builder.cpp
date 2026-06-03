@@ -1,4 +1,5 @@
 #include "character/profile_builder.h"
+#include "character/character_family.h"
 #include "character/character_name.h"
 #include "character/character_tables.h"
 #include <algorithm>
@@ -152,6 +153,7 @@ PlayerProfile buildPlayerProfile(const CharacterDraft& draft) {
     applyNationalityNudges(draft.nationalityId, profile);
     applyAgeNudges(draft.age, profile);
     applyBackgroundNudges(draft.backgroundId, profile);
+    applyFamilyCulturalProfileToPlayer(draft.familyCulturalProfile, profile);
     return profile;
 }
 

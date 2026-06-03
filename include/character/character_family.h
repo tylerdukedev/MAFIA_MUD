@@ -18,6 +18,12 @@ enum class FamilyMemberRole : uint8_t {
     Extended = 5,
 };
 
+enum class FamilyMemberPresence : uint8_t {
+    SameBorough = 0,
+    OtherBoroughInCity = 1,
+    Abroad = 2,
+};
+
 struct FamilyCulturalProfile {
     float filialDutyWeight = 0.5f;
     float emotionalExpressiveness = 0.5f;
@@ -30,6 +36,7 @@ struct FamilyMemberRecord {
     FamilyMemberRole role = FamilyMemberRole::Extended;
     char roleLabel[20]{};
     char displayName[32]{};
+    FamilyMemberPresence presence = FamilyMemberPresence::SameBorough;
     bool isInCountry = false;
     bool isAlive = true;
     int32_t baselineOpinion = 20;
@@ -38,7 +45,10 @@ struct FamilyMemberRecord {
 };
 
 void buildFamilyCulturalProfile(HeritageId heritageId, NationalityId nationalityId, FamilyCulturalProfile& outProfile);
+void applyFamilyCulturalProfileToPlayer(const FamilyCulturalProfile& profile, struct PlayerProfile& playerProfile);
 void generatePlayerFamilyTree(CharacterDraft& draft);
+void formatFamilyCulturalGameplayLines(const FamilyCulturalProfile& profile, char* outBuffer, size_t bufferSize);
 const char* getFamilyMemberRoleLabel(FamilyMemberRole role);
+const char* getFamilyMemberPresenceLabel(FamilyMemberPresence presence);
 
 } // namespace Core

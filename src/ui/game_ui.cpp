@@ -28,6 +28,7 @@
 #include "world/region_table.h"
 #include "world/tile_vitality.h"
 #include "sim/borough_vitality_system.h"
+#include "sim/character_agent.h"
 #include "imgui.h"
 
 namespace Core {
@@ -42,46 +43,25 @@ constexpr int32_t SPEED_OPTION_COUNT = 5;
 constexpr float ZOOM_WHEEL_FACTOR = 1.12f;
 constexpr float BUSINESS_HIT_RADIUS_PIXELS = 10.0f;
 
-void renderCharacterCreationPreviewPanel(CharacterDraft& characterDraft) {
+void renderCharacterCreationPreviewPanel(const CharacterDraft& characterDraft) {
     ImGui::BeginChild("CharacterPreviewPanel", ImVec2(0.0f, 0.0f), true);
-    ImGui::Text("Character Preview");
-    ImGui::Separator();
-    normalizeCharacterDraftNames(characterDraft);
-    if (isCharacterNameValid(characterDraft)) {
-        ImGui::Text("Name: %s", characterDraft.nameBuffer);
-    } else {
-        ImGui::TextDisabled("Enter first and last name");
-    }
-    char descriptionBuffer[256];
-    buildCharacterDescription(descriptionBuffer, sizeof(descriptionBuffer), characterDraft);
-    ImGui::TextWrapped("%s", descriptionBuffer);
-    ImGui::Spacing();
-    ImGui::Separator();
-    char socialBuffer[128];
-    formatCharacterSocialSummary(characterDraft, socialBuffer, sizeof(socialBuffer));
-    ImGui::TextWrapped("%s", socialBuffer);
-    const LandmarkDefinition* startingCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
-    if (startingCity != nullptr) {
-        ImGui::Text("Starting city: %s", startingCity->fullName);
-        ImGui::TextDisabled("Map label: %s", startingCity->mapLabel);
-    } else {
-        ImGui::TextDisabled("Starting city: roll borough to place");
-    }
-    ImGui::Spacing();
+    ImGui::Text("Background Profile");
     ImGui::Separator();
     ImGui::TextWrapped("%s", getGenerationRoleSummary(characterDraft.generationId).data());
-    if (characterDraft.familyMemberCount > 0) {
-        ImGui::Separator();
-        ImGui::Text("Family (cultural profile)");
-        ImGui::TextDisabled(
-            "Duty %.0f%% | Express %.0f%% | Elder auth %.0f%%",
-            characterDraft.familyCulturalProfile.filialDutyWeight * 100.0f,
-            characterDraft.familyCulturalProfile.emotionalExpressiveness * 100.0f,
-            characterDraft.familyCulturalProfile.elderAuthorityWeight * 100.0f);
-        for (int32_t memberIndex = 0; memberIndex < characterDraft.familyMemberCount; ++memberIndex) {
-            const FamilyMemberRecord& member = characterDraft.familyMembers[memberIndex];
-            ImGui::BulletText("%s — %s%s", member.roleLabel, member.displayName, member.isInCountry ? "" : " (abroad)");
-        }
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Family profile (rerolls when you change options)");
+    char culturalLines[320];
+    formatFamilyCulturalGameplayLines(characterDraft.familyCulturalProfile, culturalLines, sizeof(culturalLines));
+    ImGui::TextWrapped("%s", culturalLines);
+    ImGui::Spacing();
+    for (int32_t memberIndex = 0; memberIndex < characterDraft.familyMemberCount; ++memberIndex) {
+        const FamilyMemberRecord& member = characterDraft.familyMembers[memberIndex];
+        ImGui::BulletText(
+            "%s %s - %s",
+            member.roleLabel,
+            member.displayName,
+            getFamilyMemberPresenceLabel(member.presence));
     }
     ImGui::EndChild();
 }
@@ -204,20 +184,55 @@ void renderMainMenuScreen(FrontendUiEvents& frontendUiEvents, FrontendScreen& fr
     ImGui::End();
 }
 
+void renderStartingContactsOnRecord(const CharacterDraft& characterDraft) {
+    CharacterAgentStore previewStore{};
+    buildStartingContactPreviewStore(characterDraft, previewStore);
+    ImGui::Text("Starting contacts");
+    ImGui::Separator();
+    bool hasAnyContact = false;
+    for (int32_t agentIndex = 0; agentIndex < MAX_CHARACTER_AGENT_COUNT; ++agentIndex) {
+        const CharacterAgentState* state = getCharacterAgentState(previewStore, agentIndex);
+        const char* displayName = nullptr;
+        const char* roleLabel = nullptr;
+        if (state == nullptr || !tryGetAgentDisplayLabels(previewStore, agentIndex, displayName, roleLabel)) {
+            continue;
+        }
+        hasAnyContact = true;
+        ImGui::BulletText("%s (%s)", displayName, roleLabel);
+    }
+    if (!hasAnyContact) {
+        ImGui::TextDisabled("No generated contacts this run.");
+    }
+    ImGui::Spacing();
+    if (characterDraft.familyMemberCount > 0) {
+        ImGui::Text("Household on record");
+        for (int32_t memberIndex = 0; memberIndex < characterDraft.familyMemberCount; ++memberIndex) {
+            const FamilyMemberRecord& member = characterDraft.familyMembers[memberIndex];
+            ImGui::BulletText(
+                "%s %s - %s",
+                member.roleLabel,
+                member.displayName,
+                getFamilyMemberPresenceLabel(member.presence));
+        }
+        ImGui::Spacing();
+    }
+}
+
 void renderCharacterFinalizeScreen(
     CharacterDraft& characterDraft,
     FrontendScreen& frontendScreen,
     FrontendUiEvents& frontendUiEvents) {
     normalizeCharacterDraftNames(characterDraft);
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const ImVec2 panelSize(640.0f, 480.0f);
+    const ImVec2 panelSize(720.0f, 560.0f);
     const ImVec2 panelPos(
         viewport->WorkPos.x + (viewport->WorkSize.x - panelSize.x) * 0.5f,
         viewport->WorkPos.y + (viewport->WorkSize.y - panelSize.y) * 0.5f);
     ImGui::SetNextWindowPos(panelPos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(panelSize, ImGuiCond_Always);
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    if (!ImGui::Begin("Official Record", nullptr, windowFlags)) {
+    const char* recordWindowTitle = isImmigrant ? "Immigration Intake Record" : "Certificate of Birth";
+    if (!ImGui::Begin(recordWindowTitle, nullptr, windowFlags)) {
         ImGui::End();
         return;
     }
@@ -243,14 +258,18 @@ void renderCharacterFinalizeScreen(
     } else {
         ImGui::Spacing();
         ImGui::TextWrapped(
-            "Issued by civil registry. Family ties and borough preference are noted for local records only. "
+            "Issued by civil registry. Borough preference is noted for local records. "
             "Starting funds are not disclosed on this document.");
     }
     ImGui::Spacing();
     ImGui::Separator();
-    char socialBuffer[128];
-    formatCharacterSocialSummary(characterDraft, socialBuffer, sizeof(socialBuffer));
-    ImGui::TextWrapped("%s", socialBuffer);
+    char culturalLines[320];
+    formatFamilyCulturalGameplayLines(characterDraft.familyCulturalProfile, culturalLines, sizeof(culturalLines));
+    ImGui::TextWrapped("%s", culturalLines);
+    ImGui::Spacing();
+    ImGui::Separator();
+    renderStartingContactsOnRecord(characterDraft);
+    ImGui::Separator();
     ImGui::Spacing();
     if (ImGui::Button("Begin life in New York", ImVec2(240.0f, 36.0f))) {
         frontendUiEvents.requestedStartSimulation = true;
@@ -269,10 +288,18 @@ void renderCharacterCreationScreen(
     FrontendScreen& frontendScreen,
     uint64_t worldSeed) {
     initializeCharacterDraftDefaults(characterDraft);
-    static int32_t lastRolledBoroughIndex = -1;
-    if (characterDraft.selectedBoroughIndex != lastRolledBoroughIndex) {
+    static int32_t lastPreviewSignature = -1;
+    const int32_t previewSignature = characterDraft.selectedBoroughIndex
+        + static_cast<int32_t>(characterDraft.heritageId) * 17
+        + static_cast<int32_t>(characterDraft.nationalityId) * 31
+        + static_cast<int32_t>(characterDraft.generationId) * 53
+        + static_cast<int32_t>(characterDraft.backgroundId) * 71;
+    static int32_t previewRollRevision = 0;
+    if (previewSignature != lastPreviewSignature) {
+        previewRollRevision += 1;
+        rollCharacterCreationPreview(characterDraft, worldSeed, previewRollRevision);
         rollCharacterStartPlacement(characterDraft, worldSeed);
-        lastRolledBoroughIndex = characterDraft.selectedBoroughIndex;
+        lastPreviewSignature = previewSignature;
     }
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 panelSize(960.0f, 520.0f);

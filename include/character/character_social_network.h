@@ -11,6 +11,7 @@ constexpr int32_t FRIEND_AGENT_SLOT_INDEX = 1;
 constexpr int32_t FIRST_COMMUNITY_AGENT_SLOT_INDEX = 2;
 
 void rollCharacterSocialNetwork(CharacterDraft& draft);
+void buildStartingContactPreviewStore(const CharacterDraft& draft, CharacterAgentStore& store);
 void spawnPersonalContactsFromDraft(const CharacterDraft& draft, CharacterAgentStore& store);
 void formatCharacterSocialSummary(const CharacterDraft& draft, char* outBuffer, size_t bufferSize);
 bool hasPersonalLodgingOption(const CharacterDraft& draft);

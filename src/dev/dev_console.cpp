@@ -1,4 +1,5 @@
 #include "dev/dev_console.h"
+#include "character/character_family.h"
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
 #include "game/economy_constants.h"
@@ -93,6 +94,20 @@ void logDraftFields(DevConsoleLog& log, const CharacterDraft& draft) {
             static_cast<unsigned long long>(draft.characterRollSeed));
     }
     devConsoleLogAppend(log, buffer);
+    char culturalBuffer[DEV_CONSOLE_LOG_LINE_SIZE];
+    formatFamilyCulturalGameplayLines(draft.familyCulturalProfile, culturalBuffer, sizeof(culturalBuffer));
+    devConsoleLogAppend(log, culturalBuffer);
+    for (int32_t memberIndex = 0; memberIndex < draft.familyMemberCount; ++memberIndex) {
+        const FamilyMemberRecord& member = draft.familyMembers[memberIndex];
+        std::snprintf(
+            buffer,
+            sizeof(buffer),
+            "Family: %s %s presence=%s",
+            member.roleLabel,
+            member.displayName,
+            getFamilyMemberPresenceLabel(member.presence));
+        devConsoleLogAppend(log, buffer);
+    }
 }
 
 void logWalletFields(DevConsoleLog& log, const PlayerWallet& wallet) {
@@ -202,7 +217,7 @@ void logAgentsFields(DevConsoleLog& log, const CharacterAgentStore& store) {
 }
 
 void logHelp(DevConsoleLog& log) {
-    devConsoleLogAppend(log, "Build: procgen contacts + housing ledger (save v7)");
+    devConsoleLogAppend(log, "Build: family culture, kin DPA landlord, official record contacts");
     devConsoleLogAppend(log, "Commands:");
     devConsoleLogAppend(log, "  help");
     devConsoleLogAppend(log, "  log clear");

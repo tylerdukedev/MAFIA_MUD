@@ -2,6 +2,7 @@
 #include "game/housing_living_costs.h"
 #include "game/player_employment.h"
 #include "ui/game_modal_ui.h"
+#include "game/kin_housing.h"
 #include "world/region_table.h"
 #include "sim/world_event_store.h"
 #include "game/operation_types.h"
@@ -158,6 +159,9 @@ void renderOperationsPanel(
         if (ImGui::Button(operation->displayName)) {
             if (operation->headquartersKind == HeadquartersKind::Apartment) {
                 beginApartmentApplicationModal(gameModalState, catalogIndex, simClock);
+            } else if (operation->headquartersKind == HeadquartersKind::FamilyFriendDpa) {
+                tryEstablishFamilyFriendDpaHeadquarters(
+                    playerOperationsStore, playerWallet, playerProfile, characterAgentStore, tickCount);
             } else {
                 pushSimEventWithCatalog(simEventQueue, SimEventType::EstablishOperation, catalogIndex);
             }

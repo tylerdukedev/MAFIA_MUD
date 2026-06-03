@@ -102,12 +102,14 @@ void renderBusinessNodesOnMap(
             BUSINESS_MARKER_OUTLINE_COLOR,
             0,
             1.5f);
-        const ImVec2 labelSize = ImGui::CalcTextSize(business->mapLabel);
-        const ImVec2 labelPos(centerX - labelSize.x * 0.5f, centerY + BUSINESS_MARKER_SIZE_PIXELS + BUSINESS_LABEL_OFFSET_Y);
-        const ImVec2 labelMin(labelPos.x - BUSINESS_LABEL_PADDING_X, labelPos.y - BUSINESS_LABEL_PADDING_Y);
-        const ImVec2 labelMax(labelPos.x + labelSize.x + BUSINESS_LABEL_PADDING_X, labelPos.y + labelSize.y + BUSINESS_LABEL_PADDING_Y);
-        drawList->AddRectFilled(labelMin, labelMax, IM_COL32(16, 18, 24, 210));
-        drawList->AddText(labelPos, IM_COL32(180, 210, 255, 245), business->mapLabel);
+        if (camera.pixelsPerTile >= BUSINESS_LABEL_MIN_ZOOM) {
+            const ImVec2 labelSize = ImGui::CalcTextSize(business->mapLabel);
+            const ImVec2 labelPos(centerX - labelSize.x * 0.5f, centerY + BUSINESS_MARKER_SIZE_PIXELS + BUSINESS_LABEL_OFFSET_Y);
+            const ImVec2 labelMin(labelPos.x - BUSINESS_LABEL_PADDING_X, labelPos.y - BUSINESS_LABEL_PADDING_Y);
+            const ImVec2 labelMax(labelPos.x + labelSize.x + BUSINESS_LABEL_PADDING_X, labelPos.y + labelSize.y + BUSINESS_LABEL_PADDING_Y);
+            drawList->AddRectFilled(labelMin, labelMax, IM_COL32(16, 18, 24, 210));
+            drawList->AddText(labelPos, IM_COL32(180, 210, 255, 245), business->mapLabel);
+        }
     }
 }
 

@@ -8,6 +8,8 @@
 
 namespace Core {
 
+constexpr float BUSINESS_LABEL_MIN_ZOOM = 4.5f;
+
 void renderBusinessNodesOnMap(
     ImDrawList* drawList,
     const MapCamera& camera,
