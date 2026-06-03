@@ -18,9 +18,7 @@ struct PlayerWorldState {
     int32_t homeTileX = 0;
     int32_t homeTileY = 0;
     bool hasLandlordContact = false;
-    bool isEmployed = false;
     bool isAtWork = false;
-    bool isOnWorkShiftToday = true;
     uint64_t lastWorkDayPromptTick = 0;
     uint64_t lastCommuteTick = 0;
 };

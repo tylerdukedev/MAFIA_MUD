@@ -9,6 +9,7 @@
 namespace Core {
 
 constexpr int32_t MONTHLY_LEDGER_INTERVAL_TICKS = 800;
+constexpr int32_t JOB_MONTHLY_WAGE_MULTIPLIER = 10;
 constexpr int32_t FAMILY_UPKEEP_COOLDOWN_TICKS = 160;
 constexpr int32_t MAX_FAMILY_UPKEEP_ACTION_COUNT = 8;
 constexpr int32_t FAMILY_DPA_MONTHLY_OPINION_DRAIN = 1;

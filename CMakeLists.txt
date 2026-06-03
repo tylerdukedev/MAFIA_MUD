@@ -63,6 +63,13 @@ option(CAPITALVICE_DEV_CONSOLE "Enable dev-only console with ImGui viewports" ON
 set(CHARACTER_SOURCES
     src/character/character_tables.cpp
     src/character/profile_builder.cpp
+    src/character/character_name.cpp
+)
+
+set(AGENT_RELATIONSHIP_SOURCES
+    src/sim/character_agent_store.cpp
+    src/character/character_social_network.cpp
+    src/utils/seed_hash.cpp
 )
 
 # --- Main executable ---
@@ -190,9 +197,8 @@ add_executable(save_game_test
     src/game/player_wallet.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
-    src/character/character_social_network.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
     src/sim/world_event_store.cpp
-    src/sim/character_agent_store.cpp
     src/core/sim_clock.cpp
 )
 target_include_directories(save_game_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -208,8 +214,7 @@ add_executable(world_event_test
     src/game/housing_living_costs.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
-    src/character/character_social_network.cpp
-    src/sim/character_agent_store.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
     src/world/business_node_table.cpp
     src/world/landmark_table.cpp
     src/world/tile_vitality.cpp
@@ -217,7 +222,6 @@ add_executable(world_event_test
     src/world/chunk_store.cpp
     src/world/region_table.cpp
     src/game/player_wallet.cpp
-    src/utils/seed_hash.cpp
     ${CHARACTER_SOURCES}
 )
 target_include_directories(world_event_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -226,9 +230,7 @@ catch_discover_tests(world_event_test)
 
 add_executable(character_social_network_test
     test/character_social_network_test.cpp
-    src/character/character_social_network.cpp
-    src/sim/character_agent_store.cpp
-    src/utils/seed_hash.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
     ${CHARACTER_SOURCES}
 )
 target_include_directories(character_social_network_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -241,16 +243,14 @@ add_executable(housing_living_costs_test
     src/game/housing_economy.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
-    src/character/character_social_network.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
     src/game/player_wallet.cpp
     src/world/landmark_table.cpp
     src/world/tile_vitality.cpp
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
-    src/sim/character_agent_store.cpp
     src/world/business_node_table.cpp
-    src/utils/seed_hash.cpp
     ${CHARACTER_SOURCES}
 )
 target_include_directories(housing_living_costs_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -261,10 +261,9 @@ add_executable(player_operations_test
     test/player_operations_test.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
-    src/character/character_social_network.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
     src/world/landmark_table.cpp
     src/game/player_wallet.cpp
-    src/utils/seed_hash.cpp
     ${CHARACTER_SOURCES}
 )
 target_include_directories(player_operations_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -289,10 +288,7 @@ catch_discover_tests(character_name_test)
 
 add_executable(character_agent_relationship_test
     test/character_agent_relationship_test.cpp
-    src/sim/character_agent_store.cpp
-    src/character/character_social_network.cpp
-    src/character/character_name.cpp
-    src/utils/seed_hash.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
     ${CHARACTER_SOURCES}
 )
 target_include_directories(character_agent_relationship_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -313,7 +309,7 @@ add_executable(dev_console_test
     src/game/player_wallet.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
-    src/character/character_social_network.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
     src/sim/world_event_system.cpp
     src/sim/world_event_catalog.cpp
     src/sim/world_event_store.cpp
@@ -322,10 +318,8 @@ add_executable(dev_console_test
     src/world/world_config.cpp
     src/world/chunk_store.cpp
     src/world/region_table.cpp
-    src/sim/character_agent_store.cpp
     src/world/city_control.cpp
     src/world/landmark_table.cpp
-    src/utils/seed_hash.cpp
     ${CHARACTER_SOURCES}
 )
 target_include_directories(dev_console_test PRIVATE ${CMAKE_SOURCE_DIR}/include)

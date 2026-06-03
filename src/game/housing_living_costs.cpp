@@ -17,7 +17,6 @@ constexpr int64_t APARTMENT_WATER_CLOSET_CENTS = 175;
 constexpr int64_t APARTMENT_SEWER_SCAVENGER_CENTS = 125;
 constexpr int64_t APARTMENT_ELECTRIC_CENTS = 200;
 constexpr int64_t APARTMENT_CITY_TAX_CENTS = 350;
-constexpr int32_t JOB_MONTHLY_WAGE_MULTIPLIER = 10;
 
 constexpr FamilyUpkeepActionDefinition FAMILY_UPKEEP_ACTIONS[] = {
     {"Cook dinner", 0, 2, 1, 0, FAMILY_AGENT_SLOT_INDEX},

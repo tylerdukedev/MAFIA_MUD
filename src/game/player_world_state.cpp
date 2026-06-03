@@ -15,9 +15,7 @@ void initializePlayerWorldStateFromStart(PlayerWorldState& state, int32_t startT
     state.homeTileY = startTileY;
     state.currentRegionId = static_cast<uint8_t>(regionId);
     state.hasLandlordContact = false;
-    state.isEmployed = false;
     state.isAtWork = false;
-    state.isOnWorkShiftToday = true;
 }
 
 int32_t computeTravelTicksBetweenTiles(int32_t fromTileX, int32_t fromTileY, int32_t toTileX, int32_t toTileY) {

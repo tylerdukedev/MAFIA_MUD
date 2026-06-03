@@ -42,5 +42,6 @@ TEST_CASE("Personal contacts spawn as generated characters", "[character_social_
     REQUIRE(store.states[FAMILY_AGENT_SLOT_INDEX].hasGeneratedIdentity);
     REQUIRE(store.states[FRIEND_AGENT_SLOT_INDEX].isActive);
     REQUIRE(store.states[FRIEND_AGENT_SLOT_INDEX].hasGeneratedIdentity);
-    REQUIRE(store.states[FIRST_COMMUNITY_AGENT_SLOT_INDEX].isActive);
+    REQUIRE_FALSE(store.states[FIRST_COMMUNITY_AGENT_SLOT_INDEX].isActive);
+    REQUIRE(store.states[FIRST_COMMUNITY_AGENT_SLOT_INDEX + 1].isActive);
 }

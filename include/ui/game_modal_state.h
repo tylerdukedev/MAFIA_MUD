@@ -20,6 +20,7 @@ struct GameModalState {
     int32_t interviewQuestionIndex = 0;
     int32_t interviewScore = 0;
     int32_t selectedAnswerIndex = -1;
+    bool hasFlowResult = false;
     bool isLateForWork = false;
     char statusMessage[128]{};
 };

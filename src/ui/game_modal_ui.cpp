@@ -1,11 +1,12 @@
 #include "ui/game_modal_ui.h"
+#include "character/character_social_network.h"
 #include "game/landlord_contact.h"
 #include "game/player_employment.h"
 #include "game/operation_types.h"
 #include "game/player_operations.h"
+#include "sim/character_agent.h"
 #include "world/business_node_table.h"
 #include "imgui.h"
-#include <cstdio>
 #include <cstring>
 
 namespace Core {
@@ -52,43 +53,59 @@ void setModalStatus(GameModalState& modal, const char* message) {
     modal.statusMessage[sizeof(modal.statusMessage) - 1] = '\0';
 }
 
+void openModal(GameModalState& modal, SimClock& simClock, GameModalKind kind, const char* statusMessage) {
+    resetGameModalState(modal);
+    modal.isActive = true;
+    modal.kind = kind;
+    modal.pauseSimulation = true;
+    modal.lockOtherPanels = true;
+    setModalStatus(modal, statusMessage);
+    simClock.setPaused(true);
+}
+
+bool evaluateApartmentApplicationApproval(const PlayerProfile& playerProfile, const PlayerOperationsStore& store, int32_t answerIndex) {
+    if (answerIndex == 0) {
+        return true;
+    }
+    if (answerIndex == 1) {
+        return isPlayerEmployed(store);
+    }
+    if (answerIndex == 2) {
+        return playerProfile.draft.hasFamilyInCountry || playerProfile.draft.hasFriendsInCountry;
+    }
+    return false;
+}
+
+void applyApartmentLieConsequences(CharacterAgentStore& agentStore, int32_t answerIndex, bool wasApproved) {
+    if (!wasApproved || answerIndex == 0) {
+        return;
+    }
+    const int32_t landlordSlot = FIRST_COMMUNITY_AGENT_SLOT_INDEX;
+    if (!agentStore.states[landlordSlot].isActive) {
+        return;
+    }
+    int32_t opinionDelta = -6;
+    if (answerIndex == 1) {
+        opinionDelta = -10;
+    }
+    adjustAgentOpinion(agentStore, landlordSlot, opinionDelta);
+}
+
 } // namespace
 
 void beginJobInterviewModal(GameModalState& modal, int32_t businessNodeIndex, SimClock& simClock) {
-    resetGameModalState(modal);
-    modal.isActive = true;
-    modal.kind = GameModalKind::JobInterview;
-    modal.pauseSimulation = true;
-    modal.lockOtherPanels = true;
+    openModal(modal, simClock, GameModalKind::JobInterview, "Job interview in progress.");
     modal.businessNodeIndex = businessNodeIndex;
-    modal.interviewQuestionIndex = 0;
-    modal.interviewScore = 0;
-    modal.selectedAnswerIndex = -1;
-    setModalStatus(modal, "Job interview in progress.");
-    simClock.setPaused(true);
 }
 
 void beginApartmentApplicationModal(GameModalState& modal, int32_t catalogIndex, SimClock& simClock) {
-    resetGameModalState(modal);
-    modal.isActive = true;
-    modal.kind = GameModalKind::ApartmentApplication;
-    modal.pauseSimulation = true;
-    modal.lockOtherPanels = true;
+    openModal(modal, simClock, GameModalKind::ApartmentApplication, "Rental application — answer honestly or bluff.");
     modal.businessNodeIndex = catalogIndex;
-    modal.selectedAnswerIndex = -1;
-    setModalStatus(modal, "Rental application — answer honestly or bluff.");
-    simClock.setPaused(true);
 }
 
 void beginWorkDayCommuteModal(GameModalState& modal, bool isLateForWork, SimClock& simClock) {
-    resetGameModalState(modal);
-    modal.isActive = true;
-    modal.kind = GameModalKind::WorkDayCommute;
-    modal.pauseSimulation = true;
-    modal.lockOtherPanels = true;
+    openModal(modal, simClock, GameModalKind::WorkDayCommute, isLateForWork ? "You are running late for your shift." : "Your shift starts soon.");
     modal.isLateForWork = isLateForWork;
-    setModalStatus(modal, isLateForWork ? "You are running late for your shift." : "Your shift starts soon.");
-    simClock.setPaused(true);
 }
 
 void tickWorkDayCommutePrompt(
@@ -97,13 +114,18 @@ void tickWorkDayCommutePrompt(
     const PlayerOperationsStore& playerOperationsStore,
     SimClock& simClock,
     uint64_t tickCount) {
-    if (modal.isActive || !isPlayerEmployed(playerOperationsStore) || !playerWorldState.isOnWorkShiftToday) {
+    constexpr uint64_t WORK_SHIFT_DURATION_TICKS = static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS / 2);
+    if (playerWorldState.isAtWork && playerWorldState.lastWorkDayPromptTick > 0
+        && tickCount >= playerWorldState.lastWorkDayPromptTick + WORK_SHIFT_DURATION_TICKS) {
+        playerWorldState.isAtWork = false;
+    }
+    if (modal.isActive || !isPlayerEmployed(playerOperationsStore) || playerWorldState.isAtWork) {
         return;
     }
-    if (tickCount < playerWorldState.lastWorkDayPromptTick + static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS)) {
+    if (playerWorldState.lastWorkDayPromptTick > 0
+        && tickCount < playerWorldState.lastWorkDayPromptTick + static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS)) {
         return;
     }
-    playerWorldState.lastWorkDayPromptTick = tickCount;
     const bool isLate = (tickCount % static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS)) > static_cast<uint64_t>(WORK_DAY_INTERVAL_TICKS / 4);
     beginWorkDayCommuteModal(modal, isLate, simClock);
 }
@@ -119,7 +141,6 @@ void renderGameModalOverlay(
     const PlayerProfile& playerProfile,
     uint64_t tickCount) {
     (void)simEventQueue;
-    (void)tickCount;
     if (!modal.isActive) {
         return;
     }
@@ -140,13 +161,11 @@ void renderGameModalOverlay(
         }
         ImGui::Separator();
         if (modal.interviewQuestionIndex >= JOB_INTERVIEW_QUESTION_COUNT) {
-            const bool hired = tryHirePlayerAtBusiness(
-                playerOperationsStore, playerProfile, modal.businessNodeIndex, modal.interviewScore);
-            if (hired) {
-                playerWorldState.isEmployed = true;
-                setModalStatus(modal, "You are hired. Wages accrue while employed.");
-            } else {
-                setModalStatus(modal, "They passed on you this time.");
+            if (!modal.hasFlowResult) {
+                const bool hired = tryHirePlayerAtBusiness(
+                    playerOperationsStore, playerProfile, modal.businessNodeIndex, modal.interviewScore);
+                setModalStatus(modal, hired ? "You are hired. Wages accrue while employed." : "They passed on you this time.");
+                modal.hasFlowResult = true;
             }
             ImGui::TextWrapped("%s", modal.statusMessage);
             if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
@@ -180,42 +199,38 @@ void renderGameModalOverlay(
     } else if (modal.kind == GameModalKind::ApartmentApplication) {
         ImGui::Text("Apartment Rental Application");
         ImGui::Separator();
-        ImGui::TextWrapped("The landlord asks about income and references. Your answers are binding.");
-        ImGui::Spacing();
-        if (ImGui::Selectable("Truthful: modest savings, no steady job yet", modal.selectedAnswerIndex == 0)) {
-            modal.selectedAnswerIndex = 0;
-        }
-        if (ImGui::Selectable("Lie: claim high wages from a job you do not have", modal.selectedAnswerIndex == 1)) {
-            modal.selectedAnswerIndex = 1;
-        }
-        if (ImGui::Selectable("Lie: claim family vouches for you (risky if untrue)", modal.selectedAnswerIndex == 2)) {
-            modal.selectedAnswerIndex = 2;
-        }
-        if (modal.selectedAnswerIndex >= 0 && ImGui::Button("Submit application", ImVec2(200.0f, 0.0f))) {
-            const int32_t catalogIndex = modal.businessNodeIndex;
-            bool approved = false;
-            if (modal.selectedAnswerIndex == 0) {
-                approved = true;
-            } else if (modal.selectedAnswerIndex == 1) {
-                approved = isPlayerEmployed(playerOperationsStore);
-            } else if (modal.selectedAnswerIndex == 2) {
-                approved = playerProfile.draft.hasFamilyInCountry || playerProfile.draft.hasFriendsInCountry;
-            }
-            if (approved && tryEstablishOperation(playerOperationsStore, playerWallet, playerProfile, catalogIndex, tickCount)) {
-                spawnLandlordContact(characterAgentStore);
-                playerWorldState.hasLandlordContact = true;
-                setModalStatus(modal, "Approved. Morris Schwartz is now a contact.");
-            } else if (!approved) {
-                setModalStatus(modal, "Denied — your story did not hold up.");
-            } else {
-                setModalStatus(modal, "Could not complete move-in (cash or requirements).");
-            }
-            modal.interviewQuestionIndex = 1;
-        }
-        if (modal.interviewQuestionIndex > 0) {
+        if (modal.hasFlowResult) {
             ImGui::TextWrapped("%s", modal.statusMessage);
             if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
                 closeModal(modal, simClock);
+            }
+        } else {
+            ImGui::TextWrapped("The landlord asks about income and references. Your answers are binding.");
+            ImGui::Spacing();
+            if (ImGui::Selectable("Truthful: modest savings, no steady job yet", modal.selectedAnswerIndex == 0)) {
+                modal.selectedAnswerIndex = 0;
+            }
+            if (ImGui::Selectable("Lie: claim high wages from a job you do not have", modal.selectedAnswerIndex == 1)) {
+                modal.selectedAnswerIndex = 1;
+            }
+            if (ImGui::Selectable("Lie: claim family vouches for you (risky if untrue)", modal.selectedAnswerIndex == 2)) {
+                modal.selectedAnswerIndex = 2;
+            }
+            if (modal.selectedAnswerIndex >= 0 && ImGui::Button("Submit application", ImVec2(200.0f, 0.0f))) {
+                const int32_t catalogIndex = modal.businessNodeIndex;
+                const int32_t answerIndex = modal.selectedAnswerIndex;
+                const bool approved = evaluateApartmentApplicationApproval(playerProfile, playerOperationsStore, answerIndex);
+                if (approved && tryEstablishOperation(playerOperationsStore, playerWallet, playerProfile, catalogIndex, tickCount)) {
+                    spawnLandlordContact(characterAgentStore);
+                    playerWorldState.hasLandlordContact = true;
+                    applyApartmentLieConsequences(characterAgentStore, answerIndex, true);
+                    setModalStatus(modal, "Approved. Morris Schwartz is now a contact.");
+                } else if (!approved) {
+                    setModalStatus(modal, "Denied — your story did not hold up.");
+                } else {
+                    setModalStatus(modal, "Could not complete move-in (cash or requirements).");
+                }
+                modal.hasFlowResult = true;
             }
         }
     } else if (modal.kind == GameModalKind::WorkDayCommute) {
@@ -224,18 +239,21 @@ void renderGameModalOverlay(
         ImGui::TextWrapped("%s", modal.statusMessage);
         if (ImGui::Button("Go to work (on time)", ImVec2(200.0f, 0.0f))) {
             playerWorldState.isAtWork = true;
-            playerWorldState.isOnWorkShiftToday = false;
+            playerWorldState.lastWorkDayPromptTick = tickCount;
+            modal.isLateForWork = false;
             closeModal(modal, simClock);
         }
         ImGui::SameLine();
         if (ImGui::Button("Go to work (late)", ImVec2(200.0f, 0.0f))) {
             playerWorldState.isAtWork = true;
-            playerWorldState.isOnWorkShiftToday = false;
+            playerWorldState.lastWorkDayPromptTick = tickCount;
+            modal.isLateForWork = true;
+            setModalStatus(modal, "You clocked in late. Expect reduced pay until travel rules expand.");
             closeModal(modal, simClock);
         }
         if (ImGui::Button("Call out / skip shift", ImVec2(200.0f, 0.0f))) {
             playerWorldState.isAtWork = false;
-            playerWorldState.isOnWorkShiftToday = false;
+            playerWorldState.lastWorkDayPromptTick = tickCount;
             closeModal(modal, simClock);
         }
     }
