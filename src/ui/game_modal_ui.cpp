@@ -2,7 +2,10 @@
 #include "character/character_social_network.h"
 #include "game/landlord_contact.h"
 #include "game/player_employment.h"
+#include "game/crime_legal_tier.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
+#include "game/player_wallet.h"
 #include "game/player_organization.h"
 #include "game/player_organization_ui.h"
 #include "game/operation_types.h"
@@ -127,6 +130,31 @@ void beginOrganizationCreationModal(GameModalState& modal, SimClock& simClock) {
     std::snprintf(modal.organizationFrontBuffer, sizeof(modal.organizationFrontBuffer), "%s", "Import & Storage");
 }
 
+void beginBondHearingModal(GameModalState& modal, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::BondHearing, "Arraignment — post bond or wait for court in lockup.");
+}
+
+void beginCourtHearingModal(GameModalState& modal, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::CourtHearing, "Court is in session — the judge will rule on your case.");
+}
+
+void tickCriminalJusticeModals(
+    GameModalState& modal,
+    PlayerCriminalJusticeStore& justiceStore,
+    SimClock& simClock) {
+    if (modal.isActive) {
+        return;
+    }
+    const CustodyPhase phase = getPlayerCustodyPhase(justiceStore);
+    if (phase == CustodyPhase::Arrested || phase == CustodyPhase::InJail) {
+        beginBondHearingModal(modal, simClock);
+        return;
+    }
+    if (phase == CustodyPhase::AwaitingCourt && isPlayerCourtModalPending(justiceStore)) {
+        beginCourtHearingModal(modal, simClock);
+    }
+}
+
 void tickWorkDayCommutePrompt(
     GameModalState& modal,
     PlayerWorldState& playerWorldState,
@@ -155,6 +183,7 @@ void renderGameModalOverlay(
     PlayerOperationsStore& playerOperationsStore,
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     PlayerWallet& playerWallet,
     PlayerWorldState& playerWorldState,
     CharacterAgentStore& characterAgentStore,
@@ -347,7 +376,7 @@ void renderGameModalOverlay(
         ImGui::Text("Organization incorporation");
         ImGui::Separator();
         const OrganizationFormLockReason lockReason = evaluateOrganizationFormLock(
-            playerOrganizationStore, playerLawEnforcementStore, playerProfile, playerWallet);
+            playerOrganizationStore, playerLawEnforcementStore, playerCriminalJusticeStore, playerProfile, playerWallet);
         ImGui::TextDisabled("%s", organizationFormLockReasonToString(lockReason));
         if (modal.hasFlowResult) {
             ImGui::TextWrapped("%s", modal.statusMessage);
@@ -378,6 +407,52 @@ void renderGameModalOverlay(
             if (lockReason != OrganizationFormLockReason::None) {
                 ImGui::EndDisabled();
             }
+        }
+    } else if (modal.kind == GameModalKind::BondHearing) {
+        ImGui::Text("Bond hearing");
+        ImGui::Separator();
+        ImGui::TextWrapped("%s", playerCriminalJusticeStore.lastCustodyLabel);
+        ImGui::Text("Status: %s", custodyPhaseToString(getPlayerCustodyPhase(playerCriminalJusticeStore)));
+        char bondBuffer[32];
+        formatCashCents(bondBuffer, sizeof(bondBuffer), playerCriminalJusticeStore.bondCents);
+        ImGui::Text("Bond amount: %s", bondBuffer);
+        ImGui::TextDisabled("While you are inside, rivals may move on your territory.");
+        if (ImGui::Button("Post bond", ImVec2(160.0f, 0.0f))) {
+            if (tryPayPlayerBond(playerCriminalJusticeStore, playerWallet, tickCount)) {
+                setModalStatus(modal, "Bond posted. Court date scheduled.");
+                closeModal(modal, simClock);
+            } else {
+                setModalStatus(modal, "Not enough cash for bond.");
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Stay inside", ImVec2(160.0f, 0.0f))) {
+            setModalStatus(modal, "You wait it out in county jail.");
+            closeModal(modal, simClock);
+        }
+    } else if (modal.kind == GameModalKind::CourtHearing) {
+        ImGui::Text("Court");
+        ImGui::Separator();
+        const CrimeLegalTier tier = static_cast<CrimeLegalTier>(playerCriminalJusticeStore.pendingLegalTier);
+        ImGui::Text("Charge tier: %s", crimeLegalTierToString(tier));
+        ImGui::Text("Evidence score: %d", playerLawEnforcementStore.evidenceScore);
+        if (modal.hasFlowResult) {
+            ImGui::TextWrapped("%s", modal.statusMessage);
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else if (ImGui::Button("Enter courtroom", ImVec2(200.0f, 0.0f))) {
+            resolvePlayerCourt(playerCriminalJusticeStore, playerLawEnforcementStore, worldSeed, tickCount);
+            const CourtOutcome outcome = static_cast<CourtOutcome>(playerCriminalJusticeStore.lastCourtOutcome);
+            char outcomeBuffer[96];
+            std::snprintf(
+                outcomeBuffer,
+                sizeof(outcomeBuffer),
+                "Ruling: %s — %s",
+                courtOutcomeToString(outcome),
+                playerCriminalJusticeStore.lastCustodyLabel);
+            setModalStatus(modal, outcomeBuffer);
+            modal.hasFlowResult = true;
         }
     }
     ImGui::End();

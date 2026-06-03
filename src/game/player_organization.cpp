@@ -1,4 +1,5 @@
 #include "game/player_organization.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/street_crime.h"
 #include "utils/seed_hash.h"
@@ -143,8 +144,12 @@ bool tryFormalizeCrew(PlayerOrganizationStore& store, const char* crewNameInput,
 OrganizationFormLockReason evaluateOrganizationFormLock(
     const PlayerOrganizationStore& store,
     const PlayerLawEnforcementStore& lawStore,
+    const PlayerCriminalJusticeStore& justiceStore,
     const PlayerProfile& profile,
     const PlayerWallet& wallet) {
+    if (isPlayerFullyIncarcerated(justiceStore)) {
+        return OrganizationFormLockReason::Incarcerated;
+    }
     if (store.powerTier != PlayerPowerTier::Crew) {
         return OrganizationFormLockReason::NotCrewTier;
     }

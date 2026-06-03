@@ -1,5 +1,6 @@
 #include "sim/city_control_system.h"
 #include "sim/sim_event_queue.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
 #include "world/landmark_table.h"
@@ -34,8 +35,9 @@ void boostPlayerInfluenceAtLandmark(ChunkStore& chunkStore, const LandmarkDefini
 }
 } // namespace
 
-void CityControlSystem::bind(const SimWorldBindings& inputBindings) {
+void CityControlSystem::bind(const SimWorldBindings& inputBindings, PlayerCriminalJusticeStore* inputJusticeStore) {
     bindings = inputBindings;
+    justiceStore = inputJusticeStore;
 }
 
 const char* CityControlSystem::getName() const {
@@ -55,6 +57,9 @@ void CityControlSystem::processClaimCityEvent(const SimEvent& event, uint64_t ti
         return;
     }
     if (bindings.playerOperationsStore == nullptr || bindings.playerProfile == nullptr) {
+        return;
+    }
+    if (justiceStore != nullptr && isPlayerFullyIncarcerated(*justiceStore)) {
         return;
     }
     int64_t claimCostCents = 0;

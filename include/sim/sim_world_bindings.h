@@ -1,6 +1,7 @@
 #pragma once
 
 #include "character/player_profile.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
@@ -29,6 +30,7 @@ struct SimWorldBindings {
     PlayerOperationsStore* playerOperationsStore = nullptr;
     PlayerOrganizationStore* playerOrganizationStore = nullptr;
     PlayerLawEnforcementStore* playerLawEnforcementStore = nullptr;
+    PlayerCriminalJusticeStore* playerCriminalJusticeStore = nullptr;
     PlayerStreetCrimeStore* playerStreetCrimeStore = nullptr;
     CharacterAgentStore* characterAgentStore = nullptr;
     WorldEventStore* worldEventStore = nullptr;

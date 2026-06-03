@@ -4,6 +4,7 @@
 #include "sim/city_control_system.h"
 #include "sim/economy_system.h"
 #include "sim/operation_system.h"
+#include "sim/criminal_justice_system.h"
 #include "sim/police_system.h"
 #include "sim/street_crime_system.h"
 #include "sim/world_event_system.h"
@@ -20,7 +21,8 @@ public:
         const SimWorldBindings& bindings,
         CharacterAgentStore* agentStore,
         PlayerStreetCrimeStore* crimeStore,
-        PlayerLawEnforcementStore* lawStore);
+        PlayerLawEnforcementStore* lawStore,
+        PlayerCriminalJusticeStore* justiceStore);
     void runTick(uint64_t tickCount);
     int32_t getSystemCount() const;
     const ISimSystem* getSystem(int32_t index) const;
@@ -33,6 +35,7 @@ private:
     CityControlSystem cityControlSystem;
     WorldEventSystem worldEventSystem;
     PoliceSystem policeSystem;
+    CriminalJusticeSystem criminalJusticeSystem;
     EconomySystem economySystem;
     BoroughVitalitySystem boroughVitalitySystem;
     ISimSystem* systems[12];

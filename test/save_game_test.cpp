@@ -80,7 +80,8 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         sourceAgents,
         PlayerOrganizationStore{},
         PlayerLawEnforcementStore{},
-        PlayerStreetCrimeStore{}));
+        PlayerStreetCrimeStore{},
+        PlayerCriminalJusticeStore{}));
     REQUIRE(saveGameToFile(TEST_SAVE_PATH, snapshot));
     REQUIRE(saveFileExists(TEST_SAVE_PATH));
     SaveGameSnapshot loadedSnapshot{};
@@ -97,6 +98,7 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     PlayerOrganizationStore loadedOrganization{};
     PlayerLawEnforcementStore loadedLaw{};
     PlayerStreetCrimeStore loadedStreetCrime{};
+    PlayerCriminalJusticeStore loadedJustice{};
     uint64_t loadedSeed = 0;
     REQUIRE(applySaveSnapshot(
         loadedSnapshot,
@@ -112,7 +114,8 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         loadedAgents,
         loadedOrganization,
         loadedLaw,
-        loadedStreetCrime));
+        loadedStreetCrime,
+        loadedJustice));
     const WorldCoord sampleCoord{200, 180};
     REQUIRE(loadedSeed == DEFAULT_WORLD_SEED);
     REQUIRE(loadedDraft.heritageId == sourceDraft.heritageId);

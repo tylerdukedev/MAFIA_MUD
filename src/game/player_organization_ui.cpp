@@ -49,6 +49,8 @@ const char* organizationFormLockReasonToString(OrganizationFormLockReason reason
         return "Police heat too high";
     case OrganizationFormLockReason::ActiveWarrant:
         return "Active warrant blocks incorporation";
+    case OrganizationFormLockReason::Incarcerated:
+        return "Cannot incorporate while in custody";
     default:
         return "Locked";
     }

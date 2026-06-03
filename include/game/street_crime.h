@@ -2,6 +2,8 @@
 
 #include "character/character_social_network.h"
 #include "character/player_profile.h"
+#include "game/crime_legal_tier.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
@@ -13,9 +15,6 @@ namespace Core {
 
 constexpr int32_t MAX_STREET_CRIME_COUNT = 8;
 constexpr int32_t STREET_CRIME_BROKE_CASH_THRESHOLD_CENTS = 500;
-constexpr int32_t RIVAL_AGENT_SLOT_INDEX = FIRST_COMMUNITY_AGENT_SLOT_INDEX + 3;
-constexpr int32_t BEAT_COP_AGENT_SLOT_INDEX = FIRST_COMMUNITY_AGENT_SLOT_INDEX + 1;
-
 enum class StreetCrimeTier : uint8_t {
     Solo = 0,
     Crew = 1,
@@ -34,6 +33,9 @@ enum class StreetCrimeLockReason : uint8_t {
     NeedsCrewTier = 8,
     NeedsOrganizationTier = 9,
     ActiveWarrant = 10,
+    Incarcerated = 11,
+    LegalTierRestricted = 12,
+    OnProbationOnly = 13,
 };
 
 struct StreetCrimeDefinition {
@@ -41,6 +43,7 @@ struct StreetCrimeDefinition {
     const char* displayName;
     const char* description;
     StreetCrimeTier tier;
+    CrimeLegalTier legalTier;
     int32_t cooldownTicks;
     int32_t heatOnSuccess;
     int32_t heatOnFailure;
@@ -67,6 +70,7 @@ StreetCrimeLockReason evaluateStreetCrimeLock(
     const PlayerOperationsStore& operationsStore,
     const PlayerStreetCrimeStore& crimeStore,
     const PlayerLawEnforcementStore& lawStore,
+    const PlayerCriminalJusticeStore& justiceStore,
     const PlayerOrganizationStore& organizationStore,
     const PlayerProfile& profile,
     const CharacterAgentStore& agentStore,
@@ -77,6 +81,7 @@ bool tryCommitStreetCrime(
     const PlayerOperationsStore& operationsStore,
     PlayerStreetCrimeStore& crimeStore,
     PlayerLawEnforcementStore& lawStore,
+    PlayerCriminalJusticeStore& justiceStore,
     const PlayerOrganizationStore& organizationStore,
     PlayerWallet& wallet,
     CharacterAgentStore& agentStore,

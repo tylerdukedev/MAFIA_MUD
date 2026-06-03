@@ -1,22 +1,25 @@
 #pragma once
 
 #include "game/player_criminal_justice.h"
+#include "game/player_law_enforcement.h"
 #include "sim/isim_system.h"
-#include "sim/sim_event_queue.h"
 #include "sim/sim_world_bindings.h"
 
 namespace Core {
 
-class CityControlSystem final : public ISimSystem {
+class CriminalJusticeSystem final : public ISimSystem {
 public:
-    void bind(const SimWorldBindings& bindings, PlayerCriminalJusticeStore* inputJusticeStore);
+    void bind(
+        const SimWorldBindings& inputBindings,
+        PlayerCriminalJusticeStore* inputJusticeStore,
+        PlayerLawEnforcementStore* inputLawStore);
     const char* getName() const override;
     void onTick(uint64_t tickCount) override;
 
 private:
     SimWorldBindings bindings{};
     PlayerCriminalJusticeStore* justiceStore = nullptr;
-    void processClaimCityEvent(const SimEvent& event, uint64_t tickCount);
+    PlayerLawEnforcementStore* lawStore = nullptr;
 };
 
 } // namespace Core

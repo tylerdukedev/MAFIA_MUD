@@ -2,6 +2,7 @@
 
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
@@ -20,12 +21,19 @@ void beginWorkDayCommuteModal(GameModalState& modal, bool isLateForWork, SimCloc
 void beginCrewRecruitmentModal(GameModalState& modal, int32_t agentIndex, SimClock& simClock);
 void beginCrewFormalizeModal(GameModalState& modal, SimClock& simClock);
 void beginOrganizationCreationModal(GameModalState& modal, SimClock& simClock);
+void beginBondHearingModal(GameModalState& modal, SimClock& simClock);
+void beginCourtHearingModal(GameModalState& modal, SimClock& simClock);
+void tickCriminalJusticeModals(
+    GameModalState& modal,
+    PlayerCriminalJusticeStore& justiceStore,
+    SimClock& simClock);
 void renderGameModalOverlay(
     GameModalState& modal,
     SimClock& simClock,
     PlayerOperationsStore& playerOperationsStore,
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     PlayerWallet& playerWallet,
     PlayerWorldState& playerWorldState,
     CharacterAgentStore& characterAgentStore,

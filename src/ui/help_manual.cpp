@@ -232,13 +232,22 @@ constexpr const char* P_STREET_CRIME[] = {
     "After two recruits, formalize the crew in Operations. Incorporate when network, crime record, and heat allow.",
     "Solo crimes work at any tier; crew crimes need Crew+; organization crimes need Organization tier.",
     "Witnesses can appear after crimes — higher notoriety (heat, reputation, tier) raises witness chance and warrants.",
+    "Financial-tier crimes (e.g. import skim) need organization power tier and clear probation/parole gates.",
 };
 
 constexpr const char* P_POLICE_HEAT[] = {
     "Personal heat tracks how much local law enforcement is watching you (0–100).",
     "Tiers: off the radar, on the beat's notes, under watch, active case file.",
-    "Street crimes, failed jobs, and future raids will feed heat; beat cop opinion reacts to trouble.",
-    "Foundation only in this build — warrants, raids, and trials will hook into the same meter later.",
+    "Witnesses after crimes build evidence; warrants issue when evidence and heat cross thresholds.",
+    "Arrest rolls increase with warrants and heat. Failed street crimes can trigger pickup.",
+};
+
+constexpr const char* P_CRIMINAL_JUSTICE[] = {
+    "Legal tiers gate crimes: petty street, street, organization, financial (see each crime's tier).",
+    "Arrest → bond hearing modal (pay bond or wait in jail) → court modal → acquittal, probation, or prison.",
+    "Prison sentences are short in sim time (~5–15 seconds at 1x) but the world keeps moving.",
+    "While incarcerated, rivals can seize a city you claimed. Probation limits you to petty/street tier; parole allows organization tier.",
+    "Community NPCs can also be jailed briefly under the same justice tick (contacts panel shows active agents).",
 };
 
 constexpr const char* P_BUSINESS_PANEL[] = {
@@ -340,14 +349,14 @@ constexpr const char* P_VIEW_MENU[] = {
 };
 
 constexpr const char* P_SAVE_LOAD[] = {
-    "Saves to capitalvice_save.dat (v9). Stores character, world, wallet, housing, contacts, crew tier, police heat/warrants, and crime cooldowns.",
+    "Saves to capitalvice_save.dat (v10). Stores character, world, wallet, housing, contacts, crew tier, police, jail/probation/parole, and crime cooldowns.",
     "Save with Ctrl+S or the File menu while in-game. Load from the main menu or File menu when a save exists.",
 };
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
 constexpr const char* P_DEV_CONSOLE[] = {
     "Dev builds only. F12 toggles a command console for profile inspection and tweaks.",
-    "Commands: help, log clear, profile dump, draft show, wallet/cities/operations/crew/law/agents show (in-game), profile set ..., network/legitimacy/loyalty/culture/paths show.",
+    "Commands: help, log clear, profile dump, draft show, wallet/cities/operations/crew/law/justice show (in-game), justice arrest|release, profile set ..., network/legitimacy/loyalty/culture/paths show.",
 };
 #endif
 
@@ -443,7 +452,7 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"windows_menu", "Interface", "Windows Menu", "Toggle panels", P_WINDOWS_MENU, 1},
     {"contacts_panel", "Simulation / Characters", "Contacts Panel", "AI opinions", P_CONTACTS_PANEL, 2},
 
-    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v9", P_SAVE_LOAD, 2},
+    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v10", P_SAVE_LOAD, 2},
     {"power_tier", "Simulation / Crime", "Power Tier", "Solo, crew, organization", P_STREET_CRIME, 3},
 
 #if defined(CAPITALVICE_DEV_CONSOLE)

@@ -84,8 +84,11 @@ set(CAPITAL_VICE_SOURCES
     src/sim/city_control_system.cpp
     src/sim/operation_system.cpp
     src/sim/police_system.cpp
+    src/sim/criminal_justice_system.cpp
     src/sim/street_crime_system.cpp
     src/game/street_crime.cpp
+    src/game/crime_legal_tier.cpp
+    src/game/player_criminal_justice.cpp
     src/game/player_law_enforcement.cpp
     src/game/player_organization.cpp
     src/game/player_organization_ui.cpp
@@ -208,6 +211,8 @@ add_executable(save_game_test
     src/game/operation_catalog.cpp
     src/game/player_organization.cpp
     src/game/player_law_enforcement.cpp
+    src/game/player_criminal_justice.cpp
+    src/game/crime_legal_tier.cpp
     src/game/street_crime.cpp
     ${AGENT_RELATIONSHIP_SOURCES}
     src/character/character_name_pools.cpp
@@ -292,15 +297,36 @@ target_include_directories(game_integration_test PRIVATE ${CMAKE_SOURCE_DIR}/inc
 target_link_libraries(game_integration_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(game_integration_test)
 
+add_executable(criminal_justice_test
+    test/criminal_justice_test.cpp
+    src/game/player_criminal_justice.cpp
+    src/game/crime_legal_tier.cpp
+    src/game/player_law_enforcement.cpp
+    src/game/player_organization.cpp
+    src/game/player_operations.cpp
+    src/game/operation_catalog.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
+    src/game/player_wallet.cpp
+    src/world/city_control.cpp
+    src/world/landmark_table.cpp
+    ${CHARACTER_SOURCES}
+)
+target_include_directories(criminal_justice_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(criminal_justice_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(criminal_justice_test)
+
 add_executable(street_crime_test
     test/street_crime_test.cpp
     src/game/street_crime.cpp
+    src/game/player_criminal_justice.cpp
+    src/game/crime_legal_tier.cpp
     src/game/player_organization.cpp
     src/game/player_law_enforcement.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
     ${AGENT_RELATIONSHIP_SOURCES}
     src/game/player_wallet.cpp
+    src/world/city_control.cpp
     src/world/landmark_table.cpp
     ${CHARACTER_SOURCES}
 )
@@ -313,11 +339,14 @@ add_executable(player_organization_test
     src/game/player_organization.cpp
     src/game/player_organization_ui.cpp
     src/game/street_crime.cpp
+    src/game/player_criminal_justice.cpp
+    src/game/crime_legal_tier.cpp
     src/game/player_law_enforcement.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
     ${AGENT_RELATIONSHIP_SOURCES}
     src/game/player_wallet.cpp
+    src/world/city_control.cpp
     src/world/landmark_table.cpp
     ${CHARACTER_SOURCES}
 )
@@ -390,6 +419,8 @@ add_executable(dev_console_test
     src/world/city_control.cpp
     src/world/landmark_table.cpp
     src/game/player_law_enforcement.cpp
+    src/game/player_criminal_justice.cpp
+    src/game/crime_legal_tier.cpp
     src/game/player_organization.cpp
     ${CHARACTER_SOURCES}
 )

@@ -6,10 +6,12 @@ namespace Core {
 void StreetCrimeSystem::bind(
     const SimWorldBindings& inputBindings,
     PlayerStreetCrimeStore* inputCrimeStore,
-    PlayerLawEnforcementStore* inputLawStore) {
+    PlayerLawEnforcementStore* inputLawStore,
+    PlayerCriminalJusticeStore* inputJusticeStore) {
     bindings = inputBindings;
     crimeStore = inputCrimeStore;
     lawStore = inputLawStore;
+    justiceStore = inputJusticeStore;
 }
 
 const char* StreetCrimeSystem::getName() const {
@@ -27,6 +29,7 @@ void StreetCrimeSystem::processCommitStreetCrimeEvent(const SimEvent& event, uin
         *bindings.playerOperationsStore,
         *crimeStore,
         *lawStore,
+        *justiceStore,
         *bindings.playerOrganizationStore,
         *bindings.playerWallet,
         *bindings.characterAgentStore,

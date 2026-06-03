@@ -17,6 +17,7 @@ constexpr float IMMIGRANT_CRIME_INCOME_SCALE = 1.25f;
 constexpr float BOOKKEEPER_LEGIT_INCOME_SCALE = 1.35f;
 constexpr float STREET_HUSTLER_CRIME_INCOME_SCALE = 1.20f;
 constexpr uint8_t PLAYER_OWNER_ID = 1;
+constexpr uint8_t RIVAL_OWNER_ID = 2;
 constexpr uint8_t CITY_OWNER_NONE = 0;
 
 enum class WalletDeltaKind : uint8_t {

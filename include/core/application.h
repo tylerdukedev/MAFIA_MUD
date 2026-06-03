@@ -9,6 +9,7 @@
 #include "ui/context_help.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
@@ -56,6 +57,7 @@ private:
     PlayerOrganizationStore playerOrganizationStore{};
     PlayerStreetCrimeStore playerStreetCrimeStore{};
     PlayerLawEnforcementStore playerLawEnforcementStore{};
+    PlayerCriminalJusticeStore playerCriminalJusticeStore{};
     CharacterAgentStore characterAgentStore{};
     CityControlStore cityControlStore{};
     GamePanelVisibility panelVisibility{};

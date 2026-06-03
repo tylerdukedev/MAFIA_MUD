@@ -236,6 +236,7 @@ void Application::renderFrame() {
             playerOrganizationStore,
             playerStreetCrimeStore,
             playerLawEnforcementStore,
+            playerCriminalJusticeStore,
             characterAgentStore,
             worldEventStore,
             cityControlStore,
@@ -260,6 +261,7 @@ void Application::renderFrame() {
     devGameplaySnapshot.playerOperationsStore = isWorldReady ? &playerOperationsStore : nullptr;
     devGameplaySnapshot.playerOrganizationStore = isWorldReady ? &playerOrganizationStore : nullptr;
     devGameplaySnapshot.playerLawEnforcementStore = isWorldReady ? &playerLawEnforcementStore : nullptr;
+    devGameplaySnapshot.playerCriminalJusticeStore = isWorldReady ? &playerCriminalJusticeStore : nullptr;
     devGameplaySnapshot.characterAgentStore = isWorldReady ? &characterAgentStore : nullptr;
     devGameplaySnapshot.worldEventStore = isWorldReady ? &worldEventStore : nullptr;
     devGameplaySnapshot.tickCount = simClock.getTickCount();
@@ -284,6 +286,7 @@ void Application::startNewSimulation() {
     resetPlayerOrganizationStore(playerOrganizationStore);
     resetPlayerStreetCrimeStore(playerStreetCrimeStore);
     resetPlayerLawEnforcementStore(playerLawEnforcementStore);
+    resetPlayerCriminalJusticeStore(playerCriminalJusticeStore);
     resetPlayerWorldState(playerWorldState);
     resetGameModalState(gameModalState);
     resetWorldEventStore(worldEventStore);
@@ -307,10 +310,11 @@ void Application::startNewSimulation() {
         &playerOperationsStore,
         &playerOrganizationStore,
         &playerLawEnforcementStore,
+        &playerCriminalJusticeStore,
         &playerStreetCrimeStore,
         &characterAgentStore,
         &worldEventStore};
-    systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore);
+    systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore, &playerCriminalJusticeStore);
     requestDefaultDockLayoutOnNextFrame();
     panelVisibility = GamePanelVisibility{};
     mapCamera = MapCamera{};
@@ -348,7 +352,8 @@ bool Application::saveCurrentGame() {
             characterAgentStore,
             playerOrganizationStore,
             playerLawEnforcementStore,
-            playerStreetCrimeStore)) {
+            playerStreetCrimeStore,
+            playerCriminalJusticeStore)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
     }
@@ -384,7 +389,8 @@ bool Application::loadSavedGame() {
             characterAgentStore,
             playerOrganizationStore,
             playerLawEnforcementStore,
-            playerStreetCrimeStore)) {
+            playerStreetCrimeStore,
+            playerCriminalJusticeStore)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
     }
@@ -401,10 +407,11 @@ bool Application::loadSavedGame() {
         &playerOperationsStore,
         &playerOrganizationStore,
         &playerLawEnforcementStore,
+        &playerCriminalJusticeStore,
         &playerStreetCrimeStore,
         &characterAgentStore,
         &worldEventStore};
-    systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore);
+    systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore, &playerCriminalJusticeStore);
     requestDefaultDockLayoutOnNextFrame();
     panelVisibility = GamePanelVisibility{};
     playerProfile = buildPlayerProfile(characterDraft);

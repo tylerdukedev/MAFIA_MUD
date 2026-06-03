@@ -1,4 +1,6 @@
 #include "dev/dev_console.h"
+#include "game/crime_legal_tier.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "character/character_family.h"
@@ -219,7 +221,7 @@ void logAgentsFields(DevConsoleLog& log, const CharacterAgentStore& store) {
 }
 
 void logHelp(DevConsoleLog& log) {
-    devConsoleLogAppend(log, "Build: crew tiers, org incorporation, police warrants/witnesses");
+    devConsoleLogAppend(log, "Build: crew/org tiers, police, jail bond/court/probation/parole");
     devConsoleLogAppend(log, "Commands:");
     devConsoleLogAppend(log, "  help");
     devConsoleLogAppend(log, "  log clear");
@@ -533,6 +535,56 @@ void devConsoleExecuteCommand(
             law.activeWarrantCount,
             law.witnessCount);
         devConsoleLogAppend(log, buffer);
+        return;
+    }
+    if (std::strcmp(token, "justice") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken))) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady
+            || gameplaySnapshot->playerCriminalJusticeStore == nullptr
+            || gameplaySnapshot->playerLawEnforcementStore == nullptr) {
+            devConsoleLogAppend(log, "justice commands require an active in-game session.");
+            return;
+        }
+        PlayerCriminalJusticeStore& justice = *gameplaySnapshot->playerCriminalJusticeStore;
+        PlayerLawEnforcementStore& law = *gameplaySnapshot->playerLawEnforcementStore;
+        if (std::strcmp(subToken, "show") == 0) {
+            char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+            std::snprintf(
+                buffer,
+                sizeof(buffer),
+                "phase=%s bond=%lld arrests=%d probation=%d parole=%d",
+                custodyPhaseToString(getPlayerCustodyPhase(justice)),
+                static_cast<long long>(justice.bondCents),
+                justice.arrestCount,
+                justice.probationTicksRemaining,
+                justice.paroleTicksRemaining);
+            devConsoleLogAppend(log, buffer);
+            return;
+        }
+        if (std::strcmp(subToken, "release") == 0) {
+            releasePlayerFromCustody(justice, law);
+            devConsoleLogAppend(log, "Player released from custody.");
+            return;
+        }
+        if (std::strcmp(subToken, "arrest") == 0) {
+            char tierToken[32];
+            CrimeLegalTier tier = CrimeLegalTier::Street;
+            if (readToken(cursor, tierToken, sizeof(tierToken))) {
+                if (std::strcmp(tierToken, "petty") == 0) {
+                    tier = CrimeLegalTier::PettyStreet;
+                } else if (std::strcmp(tierToken, "org") == 0) {
+                    tier = CrimeLegalTier::Organization;
+                } else if (std::strcmp(tierToken, "financial") == 0) {
+                    tier = CrimeLegalTier::Financial;
+                }
+            }
+            beginPlayerArrest(justice, law, tier, gameplaySnapshot->tickCount, "Dev console arrest");
+            devConsoleLogAppend(log, "Player arrested.");
+            return;
+        }
         return;
     }
     if (std::strcmp(token, "event") == 0) {

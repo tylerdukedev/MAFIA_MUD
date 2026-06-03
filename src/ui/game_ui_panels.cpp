@@ -8,6 +8,7 @@
 #include "game/operation_types.h"
 #include "game/player_wallet.h"
 #include "game/street_crime.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_organization.h"
 #include "game/player_organization_ui.h"
 #include "game/economy_constants.h"
@@ -51,6 +52,7 @@ void renderStreetCrimeTierGroup(
     const PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     const PlayerLawEnforcementStore& playerLawEnforcementStore,
+    const PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     const PlayerProfile& playerProfile,
     const CharacterAgentStore& characterAgentStore,
     SimEventQueue& simEventQueue,
@@ -66,6 +68,7 @@ void renderStreetCrimeTierGroup(
             playerOperationsStore,
             playerStreetCrimeStore,
             playerLawEnforcementStore,
+            playerCriminalJusticeStore,
             playerOrganizationStore,
             playerProfile,
             characterAgentStore,
@@ -96,6 +99,7 @@ void renderOperationsPanel(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     PlayerWallet& playerWallet,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
@@ -248,7 +252,7 @@ void renderOperationsPanel(
     } else if (playerOrganizationStore.powerTier == PlayerPowerTier::Crew) {
         ImGui::Text("Crew: %s", playerOrganizationStore.crewName);
         const OrganizationFormLockReason orgLock = evaluateOrganizationFormLock(
-            playerOrganizationStore, playerLawEnforcementStore, playerProfile, playerWallet);
+            playerOrganizationStore, playerLawEnforcementStore, playerCriminalJusticeStore, playerProfile, playerWallet);
         ImGui::TextDisabled("%s", organizationFormLockReasonToString(orgLock));
         if (ImGui::Button("Incorporate organization")) {
             beginOrganizationCreationModal(gameModalState, simClock);
@@ -263,6 +267,12 @@ void renderOperationsPanel(
         "Solo cash when broke; crew and organization jobs need trusted criminals and network.",
         "street_crime_panel",
         contextHelpState);
+    if (getPlayerCustodyPhase(playerCriminalJusticeStore) != CustodyPhase::Free) {
+        ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.35f, 1.0f), "Custody: %s", custodyPhaseToString(getPlayerCustodyPhase(playerCriminalJusticeStore)));
+        if (playerCriminalJusticeStore.lastCustodyLabel[0] != '\0') {
+            ImGui::TextDisabled("%s", playerCriminalJusticeStore.lastCustodyLabel);
+        }
+    }
     ImGui::Text(
         "Heat: %d | %s | Evidence: %d | Warrants: %d",
         playerLawEnforcementStore.personalHeat,
@@ -285,6 +295,7 @@ void renderOperationsPanel(
             playerOrganizationStore,
             playerStreetCrimeStore,
             playerLawEnforcementStore,
+            playerCriminalJusticeStore,
             playerProfile,
             characterAgentStore,
             simEventQueue,
@@ -295,6 +306,7 @@ void renderOperationsPanel(
             playerOrganizationStore,
             playerStreetCrimeStore,
             playerLawEnforcementStore,
+            playerCriminalJusticeStore,
             playerProfile,
             characterAgentStore,
             simEventQueue,
@@ -305,6 +317,7 @@ void renderOperationsPanel(
             playerOrganizationStore,
             playerStreetCrimeStore,
             playerLawEnforcementStore,
+            playerCriminalJusticeStore,
             playerProfile,
             characterAgentStore,
             simEventQueue,

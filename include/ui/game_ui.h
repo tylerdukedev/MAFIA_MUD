@@ -3,6 +3,7 @@
 #include "character/character_draft.h"
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
@@ -77,6 +78,7 @@ void renderGameUi(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
     CityControlStore& cityControlStore,

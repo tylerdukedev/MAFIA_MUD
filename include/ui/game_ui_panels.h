@@ -1,6 +1,7 @@
 #pragma once
 
 #include "character/player_profile.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
@@ -24,6 +25,7 @@ void renderOperationsPanel(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     PlayerWallet& playerWallet,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,

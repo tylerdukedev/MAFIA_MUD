@@ -12,6 +12,8 @@ enum class GameModalKind : uint8_t {
     CrewRecruitment = 4,
     CrewFormalize = 5,
     OrganizationCreation = 6,
+    BondHearing = 7,
+    CourtHearing = 8,
 };
 
 struct GameModalState {

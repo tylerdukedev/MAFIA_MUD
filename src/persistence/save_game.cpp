@@ -1,4 +1,5 @@
 #include "persistence/save_game.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/street_crime.h"
@@ -12,7 +13,7 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 9U;
+constexpr uint32_t SAVE_VERSION = 10U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -103,7 +104,8 @@ bool buildSaveSnapshot(
     const CharacterAgentStore& characterAgentStore,
     const PlayerOrganizationStore& organizationStore,
     const PlayerLawEnforcementStore& lawEnforcementStore,
-    const PlayerStreetCrimeStore& streetCrimeStore) {
+    const PlayerStreetCrimeStore& streetCrimeStore,
+    const PlayerCriminalJusticeStore& criminalJusticeStore) {
     (void)boroughVitalityStore;
     outSnapshot.worldSeed = worldSeed;
     outSnapshot.characterDraft = characterDraft;
@@ -182,7 +184,8 @@ bool applySaveSnapshot(
     CharacterAgentStore& characterAgentStore,
     PlayerOrganizationStore& organizationStore,
     PlayerLawEnforcementStore& lawEnforcementStore,
-    PlayerStreetCrimeStore& streetCrimeStore) {
+    PlayerStreetCrimeStore& streetCrimeStore,
+    PlayerCriminalJusticeStore& criminalJusticeStore) {
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.terrainIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.elevations.size()) != SAVE_GAME_TILE_COUNT
@@ -248,6 +251,7 @@ bool applySaveSnapshot(
     organizationStore = snapshot.organizationStore;
     lawEnforcementStore = snapshot.lawEnforcementStore;
     streetCrimeStore = snapshot.streetCrimeStore;
+    criminalJusticeStore = snapshot.criminalJusticeStore;
     return true;
 }
 
@@ -319,10 +323,15 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     const bool catalogWritten = writeAllBytes(fileHandle, snapshot.activeCatalogIndices, sizeof(snapshot.activeCatalogIndices));
     const bool agentsWritten = writeAllBytes(fileHandle, snapshot.characterAgentStore.states, sizeof(CharacterAgentState) * static_cast<size_t>(MAX_CHARACTER_AGENT_COUNT));
     const bool agentCountWritten = writeAllBytes(fileHandle, &agentCount, sizeof(agentCount));
+    const bool organizationWritten = writeAllBytes(fileHandle, &snapshot.organizationStore, sizeof(snapshot.organizationStore));
+    const bool lawWritten = writeAllBytes(fileHandle, &snapshot.lawEnforcementStore, sizeof(snapshot.lawEnforcementStore));
+    const bool streetCrimeWritten = writeAllBytes(fileHandle, &snapshot.streetCrimeStore, sizeof(snapshot.streetCrimeStore));
+    const bool justiceWritten = writeAllBytes(fileHandle, &snapshot.criminalJusticeStore, sizeof(snapshot.criminalJusticeStore));
     const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
         && economicWeightsWritten && populationsWritten && crimePressuresWritten && lawPressuresWritten
         && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten && cityOwnersWritten
-        && catalogWritten && agentsWritten && agentCountWritten;
+        && catalogWritten && agentsWritten && agentCountWritten && organizationWritten && lawWritten && streetCrimeWritten
+        && justiceWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -421,6 +430,7 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     bool organizationRead = readAllBytes(fileHandle, &outSnapshot.organizationStore, sizeof(outSnapshot.organizationStore));
     bool lawRead = readAllBytes(fileHandle, &outSnapshot.lawEnforcementStore, sizeof(outSnapshot.lawEnforcementStore));
     bool streetCrimeRead = readAllBytes(fileHandle, &outSnapshot.streetCrimeStore, sizeof(outSnapshot.streetCrimeStore));
+    bool justiceRead = readAllBytes(fileHandle, &outSnapshot.criminalJusticeStore, sizeof(outSnapshot.criminalJusticeStore));
     if (!organizationRead || !lawRead || !streetCrimeRead) {
         resetPlayerOrganizationStore(outSnapshot.organizationStore);
         resetPlayerLawEnforcementStore(outSnapshot.lawEnforcementStore);
@@ -429,10 +439,14 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
         lawRead = true;
         streetCrimeRead = true;
     }
+    if (!justiceRead) {
+        resetPlayerCriminalJusticeStore(outSnapshot.criminalJusticeStore);
+        justiceRead = true;
+    }
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead
         && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead && cityOwnersRead
-        && catalogRead && agentsRead && agentCountRead && organizationRead && lawRead && streetCrimeRead;
+        && catalogRead && agentsRead && agentCountRead && organizationRead && lawRead && streetCrimeRead && justiceRead;
     std::fclose(fileHandle);
     return didLoad;
 }

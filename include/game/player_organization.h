@@ -50,6 +50,7 @@ enum class OrganizationFormLockReason : uint8_t {
     InsufficientCrimeRecord = 6,
     HeatTooHigh = 7,
     ActiveWarrant = 8,
+    Incarcerated = 9,
 };
 
 struct PlayerOrganizationStore {
@@ -81,10 +82,12 @@ int32_t rollCrewRecruitAcceptChance(
 bool tryAddCrewMember(PlayerOrganizationStore& store, int32_t agentIndex);
 bool tryFormalizeCrew(PlayerOrganizationStore& store, const char* crewNameInput, uint64_t tickCount);
 struct PlayerLawEnforcementStore;
+struct PlayerCriminalJusticeStore;
 
 OrganizationFormLockReason evaluateOrganizationFormLock(
     const PlayerOrganizationStore& store,
     const PlayerLawEnforcementStore& lawStore,
+    const PlayerCriminalJusticeStore& justiceStore,
     const PlayerProfile& profile,
     const PlayerWallet& wallet);
 bool tryFormalizeOrganization(

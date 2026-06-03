@@ -12,14 +12,14 @@ namespace Core {
 namespace {
 
 constexpr StreetCrimeDefinition STREET_CRIME_DEFINITIONS[] = {
-    {"pickpocket", "Pickpocket", "Quick lift on a crowded corner. Solo work.", StreetCrimeTier::Solo, 35, 2, 1, 72, 18, 55, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX},
-    {"shoplift", "Shoplift", "Snatch goods from an open storefront.", StreetCrimeTier::Solo, 45, 3, 2, 68, 28, 85, 0.05f, 0.0f, 0, 0, PLAYER_HEAT_MAX},
-    {"shake_vendor", "Shake Down Vendor", "Lean on a pushcart for a few dollars.", StreetCrimeTier::Solo, 55, 5, 3, 62, 45, 140, 0.12f, 0.0f, 0, 0, 90},
-    {"alley_mugging", "Alley Mugging", "One lookout, one muscle — split the take.", StreetCrimeTier::Crew, 80, 8, 5, 55, 95, 240, 0.20f, 0.0f, 35, 1, 85},
-    {"warehouse_pinch", "Warehouse Pinch", "Slip a crate with a trusted runner.", StreetCrimeTier::Crew, 100, 10, 6, 50, 140, 320, 0.28f, 0.08f, 45, 1, 80},
-    {"numbers_drop", "Numbers Drop", "Run slips for a crew book on commission.", StreetCrimeTier::Organization, 120, 12, 8, 45, 220, 480, 0.35f, 0.15f, 50, 2, 75},
-    {"protection_cut", "Protection Cut", "Collect weekly from shops you cover.", StreetCrimeTier::Organization, 140, 14, 9, 40, 320, 720, 0.42f, 0.22f, 58, 2, 70},
-    {"import_skim", "Import Skim", "Divert a shipment with inside help.", StreetCrimeTier::Organization, 160, 18, 12, 38, 450, 1100, 0.50f, 0.30f, 65, 2, 65},
+    {"pickpocket", "Pickpocket", "Quick lift on a crowded corner. Solo work.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 35, 2, 1, 72, 18, 55, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX},
+    {"shoplift", "Shoplift", "Snatch goods from an open storefront.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 45, 3, 2, 68, 28, 85, 0.05f, 0.0f, 0, 0, PLAYER_HEAT_MAX},
+    {"shake_vendor", "Shake Down Vendor", "Lean on a pushcart for a few dollars.", StreetCrimeTier::Solo, CrimeLegalTier::Street, 55, 5, 3, 62, 45, 140, 0.12f, 0.0f, 0, 0, 90},
+    {"alley_mugging", "Alley Mugging", "One lookout, one muscle — split the take.", StreetCrimeTier::Crew, CrimeLegalTier::Street, 80, 8, 5, 55, 95, 240, 0.20f, 0.0f, 35, 1, 85},
+    {"warehouse_pinch", "Warehouse Pinch", "Slip a crate with a trusted runner.", StreetCrimeTier::Crew, CrimeLegalTier::Organization, 100, 10, 6, 50, 140, 320, 0.28f, 0.08f, 45, 1, 80},
+    {"numbers_drop", "Numbers Drop", "Run slips for a crew book on commission.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 120, 12, 8, 45, 220, 480, 0.35f, 0.15f, 50, 2, 75},
+    {"protection_cut", "Protection Cut", "Collect weekly from shops you cover.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 140, 14, 9, 40, 320, 720, 0.42f, 0.22f, 58, 2, 70},
+    {"import_skim", "Import Skim", "Divert a shipment with inside help.", StreetCrimeTier::Organization, CrimeLegalTier::Financial, 160, 18, 12, 38, 450, 1100, 0.50f, 0.30f, 65, 2, 65},
 };
 
 constexpr int32_t STREET_CRIME_DEFINITION_COUNT = static_cast<int32_t>(sizeof(STREET_CRIME_DEFINITIONS) / sizeof(STREET_CRIME_DEFINITIONS[0]));
@@ -115,12 +115,22 @@ StreetCrimeLockReason evaluateStreetCrimeLock(
     const PlayerOperationsStore& operationsStore,
     const PlayerStreetCrimeStore& crimeStore,
     const PlayerLawEnforcementStore& lawStore,
+    const PlayerCriminalJusticeStore& justiceStore,
     const PlayerOrganizationStore& organizationStore,
     const PlayerProfile& profile,
     const CharacterAgentStore& agentStore,
     int32_t crimeIndex,
     const StreetCrimeDefinition& crime,
     uint64_t tickCount) {
+    if (isPlayerFullyIncarcerated(justiceStore)) {
+        return StreetCrimeLockReason::Incarcerated;
+    }
+    if (!canAttemptCrimeLegalTier(justiceStore, crime.legalTier)) {
+        if (getPlayerCustodyPhase(justiceStore) == CustodyPhase::OnProbation) {
+            return StreetCrimeLockReason::OnProbationOnly;
+        }
+        return StreetCrimeLockReason::LegalTierRestricted;
+    }
     if (!hasPlayerHeadquarters(operationsStore)) {
         return StreetCrimeLockReason::NeedsHeadquarters;
     }
@@ -161,6 +171,7 @@ bool tryCommitStreetCrime(
     const PlayerOperationsStore& operationsStore,
     PlayerStreetCrimeStore& crimeStore,
     PlayerLawEnforcementStore& lawStore,
+    PlayerCriminalJusticeStore& justiceStore,
     const PlayerOrganizationStore& organizationStore,
     PlayerWallet& wallet,
     CharacterAgentStore& agentStore,
@@ -173,7 +184,7 @@ bool tryCommitStreetCrime(
         return false;
     }
     const StreetCrimeLockReason lockReason = evaluateStreetCrimeLock(
-        operationsStore, crimeStore, lawStore, organizationStore, profile, agentStore, crimeIndex, *crime, tickCount);
+        operationsStore, crimeStore, lawStore, justiceStore, organizationStore, profile, agentStore, crimeIndex, *crime, tickCount);
     if (lockReason != StreetCrimeLockReason::None) {
         return false;
     }
@@ -191,6 +202,9 @@ bool tryCommitStreetCrime(
     }
     addPlayerHeat(lawStore, crime->heatOnFailure);
     tryIssueWarrantIfThresholdMet(lawStore);
+    if (hasActivePoliceWarrant(lawStore) || lawStore.personalHeat >= POLICE_HEAT_WARRANT_THRESHOLD) {
+        tryRollPlayerArrest(justiceStore, lawStore, crime->legalTier, worldSeed, tickCount, JUSTICE_ARREST_POST_CRIME_CHANCE_PERCENT);
+    }
     if (agentStore.states[BEAT_COP_AGENT_SLOT_INDEX].isActive) {
         adjustAgentOpinion(agentStore, BEAT_COP_AGENT_SLOT_INDEX, -2);
     }
@@ -221,6 +235,12 @@ const char* streetCrimeLockReasonToString(StreetCrimeLockReason reason) {
         return "Incorporate your organization first";
     case StreetCrimeLockReason::ActiveWarrant:
         return "Active warrant — too hot for this";
+    case StreetCrimeLockReason::Incarcerated:
+        return "In custody — cannot run jobs";
+    case StreetCrimeLockReason::LegalTierRestricted:
+        return "Parole / probation tier cap";
+    case StreetCrimeLockReason::OnProbationOnly:
+        return "Probation — petty street only";
     default:
         return "Locked";
     }

@@ -1,5 +1,6 @@
 #include "ui/map_renderer.h"
 #include "ui/game_ui.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "ui/help_manual.h"
 #include "ui/context_help.h"
@@ -555,6 +556,7 @@ void renderCharacterPanel(
     const PlayerProfile& playerProfile,
     const PlayerWallet& playerWallet,
     const PlayerLawEnforcementStore& playerLawEnforcementStore,
+    const PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     const PlayerOrganizationStore& playerOrganizationStore,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
@@ -653,6 +655,18 @@ void renderCharacterPanel(
         ImGui::Text("Personal heat: %d / %d", playerLawEnforcementStore.personalHeat, PLAYER_HEAT_MAX);
         ImGui::Text("Status: %s", getPoliceInvestigationLabel(playerLawEnforcementStore.investigationTier));
         ImGui::Text("Evidence: %d | Warrants: %d | Witnesses: %d", playerLawEnforcementStore.evidenceScore, playerLawEnforcementStore.activeWarrantCount, playerLawEnforcementStore.witnessCount);
+        if (getPlayerCustodyPhase(playerCriminalJusticeStore) != CustodyPhase::Free) {
+            ImGui::Text("Custody: %s", custodyPhaseToString(getPlayerCustodyPhase(playerCriminalJusticeStore)));
+            if (playerCriminalJusticeStore.phaseTicksRemaining > 0) {
+                ImGui::Text("Time remaining: %d ticks", playerCriminalJusticeStore.phaseTicksRemaining);
+            }
+            if (playerCriminalJusticeStore.probationTicksRemaining > 0) {
+                ImGui::Text("Probation: %d ticks", playerCriminalJusticeStore.probationTicksRemaining);
+            }
+            if (playerCriminalJusticeStore.paroleTicksRemaining > 0) {
+                ImGui::Text("Parole: %d ticks", playerCriminalJusticeStore.paroleTicksRemaining);
+            }
+        }
         ImGui::Text("Power tier: %s", playerPowerTierToString(playerOrganizationStore.powerTier));
         if (playerWallet.lastDeltaKind != WalletDeltaKind::None) {
             char deltaBuffer[48];
@@ -880,6 +894,7 @@ void renderCityPanel(
     const BoroughVitalityStore& boroughVitalityStore,
     const CityControlStore& cityControlStore,
     const PlayerOperationsStore& playerOperationsStore,
+    const PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     const PlayerWallet& playerWallet,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
@@ -961,11 +976,14 @@ void renderCityPanel(
                 } else {
                     ImGui::Text("Control status: Unclaimed");
                     int64_t claimCostCents = 0;
-                    const bool canClaimCity = canEstablishCityOperation(playerOperationsStore, playerProfile, playerWallet, claimCostCents);
+                    const bool canClaimCity = canEstablishCityOperation(playerOperationsStore, playerProfile, playerWallet, claimCostCents)
+                        && !isPlayerFullyIncarcerated(playerCriminalJusticeStore);
                     char claimCostBuffer[32];
                     formatCashCents(claimCostBuffer, sizeof(claimCostBuffer), claimCostCents);
                     if (!hasPlayerHeadquarters(playerOperationsStore)) {
                         ImGui::TextWrapped("Requires headquarters (Operations panel) before a city claim.");
+                    } else if (isPlayerFullyIncarcerated(playerCriminalJusticeStore)) {
+                        ImGui::TextDisabled("Cannot claim territory while in custody.");
                     } else if (!canClaimCity) {
                         ImGui::TextDisabled("Need $500+ cash, network, and reputation for era-scale city claims.");
                     } else {
@@ -1243,6 +1261,7 @@ void renderGameUi(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
     CityControlStore& cityControlStore,
@@ -1261,10 +1280,11 @@ void renderGameUi(
     const bool blockPanels = shouldBlockGameplayPanels(gameModalState);
     const uint64_t tickCount = simClock.getTickCount();
     tickWorkDayCommutePrompt(gameModalState, playerWorldState, playerOperationsStore, simClock, tickCount);
+    tickCriminalJusticeModals(gameModalState, playerCriminalJusticeStore, simClock);
     beginMainDockSpace();
     setupDefaultDockLayoutIfNeeded();
     if (!blockPanels) {
-        renderCharacterPanel(playerProfile, playerWallet, playerLawEnforcementStore, playerOrganizationStore, panelVisibility, contextHelpState);
+        renderCharacterPanel(playerProfile, playerWallet, playerLawEnforcementStore, playerCriminalJusticeStore, playerOrganizationStore, panelVisibility, contextHelpState);
         renderSimulationPanel(
             simClock,
             worldConfig,
@@ -1280,6 +1300,7 @@ void renderGameUi(
             playerOrganizationStore,
             playerStreetCrimeStore,
             playerLawEnforcementStore,
+            playerCriminalJusticeStore,
             playerWallet,
             characterAgentStore,
             worldEventStore,
@@ -1300,6 +1321,7 @@ void renderGameUi(
             boroughVitalityStore,
             cityControlStore,
             playerOperationsStore,
+            playerCriminalJusticeStore,
             playerWallet,
             simEventQueue,
             playerProfile,
@@ -1326,6 +1348,7 @@ void renderGameUi(
         playerOperationsStore,
         playerOrganizationStore,
         playerLawEnforcementStore,
+        playerCriminalJusticeStore,
         playerWallet,
         playerWorldState,
         characterAgentStore,

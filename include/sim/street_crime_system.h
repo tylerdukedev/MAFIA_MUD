@@ -11,7 +11,8 @@ public:
     void bind(
         const SimWorldBindings& inputBindings,
         PlayerStreetCrimeStore* inputCrimeStore,
-        PlayerLawEnforcementStore* inputLawStore);
+        PlayerLawEnforcementStore* inputLawStore,
+        PlayerCriminalJusticeStore* inputJusticeStore);
     const char* getName() const override;
     void onTick(uint64_t tickCount) override;
 
@@ -20,6 +21,7 @@ private:
     SimWorldBindings bindings{};
     PlayerStreetCrimeStore* crimeStore = nullptr;
     PlayerLawEnforcementStore* lawStore = nullptr;
+    PlayerCriminalJusticeStore* justiceStore = nullptr;
 };
 
 } // namespace Core

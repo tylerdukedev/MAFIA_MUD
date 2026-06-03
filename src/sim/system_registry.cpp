@@ -30,15 +30,18 @@ void SystemRegistry::initialize(
     const SimWorldBindings& bindings,
     CharacterAgentStore* agentStore,
     PlayerStreetCrimeStore* crimeStore,
-    PlayerLawEnforcementStore* lawStore) {
+    PlayerLawEnforcementStore* lawStore,
+    PlayerCriminalJusticeStore* justiceStore) {
     systemCount = 0;
-    streetCrimeSystem.bind(bindings, crimeStore, lawStore);
+    streetCrimeSystem.bind(bindings, crimeStore, lawStore, justiceStore);
     operationSystem.bind(bindings, agentStore);
-    cityControlSystem.bind(bindings);
+    cityControlSystem.bind(bindings, justiceStore);
     worldEventSystem.bind(bindings);
     policeSystem.bind(bindings, lawStore);
+    criminalJusticeSystem.bind(bindings, justiceStore, lawStore);
     economySystem.bind(bindings);
     boroughVitalitySystem.bind(bindings);
+    systems[systemCount++] = &criminalJusticeSystem;
     systems[systemCount++] = &policeSystem;
     systems[systemCount++] = &streetCrimeSystem;
     systems[systemCount++] = &operationSystem;

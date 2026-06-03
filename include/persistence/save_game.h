@@ -2,6 +2,7 @@
 
 #include "character/character_draft.h"
 #include "core/sim_clock.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
@@ -51,6 +52,7 @@ struct SaveGameSnapshot {
     PlayerOrganizationStore organizationStore{};
     PlayerLawEnforcementStore lawEnforcementStore{};
     PlayerStreetCrimeStore streetCrimeStore{};
+    PlayerCriminalJusticeStore criminalJusticeStore{};
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
     std::vector<int16_t> elevations;
@@ -80,7 +82,8 @@ bool buildSaveSnapshot(
     const CharacterAgentStore& characterAgentStore,
     const PlayerOrganizationStore& organizationStore,
     const PlayerLawEnforcementStore& lawEnforcementStore,
-    const PlayerStreetCrimeStore& streetCrimeStore);
+    const PlayerStreetCrimeStore& streetCrimeStore,
+    const PlayerCriminalJusticeStore& criminalJusticeStore);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,
@@ -95,7 +98,8 @@ bool applySaveSnapshot(
     CharacterAgentStore& characterAgentStore,
     PlayerOrganizationStore& organizationStore,
     PlayerLawEnforcementStore& lawEnforcementStore,
-    PlayerStreetCrimeStore& streetCrimeStore);
+    PlayerStreetCrimeStore& streetCrimeStore,
+    PlayerCriminalJusticeStore& criminalJusticeStore);
 bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot);
 bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot);
 

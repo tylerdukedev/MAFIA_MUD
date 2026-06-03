@@ -1,4 +1,5 @@
 #include "character/profile_builder.h"
+#include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
@@ -17,11 +18,12 @@ TEST_CASE("Solo street crime pays cash when headquarters is set", "[street_crime
     operations.headquartersKind = HeadquartersKind::RentedRoom;
     PlayerStreetCrimeStore crimeStore{};
     PlayerLawEnforcementStore lawStore{};
+    PlayerCriminalJusticeStore justiceStore{};
     PlayerOrganizationStore organization{};
     PlayerWallet wallet{};
     CharacterAgentStore agents{};
     initializeCharacterAgentStore(agents);
-    const bool committed = tryCommitStreetCrime(operations, crimeStore, lawStore, organization, wallet, agents, profile, 0, 100ULL, 999ULL);
+    const bool committed = tryCommitStreetCrime(operations, crimeStore, lawStore, justiceStore, organization, wallet, agents, profile, 0, 100ULL, 999ULL);
     if (committed) {
         REQUIRE(wallet.cashCents > 0);
         REQUIRE(lawStore.personalHeat > 0);
@@ -35,6 +37,7 @@ TEST_CASE("Crew street crime stays locked without trusted criminal contact", "[s
     operations.headquartersKind = HeadquartersKind::RentedRoom;
     PlayerStreetCrimeStore crimeStore{};
     PlayerLawEnforcementStore lawStore{};
+    PlayerCriminalJusticeStore justiceStore{};
     PlayerOrganizationStore organization{};
     CharacterAgentStore agents{};
     initializeCharacterAgentStore(agents);
@@ -42,6 +45,6 @@ TEST_CASE("Crew street crime stays locked without trusted criminal contact", "[s
     REQUIRE(crewCrime != nullptr);
     REQUIRE(crewCrime->tier == StreetCrimeTier::Crew);
     const StreetCrimeLockReason lockReason = evaluateStreetCrimeLock(
-        operations, crimeStore, lawStore, organization, profile, agents, 3, *crewCrime, 200ULL);
+        operations, crimeStore, lawStore, justiceStore, organization, profile, agents, 3, *crewCrime, 200ULL);
     REQUIRE(lockReason == StreetCrimeLockReason::NeedsCrewTier);
 }
