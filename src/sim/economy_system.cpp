@@ -1,5 +1,6 @@
 #include "sim/economy_system.h"
 #include "game/economy_constants.h"
+#include "game/housing_living_costs.h"
 #include "game/player_wallet.h"
 #include "world/city_control.h"
 #include "world/landmark_table.h"
@@ -76,11 +77,25 @@ void EconomySystem::applyStartingBoroughInfluence() {
     hasAppliedStartingInfluence = true;
 }
 
+void EconomySystem::applyMonthlyLivingCosts(uint64_t tickCount) {
+    if (bindings.playerOperationsStore == nullptr || bindings.playerWallet == nullptr || bindings.characterAgentStore == nullptr) {
+        return;
+    }
+    const int32_t employedIndex = bindings.playerOperationsStore->employedBusinessIndex;
+    applyMonthlyLivingLedger(
+        *bindings.playerOperationsStore,
+        *bindings.playerWallet,
+        *bindings.characterAgentStore,
+        employedIndex,
+        tickCount);
+}
+
 void EconomySystem::onTick(uint64_t tickCount) {
     lastTickCount = tickCount;
     applyStartingBoroughInfluence();
     recomputeIncomeRates();
     applyAccruedIncome();
+    applyMonthlyLivingCosts(tickCount);
     if (tickCount % static_cast<uint64_t>(ECONOMY_INCOME_APPLY_INTERVAL_TICKS) != 0ULL) {
         return;
     }

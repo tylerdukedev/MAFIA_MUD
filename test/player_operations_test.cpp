@@ -30,6 +30,6 @@ TEST_CASE("PlayerOperations establishes rented room headquarters", "[player_oper
     PlayerWallet wallet{};
     wallet.cashCents = 20000;
     PlayerProfile profile{};
-    REQUIRE(tryEstablishOperation(store, wallet, profile, 0));
+    REQUIRE(tryEstablishOperation(store, wallet, profile, 0, 1ULL));
     REQUIRE(store.headquartersKind == HeadquartersKind::RentedRoom);
 }

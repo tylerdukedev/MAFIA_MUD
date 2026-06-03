@@ -1,5 +1,8 @@
 #include "game/player_operations.h"
+#include "character/character_social_network.h"
 #include "character/character_types.h"
+#include "sim/world_event_types.h"
+#include "world/landmark_table.h"
 #include <algorithm>
 
 namespace Core {
@@ -9,9 +12,27 @@ void resetPlayerOperationsStore(PlayerOperationsStore& store) {
     store.employedBusinessIndex = -1;
     store.activeOperationCount = 0;
     store.familyOpinionPenalty = 0;
+    store.headquartersEstablishedTick = 0;
+    store.lastMonthlyLedgerTick = 0;
+    store.lastFamilyUpkeepTick = 0;
+    store.headquartersRegionId = 0;
+    store.consecutiveUnpaidRentMonths = 0;
+    store.rentMultiplierBps = RENT_MULTIPLIER_BPS_BASE;
+    store.rentEventAdjustmentBps = 0;
     for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
         store.activeCatalogIndices[index] = -1;
     }
+}
+
+void clearPlayerHeadquarters(PlayerOperationsStore& store) {
+    store.headquartersKind = HeadquartersKind::None;
+    store.headquartersEstablishedTick = 0;
+    store.headquartersRegionId = 0;
+    store.lastMonthlyLedgerTick = 0;
+    store.lastFamilyUpkeepTick = 0;
+    store.consecutiveUnpaidRentMonths = 0;
+    store.rentEventAdjustmentBps = 0;
+    store.rentMultiplierBps = RENT_MULTIPLIER_BPS_BASE;
 }
 
 bool hasPlayerHeadquarters(const PlayerOperationsStore& store) {
@@ -57,7 +78,7 @@ OperationLockReason evaluateOperationLock(
         if (hasPlayerHeadquarters(store)) {
             return OperationLockReason::HeadquartersAlreadySet;
         }
-        if (operation.requiresFamilyInCountry && !profile.draft.hasFamilyInCountry) {
+        if (operation.requiresFamilyInCountry && !hasPersonalLodgingOption(profile.draft)) {
             return OperationLockReason::MissingFamilyInCountry;
         }
         if (wallet.cashCents < operation.costCents) {
@@ -90,7 +111,8 @@ bool tryEstablishOperation(
     PlayerOperationsStore& store,
     PlayerWallet& wallet,
     const PlayerProfile& profile,
-    int32_t catalogIndex) {
+    int32_t catalogIndex,
+    uint64_t tickCount) {
     const OperationDefinition* operation = getOperationDefinition(catalogIndex);
     if (operation == nullptr) {
         return false;
@@ -103,8 +125,14 @@ bool tryEstablishOperation(
     }
     if (operation->category == OperationCategory::Headquarters) {
         store.headquartersKind = operation->headquartersKind;
+        store.headquartersEstablishedTick = tickCount;
+        store.lastMonthlyLedgerTick = 0;
+        store.lastFamilyUpkeepTick = 0;
+        store.consecutiveUnpaidRentMonths = 0;
+        const RegionId regionId = regionIdFromBoroughPreferenceIndex(profile.draft.selectedBoroughIndex);
+        store.headquartersRegionId = static_cast<uint8_t>(regionId);
         if (operation->headquartersKind == HeadquartersKind::FamilyFriendDpa) {
-            store.familyOpinionPenalty = 12;
+            store.familyOpinionPenalty = 8;
         }
         return true;
     }

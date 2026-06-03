@@ -1,5 +1,6 @@
 #include "persistence/save_game.h"
 #include "sim/character_agent.h"
+#include "sim/world_event_types.h"
 #include "world/landmark_table.h"
 #include <cstdio>
 #include <cstring>
@@ -8,7 +9,7 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 5U;
+constexpr uint32_t SAVE_VERSION = 8U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -43,6 +44,16 @@ struct SaveGameHeader {
     int32_t employedBusinessIndex;
     int32_t activeOperationCount;
     int32_t familyOpinionPenalty;
+    uint64_t headquartersEstablishedTick;
+    uint64_t lastMonthlyLedgerTick;
+    uint64_t lastFamilyUpkeepTick;
+    uint32_t worldEventFlags;
+    uint64_t worldEventFiredOnceMask;
+    uint8_t headquartersRegionId;
+    int8_t consecutiveUnpaidRentMonths;
+    int16_t rentMultiplierBps;
+    int16_t rentEventAdjustmentBps;
+    char worldEventMessage[MAX_WORLD_EVENT_MESSAGE_LENGTH];
 };
 
 bool writeAllBytes(FILE* fileHandle, const void* data, size_t byteCount) {
@@ -85,6 +96,7 @@ bool buildSaveSnapshot(
     const PlayerWallet& playerWallet,
     const CityControlStore& cityControlStore,
     const PlayerOperationsStore& playerOperationsStore,
+    const WorldEventStore& worldEventStore,
     const CharacterAgentStore& characterAgentStore) {
     (void)boroughVitalityStore;
     outSnapshot.worldSeed = worldSeed;
@@ -100,6 +112,14 @@ bool buildSaveSnapshot(
     outSnapshot.employedBusinessIndex = playerOperationsStore.employedBusinessIndex;
     outSnapshot.activeOperationCount = playerOperationsStore.activeOperationCount;
     outSnapshot.familyOpinionPenalty = playerOperationsStore.familyOpinionPenalty;
+    outSnapshot.headquartersEstablishedTick = playerOperationsStore.headquartersEstablishedTick;
+    outSnapshot.lastMonthlyLedgerTick = playerOperationsStore.lastMonthlyLedgerTick;
+    outSnapshot.lastFamilyUpkeepTick = playerOperationsStore.lastFamilyUpkeepTick;
+    outSnapshot.headquartersRegionId = playerOperationsStore.headquartersRegionId;
+    outSnapshot.consecutiveUnpaidRentMonths = playerOperationsStore.consecutiveUnpaidRentMonths;
+    outSnapshot.rentMultiplierBps = playerOperationsStore.rentMultiplierBps;
+    outSnapshot.rentEventAdjustmentBps = playerOperationsStore.rentEventAdjustmentBps;
+    outSnapshot.worldEventStore = worldEventStore;
     for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
         outSnapshot.activeCatalogIndices[index] = playerOperationsStore.activeCatalogIndices[index];
     }
@@ -149,6 +169,7 @@ bool applySaveSnapshot(
     PlayerWallet& playerWallet,
     CityControlStore& cityControlStore,
     PlayerOperationsStore& playerOperationsStore,
+    WorldEventStore& worldEventStore,
     CharacterAgentStore& characterAgentStore) {
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.terrainIds.size()) != SAVE_GAME_TILE_COUNT
@@ -200,9 +221,17 @@ bool applySaveSnapshot(
     playerOperationsStore.employedBusinessIndex = snapshot.employedBusinessIndex;
     playerOperationsStore.activeOperationCount = snapshot.activeOperationCount;
     playerOperationsStore.familyOpinionPenalty = snapshot.familyOpinionPenalty;
+    playerOperationsStore.headquartersEstablishedTick = snapshot.headquartersEstablishedTick;
+    playerOperationsStore.lastMonthlyLedgerTick = snapshot.lastMonthlyLedgerTick;
+    playerOperationsStore.lastFamilyUpkeepTick = snapshot.lastFamilyUpkeepTick;
+    playerOperationsStore.headquartersRegionId = snapshot.headquartersRegionId;
+    playerOperationsStore.consecutiveUnpaidRentMonths = snapshot.consecutiveUnpaidRentMonths;
+    playerOperationsStore.rentMultiplierBps = snapshot.rentMultiplierBps;
+    playerOperationsStore.rentEventAdjustmentBps = snapshot.rentEventAdjustmentBps;
     for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
         playerOperationsStore.activeCatalogIndices[index] = snapshot.activeCatalogIndices[index];
     }
+    worldEventStore = snapshot.worldEventStore;
     characterAgentStore = snapshot.characterAgentStore;
     return true;
 }
@@ -247,6 +276,17 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     header.employedBusinessIndex = snapshot.employedBusinessIndex;
     header.activeOperationCount = snapshot.activeOperationCount;
     header.familyOpinionPenalty = snapshot.familyOpinionPenalty;
+    header.headquartersEstablishedTick = snapshot.headquartersEstablishedTick;
+    header.lastMonthlyLedgerTick = snapshot.lastMonthlyLedgerTick;
+    header.lastFamilyUpkeepTick = snapshot.lastFamilyUpkeepTick;
+    header.worldEventFlags = snapshot.worldEventStore.worldFlags;
+    header.worldEventFiredOnceMask = snapshot.worldEventStore.firedOnceMask;
+    header.headquartersRegionId = snapshot.headquartersRegionId;
+    header.consecutiveUnpaidRentMonths = snapshot.consecutiveUnpaidRentMonths;
+    header.rentMultiplierBps = static_cast<int16_t>(snapshot.rentMultiplierBps);
+    header.rentEventAdjustmentBps = static_cast<int16_t>(snapshot.rentEventAdjustmentBps);
+    std::strncpy(header.worldEventMessage, snapshot.worldEventStore.lastPlayerMessage, MAX_WORLD_EVENT_MESSAGE_LENGTH - 1);
+    header.worldEventMessage[MAX_WORLD_EVENT_MESSAGE_LENGTH - 1] = '\0';
     const bool headerWritten = writeAllBytes(fileHandle, &header, sizeof(header));
     const bool regionsWritten = writeAllBytes(fileHandle, snapshot.regionIds.data(), snapshot.regionIds.size());
     const bool terrainsWritten = writeAllBytes(fileHandle, snapshot.terrainIds.data(), snapshot.terrainIds.size());
@@ -313,6 +353,17 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     outSnapshot.employedBusinessIndex = header.employedBusinessIndex;
     outSnapshot.activeOperationCount = header.activeOperationCount;
     outSnapshot.familyOpinionPenalty = header.familyOpinionPenalty;
+    outSnapshot.headquartersEstablishedTick = header.headquartersEstablishedTick;
+    outSnapshot.lastMonthlyLedgerTick = header.lastMonthlyLedgerTick;
+    outSnapshot.lastFamilyUpkeepTick = header.lastFamilyUpkeepTick;
+    outSnapshot.headquartersRegionId = header.headquartersRegionId;
+    outSnapshot.consecutiveUnpaidRentMonths = header.consecutiveUnpaidRentMonths;
+    outSnapshot.rentMultiplierBps = header.rentMultiplierBps;
+    outSnapshot.rentEventAdjustmentBps = header.rentEventAdjustmentBps;
+    outSnapshot.worldEventStore.worldFlags = header.worldEventFlags;
+    outSnapshot.worldEventStore.firedOnceMask = header.worldEventFiredOnceMask;
+    std::strncpy(outSnapshot.worldEventStore.lastPlayerMessage, header.worldEventMessage, MAX_WORLD_EVENT_MESSAGE_LENGTH - 1);
+    outSnapshot.worldEventStore.lastPlayerMessage[MAX_WORLD_EVENT_MESSAGE_LENGTH - 1] = '\0';
     outSnapshot.cashCents = header.cashCents;
     outSnapshot.lifetimeLegitCents = header.lifetimeLegitCents;
     outSnapshot.lifetimeCrimeCents = header.lifetimeCrimeCents;

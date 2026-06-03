@@ -4,6 +4,8 @@
 
 namespace Core {
 
+// Immediate player command queue (UI clicks). Narrative/world events use WorldEventSystem.
+
 enum class SimEventType : uint8_t {
     None = 0,
     ClaimCity = 1,

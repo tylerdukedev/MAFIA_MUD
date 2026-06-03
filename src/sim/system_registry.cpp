@@ -30,12 +30,14 @@ void SystemRegistry::initialize(const SimWorldBindings& bindings, CharacterAgent
     systemCount = 0;
     operationSystem.bind(bindings, agentStore);
     cityControlSystem.bind(bindings);
+    worldEventSystem.bind(bindings);
     economySystem.bind(bindings);
     boroughVitalitySystem.bind(bindings);
     systems[systemCount++] = &operationSystem;
     systems[systemCount++] = &cityControlSystem;
-    systems[systemCount++] = &economySystem;
     systems[systemCount++] = &boroughVitalitySystem;
+    systems[systemCount++] = &worldEventSystem;
+    systems[systemCount++] = &economySystem;
     systems[systemCount++] = &debugSystem;
 }
 

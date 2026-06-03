@@ -49,6 +49,11 @@ struct CharacterAgentState {
     int32_t respect = 40;
     AgentEmotion currentEmotion = AgentEmotion::Calm;
     bool isActive = false;
+    bool hasGeneratedIdentity = false;
+    char generatedDisplayName[32]{};
+    char generatedRoleLabel[24]{};
+    AgentMotive generatedMotive = AgentMotive::Loyalty;
+    AgentPersonalityTrait generatedTrait = AgentPersonalityTrait::Pragmatic;
 };
 
 struct CharacterAgentStore {
@@ -61,5 +66,10 @@ void initializeCharacterAgentStore(CharacterAgentStore& store);
 void resetCharacterAgentStore(CharacterAgentStore& store);
 const CharacterAgentState* getCharacterAgentState(const CharacterAgentStore& store, int32_t agentIndex);
 void adjustAgentOpinion(CharacterAgentStore& store, int32_t agentIndex, int32_t delta);
+bool tryGetAgentDisplayLabels(
+    const CharacterAgentStore& store,
+    int32_t agentIndex,
+    const char*& outDisplayName,
+    const char*& outRoleLabel);
 
 } // namespace Core

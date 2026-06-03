@@ -4,6 +4,7 @@
 #include "sim/city_control_system.h"
 #include "sim/economy_system.h"
 #include "sim/operation_system.h"
+#include "sim/world_event_system.h"
 #include "sim/isim_system.h"
 #include "sim/sim_world_bindings.h"
 #include <cstdint>
@@ -23,6 +24,7 @@ private:
     DebugSystem debugSystem;
     OperationSystem operationSystem;
     CityControlSystem cityControlSystem;
+    WorldEventSystem worldEventSystem;
     EconomySystem economySystem;
     BoroughVitalitySystem boroughVitalitySystem;
     ISimSystem* systems[10];

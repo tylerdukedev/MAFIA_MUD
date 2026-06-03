@@ -10,6 +10,8 @@
 #include "world/city_control.h"
 #include "sim/sim_event_queue.h"
 #include "character/profile_builder.h"
+#include "character/character_social_network.h"
+#include "sim/world_event_store.h"
 #if defined(CAPITALVICE_DEV_CONSOLE)
 #include "dev/dev_console.h"
 #endif
@@ -228,6 +230,7 @@ void Application::renderFrame() {
             playerWallet,
             playerOperationsStore,
             characterAgentStore,
+            worldEventStore,
             cityControlStore,
             simEventQueue,
             mapCrimeOverlayEnabled,
@@ -247,6 +250,8 @@ void Application::renderFrame() {
     devGameplaySnapshot.cityControlStore = isWorldReady ? &cityControlStore : nullptr;
     devGameplaySnapshot.playerOperationsStore = isWorldReady ? &playerOperationsStore : nullptr;
     devGameplaySnapshot.characterAgentStore = isWorldReady ? &characterAgentStore : nullptr;
+    devGameplaySnapshot.worldEventStore = isWorldReady ? &worldEventStore : nullptr;
+    devGameplaySnapshot.tickCount = simClock.getTickCount();
     devGameplaySnapshot.isWorldReady = isWorldReady;
     devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile, &devGameplaySnapshot);
 #endif
@@ -265,7 +270,9 @@ void Application::startNewSimulation() {
     resetBoroughVitalityStore(boroughVitalityStore);
     resetCityControlStore(cityControlStore);
     resetPlayerOperationsStore(playerOperationsStore);
+    resetWorldEventStore(worldEventStore);
     initializeCharacterAgentStore(characterAgentStore);
+    spawnPersonalContactsFromDraft(characterDraft, characterAgentStore);
     clearSimEventQueue(simEventQueue);
     playerWallet = PlayerWallet{};
     playerWallet.cashCents = characterDraft.startingCashCents;
@@ -281,7 +288,9 @@ void Application::startNewSimulation() {
         &cityControlStore,
         &simEventQueue,
         &playerProfile,
-        &playerOperationsStore};
+        &playerOperationsStore,
+        &characterAgentStore,
+        &worldEventStore};
     systemRegistry.initialize(simBindings, &characterAgentStore);
     requestDefaultDockLayoutOnNextFrame();
     panelVisibility = GamePanelVisibility{};
@@ -314,6 +323,7 @@ bool Application::saveCurrentGame() {
             playerWallet,
             cityControlStore,
             playerOperationsStore,
+            worldEventStore,
             characterAgentStore)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
@@ -346,6 +356,7 @@ bool Application::loadSavedGame() {
             playerWallet,
             cityControlStore,
             playerOperationsStore,
+            worldEventStore,
             characterAgentStore)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
@@ -360,7 +371,9 @@ bool Application::loadSavedGame() {
         &cityControlStore,
         &simEventQueue,
         &playerProfile,
-        &playerOperationsStore};
+        &playerOperationsStore,
+        &characterAgentStore,
+        &worldEventStore};
     systemRegistry.initialize(simBindings, &characterAgentStore);
     requestDefaultDockLayoutOnNextFrame();
     panelVisibility = GamePanelVisibility{};

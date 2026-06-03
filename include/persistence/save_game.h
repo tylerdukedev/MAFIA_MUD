@@ -5,6 +5,7 @@
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
 #include "sim/character_agent.h"
+#include "sim/world_event_store.h"
 #include "ui/map_camera.h"
 #include "world/chunk_store.h"
 #include "world/city_control.h"
@@ -35,6 +36,14 @@ struct SaveGameSnapshot {
     int32_t activeOperationCount = 0;
     int32_t activeCatalogIndices[MAX_OPERATION_CATALOG_COUNT]{};
     int32_t familyOpinionPenalty = 0;
+    uint64_t headquartersEstablishedTick = 0;
+    uint64_t lastMonthlyLedgerTick = 0;
+    uint64_t lastFamilyUpkeepTick = 0;
+    uint8_t headquartersRegionId = 0;
+    int8_t consecutiveUnpaidRentMonths = 0;
+    int32_t rentMultiplierBps = 10000;
+    int32_t rentEventAdjustmentBps = 0;
+    WorldEventStore worldEventStore{};
     CharacterAgentStore characterAgentStore{};
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
@@ -61,6 +70,7 @@ bool buildSaveSnapshot(
     const PlayerWallet& playerWallet,
     const CityControlStore& cityControlStore,
     const PlayerOperationsStore& playerOperationsStore,
+    const WorldEventStore& worldEventStore,
     const CharacterAgentStore& characterAgentStore);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
@@ -72,6 +82,7 @@ bool applySaveSnapshot(
     PlayerWallet& playerWallet,
     CityControlStore& cityControlStore,
     PlayerOperationsStore& playerOperationsStore,
+    WorldEventStore& worldEventStore,
     CharacterAgentStore& characterAgentStore);
 bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot);
 bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot);

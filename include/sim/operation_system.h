@@ -16,7 +16,7 @@ public:
 private:
     SimWorldBindings bindings{};
     CharacterAgentStore* agentStore = nullptr;
-    void processEstablishOperationEvent(const SimEvent& event);
+    void processEstablishOperationEvent(const SimEvent& event, uint64_t tickCount);
     void processApplyForJobEvent(const SimEvent& event);
 };
 

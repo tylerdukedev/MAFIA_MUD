@@ -4,7 +4,9 @@
 #include "world/city_control.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "character/character_social_network.h"
 #include "sim/character_agent.h"
+#include "sim/world_event_store.h"
 #include "character/profile_builder.h"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdio>
@@ -52,8 +54,13 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     REQUIRE(tryClaimCityForPlayer(sourceCities, 3, 7U));
     PlayerOperationsStore sourceOperations{};
     sourceOperations.headquartersKind = HeadquartersKind::RentedRoom;
+    sourceOperations.headquartersEstablishedTick = 100ULL;
+    sourceOperations.lastMonthlyLedgerTick = 900ULL;
     CharacterAgentStore sourceAgents{};
     initializeCharacterAgentStore(sourceAgents);
+    sourceDraft.hasFamilyInCountry = true;
+    sourceDraft.characterRollSeed = 4242ULL;
+    spawnPersonalContactsFromDraft(sourceDraft, sourceAgents);
     SaveGameSnapshot snapshot{};
     REQUIRE(buildSaveSnapshot(
         snapshot,
@@ -66,6 +73,7 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         sourceWallet,
         sourceCities,
         sourceOperations,
+        WorldEventStore{},
         sourceAgents));
     REQUIRE(saveGameToFile(TEST_SAVE_PATH, snapshot));
     REQUIRE(saveFileExists(TEST_SAVE_PATH));
@@ -79,6 +87,7 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     CityControlStore loadedCities{};
     PlayerOperationsStore loadedOperations{};
     CharacterAgentStore loadedAgents{};
+    WorldEventStore loadedWorldEvents{};
     uint64_t loadedSeed = 0;
     REQUIRE(applySaveSnapshot(
         loadedSnapshot,
@@ -90,6 +99,7 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         loadedWallet,
         loadedCities,
         loadedOperations,
+        loadedWorldEvents,
         loadedAgents));
     const WorldCoord sampleCoord{200, 180};
     REQUIRE(loadedSeed == DEFAULT_WORLD_SEED);
@@ -109,6 +119,8 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     REQUIRE(loadedWallet.lifetimeCrimeCents == sourceWallet.lifetimeCrimeCents);
     REQUIRE(getCityOwnerId(loadedCities, 3) == PLAYER_OWNER_ID);
     REQUIRE(loadedOperations.headquartersKind == HeadquartersKind::RentedRoom);
+    REQUIRE(loadedOperations.headquartersEstablishedTick == sourceOperations.headquartersEstablishedTick);
+    REQUIRE(loadedOperations.lastMonthlyLedgerTick == sourceOperations.lastMonthlyLedgerTick);
     REQUIRE(getCharacterAgentState(loadedAgents, 0) != nullptr);
     removeTestSaveFile();
 }

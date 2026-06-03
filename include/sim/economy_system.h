@@ -17,6 +17,7 @@ private:
     void recomputeIncomeRates();
     void applyAccruedIncome();
     void applyStartingBoroughInfluence();
+    void applyMonthlyLivingCosts(uint64_t tickCount);
 };
 
 } // namespace Core

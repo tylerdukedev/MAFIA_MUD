@@ -3,6 +3,11 @@
 #include "character/profile_builder.h"
 #include "game/economy_constants.h"
 #include "game/player_operations.h"
+#include "sim/world_event_catalog.h"
+#include "sim/world_event_system.h"
+#include "character/character_social_network.h"
+#include "sim/world_event_store.h"
+#include <cstdlib>
 #include "game/player_wallet.h"
 #include "sim/character_agent.h"
 #include "world/city_control.h"
@@ -178,29 +183,32 @@ void logOperationsFields(DevConsoleLog& log, const PlayerOperationsStore& store)
     char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
     std::snprintf(buffer, sizeof(buffer), "HQ kind: %d active ops: %d employed business: %d", static_cast<int>(store.headquartersKind), store.activeOperationCount, store.employedBusinessIndex);
     devConsoleLogAppend(log, buffer);
+    std::snprintf(buffer, sizeof(buffer), "HQ tick: %llu monthly ledger tick: %llu family upkeep tick: %llu", static_cast<unsigned long long>(store.headquartersEstablishedTick), static_cast<unsigned long long>(store.lastMonthlyLedgerTick), static_cast<unsigned long long>(store.lastFamilyUpkeepTick));
+    devConsoleLogAppend(log, buffer);
 }
 
 void logAgentsFields(DevConsoleLog& log, const CharacterAgentStore& store) {
-    const int32_t agentCount = getCharacterAgentDefinitionCount();
-    for (int32_t agentIndex = 0; agentIndex < agentCount; ++agentIndex) {
-        const AgentDefinition* definition = getCharacterAgentDefinition(agentIndex);
+    for (int32_t agentIndex = 0; agentIndex < MAX_CHARACTER_AGENT_COUNT; ++agentIndex) {
         const CharacterAgentState* state = getCharacterAgentState(store, agentIndex);
-        if (definition == nullptr || state == nullptr) {
+        const char* displayName = nullptr;
+        const char* roleLabel = nullptr;
+        if (state == nullptr || !tryGetAgentDisplayLabels(store, agentIndex, displayName, roleLabel)) {
             continue;
         }
         char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
-        std::snprintf(buffer, sizeof(buffer), "%s opinion=%d trust=%d", definition->displayName, state->opinionOfPlayer, state->trust);
+        std::snprintf(buffer, sizeof(buffer), "%s (%s) opinion=%d trust=%d", displayName, roleLabel, state->opinionOfPlayer, state->trust);
         devConsoleLogAppend(log, buffer);
     }
 }
 
 void logHelp(DevConsoleLog& log) {
-    devConsoleLogAppend(log, "Build: operations layer + AI contacts (save v5)");
+    devConsoleLogAppend(log, "Build: procgen contacts + housing ledger (save v7)");
     devConsoleLogAppend(log, "Commands:");
     devConsoleLogAppend(log, "  help");
     devConsoleLogAppend(log, "  log clear");
     devConsoleLogAppend(log, "  profile dump | draft show");
     devConsoleLogAppend(log, "  wallet show | cities show | operations show | agents show  (in-game)");
+    devConsoleLogAppend(log, "  event fire <id> | event flags | agent deactivate <slot>");
     devConsoleLogAppend(log, "  profile set generation <immigrant|first|second|third>");
     devConsoleLogAppend(log, "  profile set heritage <name> | nationality <name> | age <16-25>");
     devConsoleLogAppend(log, "  network show | legitimacy show | loyalty show | culture show | paths show");
@@ -463,6 +471,79 @@ void devConsoleExecuteCommand(
             return;
         }
         logOperationsFields(log, *gameplaySnapshot->playerOperationsStore);
+        return;
+    }
+    if (std::strcmp(token, "event") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken))) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->worldEventStore == nullptr
+            || gameplaySnapshot->playerOperationsStore == nullptr || gameplaySnapshot->playerWallet == nullptr
+            || gameplaySnapshot->characterAgentStore == nullptr) {
+            devConsoleLogAppend(log, "event commands require an active in-game session.");
+            return;
+        }
+        if (std::strcmp(subToken, "flags") == 0) {
+            char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+            std::snprintf(buffer, sizeof(buffer), "worldFlags=0x%08X message=%s", gameplaySnapshot->worldEventStore->worldFlags, gameplaySnapshot->worldEventStore->lastPlayerMessage);
+            devConsoleLogAppend(log, buffer);
+            return;
+        }
+        if (std::strcmp(subToken, "fire") == 0) {
+            char eventId[64];
+            if (!readToken(cursor, eventId, sizeof(eventId))) {
+                devConsoleLogAppend(log, "Usage: event fire <event_id>");
+                return;
+            }
+            const int32_t definitionIndex = findWorldEventDefinitionIndexById(eventId);
+            if (definitionIndex < 0) {
+                devConsoleLogAppend(log, "Unknown event id.");
+                return;
+            }
+            const WorldEventDefinition* definition = getWorldEventDefinition(definitionIndex);
+            if (definition == nullptr) {
+                return;
+            }
+            for (int32_t effectIndex = 0; effectIndex < 4; ++effectIndex) {
+                if (definition->effects[effectIndex].kind == WorldEventEffectKind::None) {
+                    continue;
+                }
+                applyWorldEventEffect(
+                    definition->effects[effectIndex],
+                    *gameplaySnapshot->worldEventStore,
+                    *gameplaySnapshot->playerOperationsStore,
+                    *gameplaySnapshot->playerWallet,
+                    *gameplaySnapshot->characterAgentStore,
+                    gameplaySnapshot->tickCount);
+            }
+            markWorldEventFired(*gameplaySnapshot->worldEventStore, definitionIndex, gameplaySnapshot->tickCount);
+            devConsoleLogAppend(log, "Event fired.");
+            return;
+        }
+        return;
+    }
+    if (std::strcmp(token, "agent") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken)) || std::strcmp(subToken, "deactivate") != 0) {
+            return;
+        }
+        char slotToken[16];
+        if (!readToken(cursor, slotToken, sizeof(slotToken))) {
+            devConsoleLogAppend(log, "Usage: agent deactivate <slot>");
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->characterAgentStore == nullptr) {
+            devConsoleLogAppend(log, "agent deactivate requires an active in-game session.");
+            return;
+        }
+        const int32_t slotIndex = std::atoi(slotToken);
+        if (slotIndex < 0 || slotIndex >= MAX_CHARACTER_AGENT_COUNT) {
+            devConsoleLogAppend(log, "Invalid agent slot.");
+            return;
+        }
+        gameplaySnapshot->characterAgentStore->states[slotIndex].isActive = false;
+        devConsoleLogAppend(log, "Agent slot deactivated.");
         return;
     }
     if (std::strcmp(token, "agents") == 0) {

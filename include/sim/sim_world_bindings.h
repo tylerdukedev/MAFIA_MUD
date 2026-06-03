@@ -3,7 +3,9 @@
 #include "character/player_profile.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
+#include "sim/world_event_store.h"
 #include "world/chunk_store.h"
 #include "world/city_control.h"
 #include "world/tile_vitality.h"
@@ -22,6 +24,8 @@ struct SimWorldBindings {
     SimEventQueue* eventQueue = nullptr;
     PlayerProfile* playerProfile = nullptr;
     PlayerOperationsStore* playerOperationsStore = nullptr;
+    CharacterAgentStore* characterAgentStore = nullptr;
+    WorldEventStore* worldEventStore = nullptr;
 };
 
 } // namespace Core

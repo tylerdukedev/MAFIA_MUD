@@ -5,6 +5,7 @@
 #include "game/player_wallet.h"
 #include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
+#include "sim/world_event_store.h"
 #include "ui/context_help.h"
 #include "ui/panel_visibility.h"
 #include "ui/viewport_state.h"
@@ -16,8 +17,11 @@ namespace Core {
 void renderOperationsPanel(
     PlayerOperationsStore& playerOperationsStore,
     PlayerWallet& playerWallet,
+    CharacterAgentStore& characterAgentStore,
+    const WorldEventStore& worldEventStore,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
+    uint64_t tickCount,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState);
 

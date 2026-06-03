@@ -5,6 +5,7 @@
 #include "character/character_start.h"
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
+#include "character/character_social_network.h"
 #include "game/economy_constants.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
@@ -50,6 +51,9 @@ void renderCharacterCreationPreviewPanel(const CharacterDraft& characterDraft) {
     char cashBuffer[32];
     formatCashCents(cashBuffer, sizeof(cashBuffer), characterDraft.startingCashCents);
     ImGui::Text("Starting cash: %s", cashBuffer);
+    char socialBuffer[128];
+    formatCharacterSocialSummary(characterDraft, socialBuffer, sizeof(socialBuffer));
+    ImGui::TextWrapped("%s", socialBuffer);
     const LandmarkDefinition* startingCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
     if (startingCity != nullptr) {
         ImGui::Text("Starting city: %s", startingCity->fullName);
@@ -1101,6 +1105,7 @@ void renderGameUi(
     PlayerWallet& playerWallet,
     PlayerOperationsStore& playerOperationsStore,
     CharacterAgentStore& characterAgentStore,
+    const WorldEventStore& worldEventStore,
     CityControlStore& cityControlStore,
     SimEventQueue& simEventQueue,
     bool& mapCrimeOverlayEnabled,
@@ -1125,7 +1130,16 @@ void renderGameUi(
         worldSeed,
         panelVisibility,
         contextHelpState);
-    renderOperationsPanel(playerOperationsStore, playerWallet, simEventQueue, playerProfile, panelVisibility, contextHelpState);
+    renderOperationsPanel(
+        playerOperationsStore,
+        playerWallet,
+        characterAgentStore,
+        worldEventStore,
+        simEventQueue,
+        playerProfile,
+        simClock.getTickCount(),
+        panelVisibility,
+        contextHelpState);
     renderContactsPanel(characterAgentStore, panelVisibility, contextHelpState);
     renderBoroughsPanel(boroughVitalityStore, panelVisibility, contextHelpState);
     renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, panelVisibility, contextHelpState);

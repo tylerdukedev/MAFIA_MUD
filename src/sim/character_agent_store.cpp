@@ -1,4 +1,5 @@
 #include "sim/character_agent.h"
+#include "character/character_social_network.h"
 #include <algorithm>
 
 namespace Core {
@@ -6,9 +7,6 @@ namespace Core {
 namespace {
 
 constexpr AgentDefinition AGENT_DEFINITIONS[] = {
-    {"uncle_vito", "Vito Marino", "Family", AgentMotive::Loyalty, AgentEmotion::Calm, AgentPersonalityTrait::Proud, 35},
-    {"cousin_rosa", "Rosa Marino", "Family", AgentMotive::Status, AgentEmotion::Anxious, AgentPersonalityTrait::Pragmatic, 20},
-    {"friend_mike", "Mike Delaney", "Friend", AgentMotive::Wealth, AgentEmotion::Calm, AgentPersonalityTrait::Pragmatic, 45},
     {"landlord_schwartz", "Morris Schwartz", "Landlord", AgentMotive::Wealth, AgentEmotion::Suspicious, AgentPersonalityTrait::Paranoid, -5},
     {"beat_cop_hayes", "Officer Hayes", "Law", AgentMotive::Survival, AgentEmotion::Suspicious, AgentPersonalityTrait::Pragmatic, -20},
     {"union_delegate", "Frank Russo", "Labor", AgentMotive::Status, AgentEmotion::Calm, AgentPersonalityTrait::Charitable, 10},
@@ -41,12 +39,13 @@ const AgentDefinition* getCharacterAgentDefinition(int32_t agentIndex) {
 
 void initializeCharacterAgentStore(CharacterAgentStore& store) {
     resetCharacterAgentStore(store);
-    for (int32_t agentIndex = 0; agentIndex < AGENT_DEFINITION_COUNT; ++agentIndex) {
-        const AgentDefinition* definition = getCharacterAgentDefinition(agentIndex);
+    for (int32_t definitionIndex = 0; definitionIndex < AGENT_DEFINITION_COUNT; ++definitionIndex) {
+        const AgentDefinition* definition = getCharacterAgentDefinition(definitionIndex);
         if (definition == nullptr) {
             continue;
         }
-        seedAgentState(store.states[agentIndex], *definition);
+        const int32_t slotIndex = FIRST_COMMUNITY_AGENT_SLOT_INDEX + definitionIndex;
+        seedAgentState(store.states[slotIndex], *definition);
     }
 }
 
@@ -79,9 +78,36 @@ void adjustAgentOpinion(CharacterAgentStore& store, int32_t agentIndex, int32_t 
     state.respect = std::clamp(state.respect + delta / 4, 0, 100);
     if (delta < -8) {
         state.currentEmotion = AgentEmotion::Angry;
-    } else if (delta > 8) {
+    } else     if (delta > 8) {
         state.currentEmotion = AgentEmotion::Grateful;
     }
+}
+
+bool tryGetAgentDisplayLabels(
+    const CharacterAgentStore& store,
+    int32_t agentIndex,
+    const char*& outDisplayName,
+    const char*& outRoleLabel) {
+    if (agentIndex < 0 || agentIndex >= MAX_CHARACTER_AGENT_COUNT) {
+        return false;
+    }
+    const CharacterAgentState& state = store.states[agentIndex];
+    if (!state.isActive) {
+        return false;
+    }
+    if (state.hasGeneratedIdentity) {
+        outDisplayName = state.generatedDisplayName;
+        outRoleLabel = state.generatedRoleLabel;
+        return true;
+    }
+    const int32_t definitionIndex = agentIndex - FIRST_COMMUNITY_AGENT_SLOT_INDEX;
+    const AgentDefinition* definition = getCharacterAgentDefinition(definitionIndex);
+    if (definition == nullptr) {
+        return false;
+    }
+    outDisplayName = definition->displayName;
+    outRoleLabel = definition->roleLabel;
+    return true;
 }
 
 } // namespace Core

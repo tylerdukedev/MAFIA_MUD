@@ -1,6 +1,8 @@
 #include "sim/operation_system.h"
+#include "character/character_social_network.h"
 #include "game/operation_types.h"
 #include "game/player_operations.h"
+#include "sim/character_agent.h"
 #include "world/business_node_table.h"
 
 namespace Core {
@@ -14,7 +16,7 @@ const char* OperationSystem::getName() const {
     return "OperationSystem";
 }
 
-void OperationSystem::processEstablishOperationEvent(const SimEvent& event) {
+void OperationSystem::processEstablishOperationEvent(const SimEvent& event, uint64_t tickCount) {
     if (bindings.playerOperationsStore == nullptr || bindings.playerWallet == nullptr || bindings.playerProfile == nullptr) {
         return;
     }
@@ -23,14 +25,18 @@ void OperationSystem::processEstablishOperationEvent(const SimEvent& event) {
     if (operation == nullptr) {
         return;
     }
-    if (!tryEstablishOperation(store, *bindings.playerWallet, *bindings.playerProfile, event.catalogIndex)) {
+    if (!tryEstablishOperation(store, *bindings.playerWallet, *bindings.playerProfile, event.catalogIndex, tickCount)) {
         return;
     }
     if (operation->headquartersKind != HeadquartersKind::FamilyFriendDpa || agentStore == nullptr) {
         return;
     }
-    adjustAgentOpinion(*agentStore, 0, -store.familyOpinionPenalty);
-    adjustAgentOpinion(*agentStore, 1, -store.familyOpinionPenalty);
+    if (agentStore->states[FAMILY_AGENT_SLOT_INDEX].isActive) {
+        adjustAgentOpinion(*agentStore, FAMILY_AGENT_SLOT_INDEX, -store.familyOpinionPenalty);
+    }
+    if (agentStore->states[FRIEND_AGENT_SLOT_INDEX].isActive) {
+        adjustAgentOpinion(*agentStore, FRIEND_AGENT_SLOT_INDEX, -(store.familyOpinionPenalty / 2));
+    }
 }
 
 void OperationSystem::processApplyForJobEvent(const SimEvent& event) {
@@ -57,7 +63,7 @@ void OperationSystem::onTick(uint64_t tickCount) {
     SimEvent event{};
     while (popSimEvent(*bindings.eventQueue, event)) {
         if (event.type == SimEventType::EstablishOperation) {
-            processEstablishOperationEvent(event);
+            processEstablishOperationEvent(event, tickCount);
         }
         if (event.type == SimEventType::ApplyForJob) {
             processApplyForJobEvent(event);

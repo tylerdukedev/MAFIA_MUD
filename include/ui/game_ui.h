@@ -8,6 +8,7 @@
 #include "sim/character_agent.h"
 #include "ui/panel_visibility.h"
 #include "sim/sim_event_queue.h"
+#include "sim/world_event_store.h"
 #include "sim/system_registry.h"
 #include "world/city_control.h"
 #include "ui/context_help.h"
@@ -68,6 +69,7 @@ void renderGameUi(
     PlayerWallet& playerWallet,
     PlayerOperationsStore& playerOperationsStore,
     CharacterAgentStore& characterAgentStore,
+    const WorldEventStore& worldEventStore,
     CityControlStore& cityControlStore,
     SimEventQueue& simEventQueue,
     bool& mapCrimeOverlayEnabled,

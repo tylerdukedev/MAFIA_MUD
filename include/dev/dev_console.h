@@ -5,6 +5,7 @@
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
 #include "sim/character_agent.h"
+#include "sim/world_event_store.h"
 #include "world/city_control.h"
 #include <cstddef>
 #include <cstdint>
@@ -29,10 +30,12 @@ struct DevConsoleLog {
 };
 
 struct DevConsoleGameplaySnapshot {
-    const PlayerWallet* playerWallet = nullptr;
-    const CityControlStore* cityControlStore = nullptr;
-    const PlayerOperationsStore* playerOperationsStore = nullptr;
-    const CharacterAgentStore* characterAgentStore = nullptr;
+    PlayerWallet* playerWallet = nullptr;
+    CityControlStore* cityControlStore = nullptr;
+    PlayerOperationsStore* playerOperationsStore = nullptr;
+    CharacterAgentStore* characterAgentStore = nullptr;
+    WorldEventStore* worldEventStore = nullptr;
+    uint64_t tickCount = 0;
     bool isWorldReady = false;
 };
 

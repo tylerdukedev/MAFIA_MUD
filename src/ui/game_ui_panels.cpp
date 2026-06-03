@@ -1,6 +1,9 @@
 #include "ui/game_ui_panels.h"
+#include "game/housing_living_costs.h"
+#include "sim/world_event_store.h"
 #include "game/operation_types.h"
 #include "game/player_wallet.h"
+#include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
 #include "world/business_node_table.h"
 #include "imgui.h"
@@ -23,7 +26,7 @@ const char* operationLockReasonToString(OperationLockReason reason) {
     case OperationLockReason::InsufficientReputation:
         return "Insufficient reputation";
     case OperationLockReason::MissingFamilyInCountry:
-        return "Requires family in-country";
+        return "Requires family or friend in-country";
     case OperationLockReason::AlreadyEstablished:
         return "Already established";
     case OperationLockReason::HeadquartersAlreadySet:
@@ -38,8 +41,11 @@ const char* operationLockReasonToString(OperationLockReason reason) {
 void renderOperationsPanel(
     PlayerOperationsStore& playerOperationsStore,
     PlayerWallet& playerWallet,
+    CharacterAgentStore& characterAgentStore,
+    const WorldEventStore& worldEventStore,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
+    uint64_t tickCount,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
     if (!panelVisibility.showOperations) {
@@ -56,7 +62,73 @@ void renderOperationsPanel(
     contextHelpPanelTag("Operations Panel", "Establish headquarters, rackets, and fronts.", "operations_panel", contextHelpState);
     if (!hasPlayerHeadquarters(playerOperationsStore)) {
         ImGui::TextWrapped("Your first operation must be a headquarters: rented room, apartment, or family/friend DPA.");
+        ImGui::TextDisabled("Move-in deposit is paid once; rent, taxes, and utilities bill monthly.");
         ImGui::Separator();
+    } else {
+        MonthlyHousingLedger ledger{};
+        buildMonthlyHousingLedger(playerOperationsStore, playerOperationsStore.employedBusinessIndex, ledger);
+        if (playerOperationsStore.headquartersKind == HeadquartersKind::FamilyFriendDpa) {
+            ImGui::TextWrapped("Family/friend DPA: no cash rent, but relationships erode slowly each month unless you pitch in.");
+        } else {
+            char expenseBuffer[32];
+            formatCashCents(expenseBuffer, sizeof(expenseBuffer), ledger.totalExpenseCents);
+            ImGui::Text("Monthly housing due: %s", expenseBuffer);
+            const int32_t effectiveRentBps = computeEffectiveRentMultiplierBps(playerOperationsStore);
+            ImGui::TextDisabled("Rent index: %.0f%% (borough economy + your influence)", static_cast<double>(effectiveRentBps) / 100.0);
+            if (playerOperationsStore.consecutiveUnpaidRentMonths > 0) {
+                ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.35f, 1.0f), "Missed rent months: %d", static_cast<int>(playerOperationsStore.consecutiveUnpaidRentMonths));
+            }
+            if (ledger.rentCents > 0) {
+                char rentBuffer[32];
+                formatCashCents(rentBuffer, sizeof(rentBuffer), ledger.rentCents);
+                ImGui::BulletText("Rent: %s", rentBuffer);
+            }
+            if (ledger.utilitiesCents > 0) {
+                char utilBuffer[32];
+                formatCashCents(utilBuffer, sizeof(utilBuffer), ledger.utilitiesCents);
+                ImGui::BulletText("Gas, water, sewer, electric: %s", utilBuffer);
+            }
+            if (ledger.taxesAndFeesCents > 0) {
+                char taxBuffer[32];
+                formatCashCents(taxBuffer, sizeof(taxBuffer), ledger.taxesAndFeesCents);
+                ImGui::BulletText("City taxes & fees: %s", taxBuffer);
+            }
+        }
+        if (ledger.jobIncomeCents > 0) {
+            char wageBuffer[32];
+            formatCashCents(wageBuffer, sizeof(wageBuffer), ledger.jobIncomeCents);
+            ImGui::BulletText("Job wages (monthly): %s", wageBuffer);
+        }
+        ImGui::Separator();
+        if (playerOperationsStore.headquartersKind == HeadquartersKind::FamilyFriendDpa) {
+            ImGui::Text("Household upkeep (short cooldown):");
+            const int32_t upkeepCount = getFamilyUpkeepActionCount();
+            for (int32_t actionIndex = 0; actionIndex < upkeepCount; ++actionIndex) {
+                const FamilyUpkeepActionDefinition* action = getFamilyUpkeepActionDefinition(actionIndex);
+                if (action == nullptr) {
+                    continue;
+                }
+                if (!characterAgentStore.states[action->targetAgentIndex].isActive) {
+                    continue;
+                }
+                char costBuffer[32];
+                formatCashCents(costBuffer, sizeof(costBuffer), action->costCents);
+                ImGui::PushID(actionIndex + 1000);
+                if (!canApplyFamilyUpkeep(playerOperationsStore, tickCount)) {
+                    ImGui::BeginDisabled();
+                }
+                if (ImGui::Button(action->displayName)) {
+                    tryApplyFamilyUpkeep(playerOperationsStore, playerWallet, characterAgentStore, actionIndex, tickCount);
+                }
+                if (!canApplyFamilyUpkeep(playerOperationsStore, tickCount)) {
+                    ImGui::EndDisabled();
+                }
+                ImGui::SameLine();
+                ImGui::Text("%s | +%d opinion", costBuffer, action->opinionBonus);
+                ImGui::PopID();
+            }
+            ImGui::Separator();
+        }
     }
     const int32_t catalogCount = getOperationCatalogCount();
     for (int32_t catalogIndex = 0; catalogIndex < catalogCount; ++catalogIndex) {
@@ -84,7 +156,13 @@ void renderOperationsPanel(
             ImGui::EndDisabled();
         }
         ImGui::SameLine();
-        ImGui::Text("%s | %s", costBuffer, operationLockReasonToString(lockReason));
+        if (operation->category == OperationCategory::Headquarters && operation->headquartersKind != HeadquartersKind::FamilyFriendDpa) {
+            ImGui::Text("%s deposit | %s", costBuffer, operationLockReasonToString(lockReason));
+        } else if (operation->headquartersKind == HeadquartersKind::FamilyFriendDpa) {
+            ImGui::Text("no deposit | %s", operationLockReasonToString(lockReason));
+        } else {
+            ImGui::Text("%s | %s", costBuffer, operationLockReasonToString(lockReason));
+        }
         ImGui::PopID();
     }
     ImGui::End();
@@ -157,15 +235,15 @@ void renderContactsPanel(
     }
     panelVisibility.showContacts = isOpen;
     contextHelpPanelTag("Contacts Panel", "AI characters and their view of you.", "contacts_panel", contextHelpState);
-    const int32_t agentCount = getCharacterAgentDefinitionCount();
-    for (int32_t agentIndex = 0; agentIndex < agentCount; ++agentIndex) {
-        const AgentDefinition* definition = getCharacterAgentDefinition(agentIndex);
+    for (int32_t agentIndex = 0; agentIndex < MAX_CHARACTER_AGENT_COUNT; ++agentIndex) {
         const CharacterAgentState* state = getCharacterAgentState(characterAgentStore, agentIndex);
-        if (definition == nullptr || state == nullptr) {
+        const char* displayName = nullptr;
+        const char* roleLabel = nullptr;
+        if (state == nullptr || !tryGetAgentDisplayLabels(characterAgentStore, agentIndex, displayName, roleLabel)) {
             continue;
         }
         ImGui::Separator();
-        ImGui::Text("%s (%s)", definition->displayName, definition->roleLabel);
+        ImGui::Text("%s (%s)", displayName, roleLabel);
         ImGui::Text("Opinion: %d | Trust: %d | Respect: %d", state->opinionOfPlayer, state->trust, state->respect);
     }
     ImGui::End();

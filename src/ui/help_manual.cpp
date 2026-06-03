@@ -31,7 +31,7 @@ constexpr const char* P_CONTEXT_HELP[] = {
 constexpr const char* P_CHAR_CREATION[] = {
     "Character Creation uses a two-panel layout: choices on the left, live preview on the right.",
     "Every field updates the preview and rebuilds your foundational profile in the background.",
-    "Changing Starting Borough rerolls your starting city landmark and starting cash ($0.00-$25.00, weighted low). The map camera centers on that city when you enter the game.",
+    "Changing Starting Borough rerolls your starting city landmark, starting cash ($0.00-$25.00, weighted low), and whether family or friends exist in-country. The map camera centers on that city when you enter the game.",
 };
 
 constexpr const char* P_CHAR_NAME[] = {
@@ -217,6 +217,11 @@ constexpr const char* P_CITY_PANEL[] = {
 
 constexpr const char* P_OPERATIONS_PANEL[] = {
     "Open Operations from the dock or Windows menu. Your first operation must be a headquarters: rented room, apartment, or family/friend DPA.",
+    "Move-in is first month plus a small key deposit (rented room about $22, apartment about $42). Monthly bills follow (room about $16.50, apartment about $40.50 with utilities).",
+    "Family and friends in-country are rolled per character; you may have neither, one, or both. Contacts are procedurally generated when you start.",
+    "Family/friend DPA has no cash rent but slowly drains household opinion unless you use upkeep gestures (cook dinner, buy dinner, chores, gifts).",
+    "Monthly rent scales with borough economic health and your local influence. Missed payments or hostile landlords can evict you.",
+    "World events (random, conditional, and watched triggers like a mob boss falling) fire from the simulation event catalog and show in Operations.",
     "Later entries (rackets, fronts, logistics) unlock by wealth, network access, and reputation after HQ is set.",
 };
 
@@ -386,7 +391,7 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"boroughs", "World and Map", "Boroughs Panel", "Live borough vitality bars", P_BOROUGHS, 2},
     {"landmarks_overview", "World and Map / Cities", "City Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
     {"city_panel", "World and Map / Cities", "City Panel", "Landmark stats and claims", P_CITY_PANEL, 3},
-    {"operations_panel", "World and Map / Operations", "Operations Panel", "HQ and expansion catalog", P_OPERATIONS_PANEL, 2},
+    {"operations_panel", "World and Map / Operations", "Operations Panel", "HQ and expansion catalog", P_OPERATIONS_PANEL, 4},
     {"business_panel", "World and Map / Operations", "Business Panel", "Jobs at blue nodes", P_BUSINESS_PANEL, 2},
     {"landmark_control", "World and Map / Cities", "City Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
 

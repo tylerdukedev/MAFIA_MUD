@@ -13,9 +13,17 @@ struct PlayerOperationsStore {
     int32_t activeCatalogIndices[MAX_OPERATION_CATALOG_COUNT]{};
     int32_t activeOperationCount = 0;
     int32_t familyOpinionPenalty = 0;
+    uint64_t headquartersEstablishedTick = 0;
+    uint64_t lastMonthlyLedgerTick = 0;
+    uint64_t lastFamilyUpkeepTick = 0;
+    uint8_t headquartersRegionId = 0;
+    int8_t consecutiveUnpaidRentMonths = 0;
+    int32_t rentMultiplierBps = 10000;
+    int32_t rentEventAdjustmentBps = 0;
 };
 
 void resetPlayerOperationsStore(PlayerOperationsStore& store);
+void clearPlayerHeadquarters(PlayerOperationsStore& store);
 bool hasPlayerHeadquarters(const PlayerOperationsStore& store);
 bool isOperationCatalogActive(const PlayerOperationsStore& store, int32_t catalogIndex);
 float getNetworkAccessScore(const PlayerProfile& profile);
@@ -30,7 +38,8 @@ bool tryEstablishOperation(
     PlayerOperationsStore& store,
     PlayerWallet& wallet,
     const PlayerProfile& profile,
-    int32_t catalogIndex);
+    int32_t catalogIndex,
+    uint64_t tickCount);
 bool canEstablishCityOperation(
     const PlayerOperationsStore& store,
     const PlayerProfile& profile,
