@@ -2,8 +2,11 @@
 
 #include "character/character_draft.h"
 #include "core/sim_clock.h"
+#include "game/player_law_enforcement.h"
+#include "game/player_organization.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/street_crime.h"
 #include "sim/character_agent.h"
 #include "sim/world_event_store.h"
 #include "ui/map_camera.h"
@@ -45,6 +48,9 @@ struct SaveGameSnapshot {
     int32_t rentEventAdjustmentBps = 0;
     WorldEventStore worldEventStore{};
     CharacterAgentStore characterAgentStore{};
+    PlayerOrganizationStore organizationStore{};
+    PlayerLawEnforcementStore lawEnforcementStore{};
+    PlayerStreetCrimeStore streetCrimeStore{};
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
     std::vector<int16_t> elevations;
@@ -71,7 +77,10 @@ bool buildSaveSnapshot(
     const CityControlStore& cityControlStore,
     const PlayerOperationsStore& playerOperationsStore,
     const WorldEventStore& worldEventStore,
-    const CharacterAgentStore& characterAgentStore);
+    const CharacterAgentStore& characterAgentStore,
+    const PlayerOrganizationStore& organizationStore,
+    const PlayerLawEnforcementStore& lawEnforcementStore,
+    const PlayerStreetCrimeStore& streetCrimeStore);
 bool applySaveSnapshot(
     const SaveGameSnapshot& snapshot,
     uint64_t& outWorldSeed,
@@ -83,7 +92,10 @@ bool applySaveSnapshot(
     CityControlStore& cityControlStore,
     PlayerOperationsStore& playerOperationsStore,
     WorldEventStore& worldEventStore,
-    CharacterAgentStore& characterAgentStore);
+    CharacterAgentStore& characterAgentStore,
+    PlayerOrganizationStore& organizationStore,
+    PlayerLawEnforcementStore& lawEnforcementStore,
+    PlayerStreetCrimeStore& streetCrimeStore);
 bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot);
 bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot);
 

@@ -1,4 +1,5 @@
 #include "sim/city_control_system.h"
+#include "sim/sim_event_queue.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
 #include "world/landmark_table.h"
@@ -79,7 +80,9 @@ void CityControlSystem::onTick(uint64_t tickCount) {
     while (popSimEvent(*bindings.eventQueue, event)) {
         if (event.type == SimEventType::ClaimCity) {
             processClaimCityEvent(event, tickCount);
+            continue;
         }
+        pushSimEventRestored(*bindings.eventQueue, event);
     }
 }
 

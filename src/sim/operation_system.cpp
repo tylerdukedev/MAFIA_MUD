@@ -1,4 +1,5 @@
 #include "sim/operation_system.h"
+#include "sim/sim_event_queue.h"
 #include "character/character_social_network.h"
 #include "game/kin_housing.h"
 #include "game/operation_types.h"
@@ -54,10 +55,13 @@ void OperationSystem::onTick(uint64_t tickCount) {
     while (popSimEvent(*bindings.eventQueue, event)) {
         if (event.type == SimEventType::EstablishOperation) {
             processEstablishOperationEvent(event, tickCount);
+            continue;
         }
         if (event.type == SimEventType::ApplyForJob) {
             processApplyForJobEvent(event);
+            continue;
         }
+        pushSimEventRestored(*bindings.eventQueue, event);
     }
 }
 

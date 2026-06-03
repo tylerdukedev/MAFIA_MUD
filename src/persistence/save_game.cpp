@@ -1,4 +1,7 @@
 #include "persistence/save_game.h"
+#include "game/player_law_enforcement.h"
+#include "game/player_organization.h"
+#include "game/street_crime.h"
 #include "sim/character_agent.h"
 #include "sim/world_event_types.h"
 #include "world/landmark_table.h"
@@ -9,7 +12,7 @@ namespace Core {
 
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
-constexpr uint32_t SAVE_VERSION = 8U;
+constexpr uint32_t SAVE_VERSION = 9U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -97,7 +100,10 @@ bool buildSaveSnapshot(
     const CityControlStore& cityControlStore,
     const PlayerOperationsStore& playerOperationsStore,
     const WorldEventStore& worldEventStore,
-    const CharacterAgentStore& characterAgentStore) {
+    const CharacterAgentStore& characterAgentStore,
+    const PlayerOrganizationStore& organizationStore,
+    const PlayerLawEnforcementStore& lawEnforcementStore,
+    const PlayerStreetCrimeStore& streetCrimeStore) {
     (void)boroughVitalityStore;
     outSnapshot.worldSeed = worldSeed;
     outSnapshot.characterDraft = characterDraft;
@@ -124,6 +130,9 @@ bool buildSaveSnapshot(
         outSnapshot.activeCatalogIndices[index] = playerOperationsStore.activeCatalogIndices[index];
     }
     outSnapshot.characterAgentStore = characterAgentStore;
+    outSnapshot.organizationStore = organizationStore;
+    outSnapshot.lawEnforcementStore = lawEnforcementStore;
+    outSnapshot.streetCrimeStore = streetCrimeStore;
     outSnapshot.tickCount = simClock.getTickCount();
     outSnapshot.isPaused = simClock.isPaused();
     outSnapshot.speedMultiplier = simClock.getSpeedMultiplier();
@@ -170,7 +179,10 @@ bool applySaveSnapshot(
     CityControlStore& cityControlStore,
     PlayerOperationsStore& playerOperationsStore,
     WorldEventStore& worldEventStore,
-    CharacterAgentStore& characterAgentStore) {
+    CharacterAgentStore& characterAgentStore,
+    PlayerOrganizationStore& organizationStore,
+    PlayerLawEnforcementStore& lawEnforcementStore,
+    PlayerStreetCrimeStore& streetCrimeStore) {
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.terrainIds.size()) != SAVE_GAME_TILE_COUNT
         || static_cast<int32_t>(snapshot.elevations.size()) != SAVE_GAME_TILE_COUNT
@@ -233,6 +245,9 @@ bool applySaveSnapshot(
     }
     worldEventStore = snapshot.worldEventStore;
     characterAgentStore = snapshot.characterAgentStore;
+    organizationStore = snapshot.organizationStore;
+    lawEnforcementStore = snapshot.lawEnforcementStore;
+    streetCrimeStore = snapshot.streetCrimeStore;
     return true;
 }
 
@@ -403,10 +418,21 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     int32_t agentCount = 0;
     const bool agentCountRead = readAllBytes(fileHandle, &agentCount, sizeof(agentCount));
     (void)agentCount;
+    bool organizationRead = readAllBytes(fileHandle, &outSnapshot.organizationStore, sizeof(outSnapshot.organizationStore));
+    bool lawRead = readAllBytes(fileHandle, &outSnapshot.lawEnforcementStore, sizeof(outSnapshot.lawEnforcementStore));
+    bool streetCrimeRead = readAllBytes(fileHandle, &outSnapshot.streetCrimeStore, sizeof(outSnapshot.streetCrimeStore));
+    if (!organizationRead || !lawRead || !streetCrimeRead) {
+        resetPlayerOrganizationStore(outSnapshot.organizationStore);
+        resetPlayerLawEnforcementStore(outSnapshot.lawEnforcementStore);
+        resetPlayerStreetCrimeStore(outSnapshot.streetCrimeStore);
+        organizationRead = true;
+        lawRead = true;
+        streetCrimeRead = true;
+    }
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead
         && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead && cityOwnersRead
-        && catalogRead && agentsRead && agentCountRead;
+        && catalogRead && agentsRead && agentCountRead && organizationRead && lawRead && streetCrimeRead;
     std::fclose(fileHandle);
     return didLoad;
 }

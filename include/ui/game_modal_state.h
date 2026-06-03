@@ -9,6 +9,9 @@ enum class GameModalKind : uint8_t {
     JobInterview = 1,
     ApartmentApplication = 2,
     WorkDayCommute = 3,
+    CrewRecruitment = 4,
+    CrewFormalize = 5,
+    OrganizationCreation = 6,
 };
 
 struct GameModalState {
@@ -17,12 +20,16 @@ struct GameModalState {
     bool pauseSimulation = false;
     bool lockOtherPanels = false;
     int32_t businessNodeIndex = -1;
+    int32_t targetAgentIndex = -1;
     int32_t interviewQuestionIndex = 0;
     int32_t interviewScore = 0;
     int32_t selectedAnswerIndex = -1;
     bool hasFlowResult = false;
     bool isLateForWork = false;
     char statusMessage[128]{};
+    char crewNameBuffer[32]{};
+    char organizationNameBuffer[48]{};
+    char organizationFrontBuffer[48]{};
 };
 
 void resetGameModalState(GameModalState& state);

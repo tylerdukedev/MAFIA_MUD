@@ -2,6 +2,9 @@
 #include "character/character_social_network.h"
 #include "game/landlord_contact.h"
 #include "game/player_employment.h"
+#include "game/player_law_enforcement.h"
+#include "game/player_organization.h"
+#include "game/player_organization_ui.h"
 #include "game/operation_types.h"
 #include "game/player_operations.h"
 #include "sim/character_agent.h"
@@ -108,6 +111,22 @@ void beginWorkDayCommuteModal(GameModalState& modal, bool isLateForWork, SimCloc
     modal.isLateForWork = isLateForWork;
 }
 
+void beginCrewRecruitmentModal(GameModalState& modal, int32_t agentIndex, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::CrewRecruitment, "Make your pitch — will they run with you?");
+    modal.targetAgentIndex = agentIndex;
+}
+
+void beginCrewFormalizeModal(GameModalState& modal, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::CrewFormalize, "Name your street crew.");
+    std::snprintf(modal.crewNameBuffer, sizeof(modal.crewNameBuffer), "%s", "The Corner Crew");
+}
+
+void beginOrganizationCreationModal(GameModalState& modal, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::OrganizationCreation, "Incorporate — this makes you official on paper.");
+    std::snprintf(modal.organizationNameBuffer, sizeof(modal.organizationNameBuffer), "%s", "Russo & Associates");
+    std::snprintf(modal.organizationFrontBuffer, sizeof(modal.organizationFrontBuffer), "%s", "Import & Storage");
+}
+
 void tickWorkDayCommutePrompt(
     GameModalState& modal,
     PlayerWorldState& playerWorldState,
@@ -134,12 +153,15 @@ void renderGameModalOverlay(
     GameModalState& modal,
     SimClock& simClock,
     PlayerOperationsStore& playerOperationsStore,
+    PlayerOrganizationStore& playerOrganizationStore,
+    PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerWallet& playerWallet,
     PlayerWorldState& playerWorldState,
     CharacterAgentStore& characterAgentStore,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
-    uint64_t tickCount) {
+    uint64_t tickCount,
+    uint64_t worldSeed) {
     (void)simEventQueue;
     if (!modal.isActive) {
         return;
@@ -147,7 +169,8 @@ void renderGameModalOverlay(
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 center(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, viewport->WorkPos.y + viewport->WorkSize.y * 0.5f);
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(520.0f, 360.0f), ImGuiCond_Always);
+    const ImVec2 modalSize = modal.kind == GameModalKind::OrganizationCreation ? ImVec2(580.0f, 420.0f) : ImVec2(520.0f, 360.0f);
+    ImGui::SetNextWindowSize(modalSize, ImGuiCond_Always);
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     if (!ImGui::Begin("Event", nullptr, flags)) {
         ImGui::End();
@@ -255,6 +278,106 @@ void renderGameModalOverlay(
             playerWorldState.isAtWork = false;
             playerWorldState.lastWorkDayPromptTick = tickCount;
             closeModal(modal, simClock);
+        }
+    } else if (modal.kind == GameModalKind::CrewRecruitment) {
+        const char* displayName = nullptr;
+        const char* roleLabel = nullptr;
+        tryGetAgentDisplayLabels(characterAgentStore, modal.targetAgentIndex, displayName, roleLabel);
+        ImGui::Text("Recruit to crew");
+        if (displayName != nullptr) {
+            ImGui::TextDisabled("%s (%s)", displayName, roleLabel);
+        }
+        ImGui::Separator();
+        if (modal.hasFlowResult) {
+            ImGui::TextWrapped("%s", modal.statusMessage);
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else {
+            ImGui::TextWrapped("Offer them a place in your street crew. Trust and respect matter.");
+            if (ImGui::Selectable("Split fair — we eat together, share risk", modal.selectedAnswerIndex == 0)) {
+                modal.selectedAnswerIndex = 0;
+            }
+            if (ImGui::Selectable("You cover muscle, I cover planning", modal.selectedAnswerIndex == 1)) {
+                modal.selectedAnswerIndex = 1;
+            }
+            if (ImGui::Selectable("Heavy hand — my word is law", modal.selectedAnswerIndex == 2)) {
+                modal.selectedAnswerIndex = 2;
+            }
+            if (modal.selectedAnswerIndex >= 0 && ImGui::Button("Make the offer", ImVec2(180.0f, 0.0f))) {
+                const CharacterAgentState* agentState = getCharacterAgentState(characterAgentStore, modal.targetAgentIndex);
+                if (agentState == nullptr) {
+                    setModalStatus(modal, "They are not available.");
+                    modal.hasFlowResult = true;
+                } else {
+                    const int32_t acceptChance = rollCrewRecruitAcceptChance(*agentState, playerProfile, modal.selectedAnswerIndex, worldSeed, modal.targetAgentIndex);
+                    const uint32_t roll = static_cast<uint32_t>((worldSeed ^ tickCount ^ static_cast<uint64_t>(modal.targetAgentIndex)) % 100ULL);
+                    if (static_cast<int32_t>(roll) < acceptChance && tryAddCrewMember(playerOrganizationStore, modal.targetAgentIndex)) {
+                        setModalStatus(modal, "They accepted — added to your crew roster.");
+                    } else {
+                        setModalStatus(modal, "They passed for now. Build trust and try again later.");
+                        adjustAgentOpinion(characterAgentStore, modal.targetAgentIndex, -3);
+                    }
+                    modal.hasFlowResult = true;
+                }
+            }
+        }
+    } else if (modal.kind == GameModalKind::CrewFormalize) {
+        ImGui::Text("Formalize crew");
+        ImGui::Separator();
+        if (modal.hasFlowResult) {
+            ImGui::TextWrapped("%s", modal.statusMessage);
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else {
+            ImGui::Text("Members ready: %d (need %d)", playerOrganizationStore.crewMemberCount, MIN_CREW_MEMBERS_TO_FORM);
+            ImGui::InputText("Crew name", modal.crewNameBuffer, sizeof(modal.crewNameBuffer));
+            if (ImGui::Button("Establish crew", ImVec2(200.0f, 0.0f))) {
+                if (tryFormalizeCrew(playerOrganizationStore, modal.crewNameBuffer, tickCount)) {
+                    setModalStatus(modal, "Your crew is official on the street. Crew-tier crimes unlock.");
+                    modal.hasFlowResult = true;
+                } else {
+                    setModalStatus(modal, "Could not formalize — need more members.");
+                    modal.hasFlowResult = true;
+                }
+            }
+        }
+    } else if (modal.kind == GameModalKind::OrganizationCreation) {
+        ImGui::Text("Organization incorporation");
+        ImGui::Separator();
+        const OrganizationFormLockReason lockReason = evaluateOrganizationFormLock(
+            playerOrganizationStore, playerLawEnforcementStore, playerProfile, playerWallet);
+        ImGui::TextDisabled("%s", organizationFormLockReasonToString(lockReason));
+        if (modal.hasFlowResult) {
+            ImGui::TextWrapped("%s", modal.statusMessage);
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else {
+            ImGui::TextWrapped("You are graduating from a street gang to something with ledgers, fronts, and payroll.");
+            ImGui::InputText("Organization name", modal.organizationNameBuffer, sizeof(modal.organizationNameBuffer));
+            ImGui::InputText("Legitimate front", modal.organizationFrontBuffer, sizeof(modal.organizationFrontBuffer));
+            ImGui::Text("Crew: %s | Members: %d", playerOrganizationStore.crewName, playerOrganizationStore.crewMemberCount);
+            if (lockReason != OrganizationFormLockReason::None) {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::Button("File incorporation", ImVec2(200.0f, 0.0f))) {
+                if (tryFormalizeOrganization(
+                        playerOrganizationStore,
+                        modal.organizationNameBuffer,
+                        modal.organizationFrontBuffer,
+                        tickCount)) {
+                    setModalStatus(modal, "Organization formed. Enterprise street crimes unlock.");
+                    modal.hasFlowResult = true;
+                } else {
+                    setModalStatus(modal, "Requirements not met — check heat, network, and crime record.");
+                    modal.hasFlowResult = true;
+                }
+            }
+            if (lockReason != OrganizationFormLockReason::None) {
+                ImGui::EndDisabled();
+            }
         }
     }
     ImGui::End();

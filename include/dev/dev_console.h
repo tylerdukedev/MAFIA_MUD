@@ -2,6 +2,8 @@
 
 #include "character/character_draft.h"
 #include "character/player_profile.h"
+#include "game/player_law_enforcement.h"
+#include "game/player_organization.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
 #include "sim/character_agent.h"
@@ -33,6 +35,8 @@ struct DevConsoleGameplaySnapshot {
     PlayerWallet* playerWallet = nullptr;
     CityControlStore* cityControlStore = nullptr;
     PlayerOperationsStore* playerOperationsStore = nullptr;
+    PlayerOrganizationStore* playerOrganizationStore = nullptr;
+    PlayerLawEnforcementStore* playerLawEnforcementStore = nullptr;
     CharacterAgentStore* characterAgentStore = nullptr;
     WorldEventStore* worldEventStore = nullptr;
     uint64_t tickCount = 0;

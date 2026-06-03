@@ -7,6 +7,11 @@
 #include "sim/world_event_store.h"
 #include "game/operation_types.h"
 #include "game/player_wallet.h"
+#include "game/street_crime.h"
+#include "game/player_organization.h"
+#include "game/player_organization_ui.h"
+#include "game/economy_constants.h"
+#include "ui/game_modal_ui.h"
 #include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
 #include "world/business_node_table.h"
@@ -40,10 +45,57 @@ const char* operationLockReasonToString(OperationLockReason reason) {
     }
 }
 
+void renderStreetCrimeTierGroup(
+    StreetCrimeTier tier,
+    PlayerOperationsStore& playerOperationsStore,
+    const PlayerOrganizationStore& playerOrganizationStore,
+    PlayerStreetCrimeStore& playerStreetCrimeStore,
+    const PlayerLawEnforcementStore& playerLawEnforcementStore,
+    const PlayerProfile& playerProfile,
+    const CharacterAgentStore& characterAgentStore,
+    SimEventQueue& simEventQueue,
+    uint64_t tickCount) {
+    ImGui::TextDisabled("%s crimes", streetCrimeTierToString(tier));
+    const int32_t crimeCount = getStreetCrimeCount();
+    for (int32_t crimeIndex = 0; crimeIndex < crimeCount; ++crimeIndex) {
+        const StreetCrimeDefinition* crime = getStreetCrimeDefinition(crimeIndex);
+        if (crime == nullptr || crime->tier != tier) {
+            continue;
+        }
+        const StreetCrimeLockReason lockReason = evaluateStreetCrimeLock(
+            playerOperationsStore,
+            playerStreetCrimeStore,
+            playerLawEnforcementStore,
+            playerOrganizationStore,
+            playerProfile,
+            characterAgentStore,
+            crimeIndex,
+            *crime,
+            tickCount);
+        ImGui::PushID(crimeIndex + 2000);
+        if (lockReason != StreetCrimeLockReason::None) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::Button(crime->displayName)) {
+            pushSimEventWithCatalog(simEventQueue, SimEventType::CommitStreetCrime, crimeIndex);
+        }
+        if (lockReason != StreetCrimeLockReason::None) {
+            ImGui::EndDisabled();
+        }
+        ImGui::SameLine();
+        ImGui::Text("%s", streetCrimeLockReasonToString(lockReason));
+        ImGui::TextWrapped("%s", crime->description);
+        ImGui::PopID();
+    }
+}
+
 } // namespace
 
 void renderOperationsPanel(
     PlayerOperationsStore& playerOperationsStore,
+    PlayerOrganizationStore& playerOrganizationStore,
+    PlayerStreetCrimeStore& playerStreetCrimeStore,
+    PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerWallet& playerWallet,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
@@ -68,14 +120,14 @@ void renderOperationsPanel(
     panelVisibility.showOperations = isOpen;
     contextHelpPanelTag("Operations Panel", "Establish headquarters, rackets, and fronts.", "operations_panel", contextHelpState);
     if (!hasPlayerHeadquarters(playerOperationsStore)) {
-        ImGui::TextWrapped("Your first operation must be a headquarters: rented room, apartment, or family/friend DPA.");
+        ImGui::TextWrapped("Your first operation must be a headquarters: rented room, apartment, or family/friend stay (DPA).");
         ImGui::TextDisabled("Move-in deposit is paid once; rent, taxes, and utilities bill monthly.");
         ImGui::Separator();
     } else {
         MonthlyHousingLedger ledger{};
         buildMonthlyHousingLedger(playerOperationsStore, playerOperationsStore.employedBusinessIndex, ledger);
         if (playerOperationsStore.headquartersKind == HeadquartersKind::FamilyFriendDpa) {
-            ImGui::TextWrapped("Family/friend DPA: no cash rent, but relationships erode slowly each month unless you pitch in.");
+            ImGui::TextWrapped("Family/friend stay (DPA): no cash rent, but relationships erode slowly each month unless you pitch in.");
         } else {
             char expenseBuffer[32];
             formatCashCents(expenseBuffer, sizeof(expenseBuffer), ledger.totalExpenseCents);
@@ -179,6 +231,86 @@ void renderOperationsPanel(
         }
         ImGui::PopID();
     }
+    ImGui::Separator();
+    contextHelpSectionHeader(
+        "Power tier",
+        "Solo → Crew (street gang) → Organization (official enterprise).",
+        "power_tier",
+        contextHelpState);
+    ImGui::Text("Tier: %s", playerPowerTierToString(playerOrganizationStore.powerTier));
+    if (playerOrganizationStore.powerTier == PlayerPowerTier::Solo) {
+        ImGui::Text("Recruits: %d / %d", playerOrganizationStore.crewMemberCount, MAX_CREW_MEMBER_COUNT);
+        if (playerOrganizationStore.crewMemberCount >= MIN_CREW_MEMBERS_TO_FORM) {
+            if (ImGui::Button("Formalize crew")) {
+                beginCrewFormalizeModal(gameModalState, simClock);
+            }
+        }
+    } else if (playerOrganizationStore.powerTier == PlayerPowerTier::Crew) {
+        ImGui::Text("Crew: %s", playerOrganizationStore.crewName);
+        const OrganizationFormLockReason orgLock = evaluateOrganizationFormLock(
+            playerOrganizationStore, playerLawEnforcementStore, playerProfile, playerWallet);
+        ImGui::TextDisabled("%s", organizationFormLockReasonToString(orgLock));
+        if (ImGui::Button("Incorporate organization")) {
+            beginOrganizationCreationModal(gameModalState, simClock);
+        }
+    } else {
+        ImGui::Text("Org: %s", playerOrganizationStore.organizationName);
+        ImGui::TextDisabled("Front: %s", playerOrganizationStore.organizationFront);
+    }
+    ImGui::Separator();
+    contextHelpSectionHeader(
+        "Street crime",
+        "Solo cash when broke; crew and organization jobs need trusted criminals and network.",
+        "street_crime_panel",
+        contextHelpState);
+    ImGui::Text(
+        "Heat: %d | %s | Evidence: %d | Warrants: %d",
+        playerLawEnforcementStore.personalHeat,
+        getPoliceInvestigationLabel(playerLawEnforcementStore.investigationTier),
+        playerLawEnforcementStore.evidenceScore,
+        playerLawEnforcementStore.activeWarrantCount);
+    if (playerLawEnforcementStore.witnessCount > 0) {
+        ImGui::TextDisabled("Witnesses on record: %d (%s)", playerLawEnforcementStore.witnessCount, playerLawEnforcementStore.lastWitnessLabel);
+    }
+    ImGui::Text("Criminal trust (best): %d", computeBestCriminalContactTrust(characterAgentStore));
+    if (playerWallet.cashCents <= STREET_CRIME_BROKE_CASH_THRESHOLD_CENTS) {
+        ImGui::TextColored(ImVec4(0.95f, 0.75f, 0.35f, 1.0f), "Low cash — solo crimes are your fastest option.");
+    }
+    if (!hasPlayerHeadquarters(playerOperationsStore)) {
+        ImGui::TextDisabled("Establish a headquarters before street work.");
+    } else {
+        renderStreetCrimeTierGroup(
+            StreetCrimeTier::Solo,
+            playerOperationsStore,
+            playerOrganizationStore,
+            playerStreetCrimeStore,
+            playerLawEnforcementStore,
+            playerProfile,
+            characterAgentStore,
+            simEventQueue,
+            tickCount);
+        renderStreetCrimeTierGroup(
+            StreetCrimeTier::Crew,
+            playerOperationsStore,
+            playerOrganizationStore,
+            playerStreetCrimeStore,
+            playerLawEnforcementStore,
+            playerProfile,
+            characterAgentStore,
+            simEventQueue,
+            tickCount);
+        renderStreetCrimeTierGroup(
+            StreetCrimeTier::Organization,
+            playerOperationsStore,
+            playerOrganizationStore,
+            playerStreetCrimeStore,
+            playerLawEnforcementStore,
+            playerProfile,
+            characterAgentStore,
+            simEventQueue,
+            tickCount);
+        ImGui::TextDisabled("Bigger scores will tie into racket upkeep and crew payroll in later builds.");
+    }
     ImGui::End();
 }
 
@@ -252,6 +384,9 @@ void renderBusinessPanel(
 
 void renderContactsPanel(
     const CharacterAgentStore& characterAgentStore,
+    const PlayerOrganizationStore& playerOrganizationStore,
+    GameModalState& gameModalState,
+    SimClock& simClock,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
     if (!panelVisibility.showContacts) {
@@ -276,6 +411,23 @@ void renderContactsPanel(
         ImGui::Separator();
         ImGui::Text("%s (%s)", displayName, roleLabel);
         ImGui::Text("Opinion: %d | Trust: %d | Respect: %d", state->opinionOfPlayer, state->trust, state->respect);
+        ImGui::Text("Loyalty score: %d", computeAgentLoyaltyScore(*state));
+        if (playerOrganizationStore.powerTier != PlayerPowerTier::Organization) {
+            const CrewRecruitLockReason recruitLock = evaluateCrewRecruitLock(playerOrganizationStore, characterAgentStore, agentIndex);
+            ImGui::PushID(agentIndex + 4000);
+            if (recruitLock != CrewRecruitLockReason::None) {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::Button("Talk: recruit to crew")) {
+                beginCrewRecruitmentModal(gameModalState, agentIndex, simClock);
+            }
+            if (recruitLock != CrewRecruitLockReason::None) {
+                ImGui::EndDisabled();
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", crewRecruitLockReasonToString(recruitLock));
+            ImGui::PopID();
+        }
     }
     ImGui::End();
 }

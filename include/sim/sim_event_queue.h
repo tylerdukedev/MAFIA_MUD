@@ -11,6 +11,7 @@ enum class SimEventType : uint8_t {
     ClaimCity = 1,
     EstablishOperation = 2,
     ApplyForJob = 3,
+    CommitStreetCrime = 4,
 };
 
 struct SimEvent {
@@ -33,6 +34,7 @@ bool pushSimEvent(SimEventQueue& queue, SimEventType type, int32_t landmarkIndex
 bool pushSimEventWithCatalog(SimEventQueue& queue, SimEventType type, int32_t catalogIndex);
 bool pushSimEventWithJob(SimEventQueue& queue, int32_t businessNodeIndex);
 bool popSimEvent(SimEventQueue& queue, SimEvent& outEvent);
+bool pushSimEventRestored(SimEventQueue& queue, const SimEvent& event);
 void clearSimEventQueue(SimEventQueue& queue);
 
 } // namespace Core

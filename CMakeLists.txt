@@ -83,6 +83,12 @@ set(CAPITAL_VICE_SOURCES
     src/sim/borough_vitality_system.cpp
     src/sim/city_control_system.cpp
     src/sim/operation_system.cpp
+    src/sim/police_system.cpp
+    src/sim/street_crime_system.cpp
+    src/game/street_crime.cpp
+    src/game/player_law_enforcement.cpp
+    src/game/player_organization.cpp
+    src/game/player_organization_ui.cpp
     src/sim/economy_system.cpp
     src/sim/world_event_catalog.cpp
     src/sim/world_event_store.cpp
@@ -200,6 +206,9 @@ add_executable(save_game_test
     src/game/player_wallet.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
+    src/game/player_organization.cpp
+    src/game/player_law_enforcement.cpp
+    src/game/street_crime.cpp
     ${AGENT_RELATIONSHIP_SOURCES}
     src/character/character_name_pools.cpp
     src/sim/world_event_store.cpp
@@ -260,6 +269,61 @@ add_executable(housing_living_costs_test
 target_include_directories(housing_living_costs_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(housing_living_costs_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(housing_living_costs_test)
+
+add_executable(game_integration_test
+    test/game_integration_test.cpp
+    src/game/player_employment.cpp
+    src/game/kin_housing.cpp
+    src/game/housing_living_costs.cpp
+    src/game/housing_economy.cpp
+    src/game/player_operations.cpp
+    src/game/operation_catalog.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
+    src/game/player_wallet.cpp
+    src/world/business_node_table.cpp
+    src/world/landmark_table.cpp
+    src/world/tile_vitality.cpp
+    src/world/world_config.cpp
+    src/world/chunk_store.cpp
+    src/world/region_table.cpp
+    ${CHARACTER_SOURCES}
+)
+target_include_directories(game_integration_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(game_integration_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(game_integration_test)
+
+add_executable(street_crime_test
+    test/street_crime_test.cpp
+    src/game/street_crime.cpp
+    src/game/player_organization.cpp
+    src/game/player_law_enforcement.cpp
+    src/game/player_operations.cpp
+    src/game/operation_catalog.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
+    src/game/player_wallet.cpp
+    src/world/landmark_table.cpp
+    ${CHARACTER_SOURCES}
+)
+target_include_directories(street_crime_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(street_crime_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(street_crime_test)
+
+add_executable(player_organization_test
+    test/player_organization_test.cpp
+    src/game/player_organization.cpp
+    src/game/player_organization_ui.cpp
+    src/game/street_crime.cpp
+    src/game/player_law_enforcement.cpp
+    src/game/player_operations.cpp
+    src/game/operation_catalog.cpp
+    ${AGENT_RELATIONSHIP_SOURCES}
+    src/game/player_wallet.cpp
+    src/world/landmark_table.cpp
+    ${CHARACTER_SOURCES}
+)
+target_include_directories(player_organization_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(player_organization_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(player_organization_test)
 
 add_executable(player_operations_test
     test/player_operations_test.cpp
@@ -325,6 +389,8 @@ add_executable(dev_console_test
     src/world/region_table.cpp
     src/world/city_control.cpp
     src/world/landmark_table.cpp
+    src/game/player_law_enforcement.cpp
+    src/game/player_organization.cpp
     ${CHARACTER_SOURCES}
 )
 target_include_directories(dev_console_test PRIVATE ${CMAKE_SOURCE_DIR}/include)

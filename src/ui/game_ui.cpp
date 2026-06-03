@@ -1,5 +1,6 @@
 #include "ui/map_renderer.h"
 #include "ui/game_ui.h"
+#include "game/player_law_enforcement.h"
 #include "ui/help_manual.h"
 #include "ui/context_help.h"
 #include "character/character_start.h"
@@ -231,12 +232,12 @@ void renderCharacterFinalizeScreen(
     ImGui::SetNextWindowPos(panelPos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(panelSize, ImGuiCond_Always);
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    const bool isImmigrant = characterDraft.generationId == GenerationId::Immigrant;
     const char* recordWindowTitle = isImmigrant ? "Immigration Intake Record" : "Certificate of Birth";
     if (!ImGui::Begin(recordWindowTitle, nullptr, windowFlags)) {
         ImGui::End();
         return;
     }
-    const bool isImmigrant = characterDraft.generationId == GenerationId::Immigrant;
     ImGui::SetWindowFontScale(1.35f);
     ImGui::Text("%s", isImmigrant ? "IMMIGRATION INTAKE RECORD" : "CERTIFICATE OF BIRTH");
     ImGui::SetWindowFontScale(1.0f);
@@ -553,6 +554,8 @@ int64_t computeClaimCostCentsForProfile(const PlayerProfile& playerProfile) {
 void renderCharacterPanel(
     const PlayerProfile& playerProfile,
     const PlayerWallet& playerWallet,
+    const PlayerLawEnforcementStore& playerLawEnforcementStore,
+    const PlayerOrganizationStore& playerOrganizationStore,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
     if (!panelVisibility.showCharacter) {
@@ -642,6 +645,15 @@ void renderCharacterPanel(
         contextHelpTextLine(cashLine, "Spendable balance for city claims and future actions.", "economy_overview", contextHelpState);
         ImGui::Text("Legit income: %.2f c/tick", playerWallet.legitIncomePerTickCents);
         ImGui::Text("Crime income: %.2f c/tick", playerWallet.crimeIncomePerTickCents);
+        contextHelpSectionHeader(
+            "Police attention",
+            "Heat from street crimes; decays when you stay quiet.",
+            "police_heat",
+            contextHelpState);
+        ImGui::Text("Personal heat: %d / %d", playerLawEnforcementStore.personalHeat, PLAYER_HEAT_MAX);
+        ImGui::Text("Status: %s", getPoliceInvestigationLabel(playerLawEnforcementStore.investigationTier));
+        ImGui::Text("Evidence: %d | Warrants: %d | Witnesses: %d", playerLawEnforcementStore.evidenceScore, playerLawEnforcementStore.activeWarrantCount, playerLawEnforcementStore.witnessCount);
+        ImGui::Text("Power tier: %s", playerPowerTierToString(playerOrganizationStore.powerTier));
         if (playerWallet.lastDeltaKind != WalletDeltaKind::None) {
             char deltaBuffer[48];
             formatCashCents(deltaBuffer, sizeof(deltaBuffer), playerWallet.lastDeltaCents < 0 ? -playerWallet.lastDeltaCents : playerWallet.lastDeltaCents);
@@ -1228,6 +1240,9 @@ void renderGameUi(
     const BoroughVitalityStore& boroughVitalityStore,
     PlayerWallet& playerWallet,
     PlayerOperationsStore& playerOperationsStore,
+    PlayerOrganizationStore& playerOrganizationStore,
+    PlayerStreetCrimeStore& playerStreetCrimeStore,
+    PlayerLawEnforcementStore& playerLawEnforcementStore,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
     CityControlStore& cityControlStore,
@@ -1249,7 +1264,7 @@ void renderGameUi(
     beginMainDockSpace();
     setupDefaultDockLayoutIfNeeded();
     if (!blockPanels) {
-        renderCharacterPanel(playerProfile, playerWallet, panelVisibility, contextHelpState);
+        renderCharacterPanel(playerProfile, playerWallet, playerLawEnforcementStore, playerOrganizationStore, panelVisibility, contextHelpState);
         renderSimulationPanel(
             simClock,
             worldConfig,
@@ -1262,6 +1277,9 @@ void renderGameUi(
             contextHelpState);
         renderOperationsPanel(
             playerOperationsStore,
+            playerOrganizationStore,
+            playerStreetCrimeStore,
+            playerLawEnforcementStore,
             playerWallet,
             characterAgentStore,
             worldEventStore,
@@ -1273,7 +1291,7 @@ void renderGameUi(
             tickCount,
             panelVisibility,
             contextHelpState);
-        renderContactsPanel(characterAgentStore, panelVisibility, contextHelpState);
+        renderContactsPanel(characterAgentStore, playerOrganizationStore, gameModalState, simClock, panelVisibility, contextHelpState);
         renderBoroughsPanel(boroughVitalityStore, panelVisibility, contextHelpState);
         renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, panelVisibility, contextHelpState);
         renderCityPanel(
@@ -1306,12 +1324,15 @@ void renderGameUi(
         gameModalState,
         simClock,
         playerOperationsStore,
+        playerOrganizationStore,
+        playerLawEnforcementStore,
         playerWallet,
         playerWorldState,
         characterAgentStore,
         simEventQueue,
         playerProfile,
-        tickCount);
+        tickCount,
+        worldSeed);
 }
 
 } // namespace Core

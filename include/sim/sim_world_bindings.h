@@ -1,8 +1,11 @@
 #pragma once
 
 #include "character/player_profile.h"
+#include "game/player_law_enforcement.h"
+#include "game/player_organization.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/street_crime.h"
 #include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
 #include "sim/world_event_store.h"
@@ -24,6 +27,9 @@ struct SimWorldBindings {
     SimEventQueue* eventQueue = nullptr;
     PlayerProfile* playerProfile = nullptr;
     PlayerOperationsStore* playerOperationsStore = nullptr;
+    PlayerOrganizationStore* playerOrganizationStore = nullptr;
+    PlayerLawEnforcementStore* playerLawEnforcementStore = nullptr;
+    PlayerStreetCrimeStore* playerStreetCrimeStore = nullptr;
     CharacterAgentStore* characterAgentStore = nullptr;
     WorldEventStore* worldEventStore = nullptr;
 };

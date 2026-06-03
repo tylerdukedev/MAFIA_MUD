@@ -218,11 +218,27 @@ constexpr const char* P_CITY_PANEL[] = {
 };
 
 constexpr const char* P_OPERATIONS_PANEL[] = {
-    "Your first step is headquarters: rented room, apartment (rental application), or family/friend DPA.",
+    "Your first step is headquarters: rented room, apartment (rental application), or family/friend stay (DPA).",
+    "DPA means Dwelling Place Arrangement — crashing with family or a friend who vouches for you. No cash rent, but household opinion drifts down unless you pitch in.",
     "Apartment uses an interactive application. Morris Schwartz becomes your landlord contact only after approval.",
-    "Family/friend DPA requires a family or friend contact in-country. Your kin becomes the landlord on record while staying a separate contact.",
-    "DPA has no cash rent, but household opinion drifts down unless you use upkeep actions on family or friends.",
-    "Rackets and fronts unlock later via wealth, network access, and reputation.",
+    "Family/friend stay requires a family or friend contact in-country. Your kin becomes the landlord on record while staying a separate contact.",
+    "Street crime (solo, crew, organization) pays immediate cash when jobs are thin; crew and bigger scores need trusted criminals (friend, rival) and network access.",
+    "Rackets and fronts in the catalog unlock later via wealth, network access, and reputation — they will carry upkeep as your empire grows.",
+};
+
+constexpr const char* P_STREET_CRIME[] = {
+    "Power tier: Solo (default) → Crew (street gang) → Organization (incorporated enterprise).",
+    "Recruit friend or rival via Contacts when opinion ≥ 12, trust ≥ 38, respect ≥ 32, loyalty score ≥ 35.",
+    "After two recruits, formalize the crew in Operations. Incorporate when network, crime record, and heat allow.",
+    "Solo crimes work at any tier; crew crimes need Crew+; organization crimes need Organization tier.",
+    "Witnesses can appear after crimes — higher notoriety (heat, reputation, tier) raises witness chance and warrants.",
+};
+
+constexpr const char* P_POLICE_HEAT[] = {
+    "Personal heat tracks how much local law enforcement is watching you (0–100).",
+    "Tiers: off the radar, on the beat's notes, under watch, active case file.",
+    "Street crimes, failed jobs, and future raids will feed heat; beat cop opinion reacts to trouble.",
+    "Foundation only in this build — warrants, raids, and trials will hook into the same meter later.",
 };
 
 constexpr const char* P_BUSINESS_PANEL[] = {
@@ -255,7 +271,7 @@ constexpr const char* P_LANDMARK_CONTROL[] = {
 
 constexpr const char* P_ECONOMY_OVERVIEW[] = {
     "Cash is tracked in cents. Starting money is modest ($0–$25, weighted low) and only applied when you begin life in New York — not shown during creation.",
-    "Legit income requires a job. Crime income can come from owned cities and certain backgrounds.",
+    "Legit income requires a job. Passive crime income can come from owned cities; street crimes pay lump sums from Operations.",
     "Income bundles into your wallet every 20 simulation ticks.",
 };
 
@@ -324,14 +340,14 @@ constexpr const char* P_VIEW_MENU[] = {
 };
 
 constexpr const char* P_SAVE_LOAD[] = {
-    "Saves to capitalvice_save.dat in the game folder. Stores your character, world, wallet, housing, contacts, and simulation clock.",
+    "Saves to capitalvice_save.dat (v9). Stores character, world, wallet, housing, contacts, crew tier, police heat/warrants, and crime cooldowns.",
     "Save with Ctrl+S or the File menu while in-game. Load from the main menu or File menu when a save exists.",
 };
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
 constexpr const char* P_DEV_CONSOLE[] = {
     "Dev builds only. F12 toggles a command console for profile inspection and tweaks.",
-    "Commands: help, log clear, profile dump, draft show, wallet/cities/operations/agents show (in-game), profile set ..., network/legitimacy/loyalty/culture/paths show.",
+    "Commands: help, log clear, profile dump, draft show, wallet/cities/operations/crew/law/agents show (in-game), profile set ..., network/legitimacy/loyalty/culture/paths show.",
 };
 #endif
 
@@ -415,7 +431,9 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"boroughs", "World and Map", "Boroughs Panel", "Live borough vitality bars", P_BOROUGHS, 2},
     {"landmarks_overview", "World and Map / Cities", "City Landmarks", "Strategic map nodes", P_LANDMARKS_OVERVIEW, 3},
     {"city_panel", "World and Map / Cities", "City Panel", "Landmark stats and claims", P_CITY_PANEL, 3},
-    {"operations_panel", "World and Map / Operations", "Operations Panel", "HQ and expansion catalog", P_OPERATIONS_PANEL, 5},
+    {"operations_panel", "World and Map / Operations", "Operations Panel", "HQ, street crime, expansion", P_OPERATIONS_PANEL, 6},
+    {"street_crime_panel", "World and Map / Operations", "Street Crime", "Solo, crew, and organization jobs", P_STREET_CRIME, 5},
+    {"police_heat", "Simulation / Law", "Police Heat", "Attention and investigation tier", P_POLICE_HEAT, 4},
     {"business_panel", "World and Map / Operations", "Business Panel", "Jobs at blue nodes", P_BUSINESS_PANEL, 3},
     {"travel_schedule", "World and Map / Operations", "Travel & Work Days", "Borough presence and shifts", P_TRAVEL_AND_SCHEDULE, 3},
     {"landmark_control", "World and Map / Cities", "City Control Model", "Hot high-difficulty nodes", P_LANDMARK_CONTROL, 3},
@@ -425,7 +443,8 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"windows_menu", "Interface", "Windows Menu", "Toggle panels", P_WINDOWS_MENU, 1},
     {"contacts_panel", "Simulation / Characters", "Contacts Panel", "AI opinions", P_CONTACTS_PANEL, 2},
 
-    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v5", P_SAVE_LOAD, 2},
+    {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v9", P_SAVE_LOAD, 2},
+    {"power_tier", "Simulation / Crime", "Power Tier", "Solo, crew, organization", P_STREET_CRIME, 3},
 
 #if defined(CAPITALVICE_DEV_CONSOLE)
     {"dev_console", "Developer Tools", "Dev Console", "F12 commands", P_DEV_CONSOLE, 1},

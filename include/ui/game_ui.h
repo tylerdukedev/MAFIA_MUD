@@ -3,8 +3,11 @@
 #include "character/character_draft.h"
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
+#include "game/player_law_enforcement.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/player_organization.h"
+#include "game/street_crime.h"
 #include "sim/character_agent.h"
 #include "ui/panel_visibility.h"
 #include "sim/sim_event_queue.h"
@@ -71,6 +74,9 @@ void renderGameUi(
     const BoroughVitalityStore& boroughVitalityStore,
     PlayerWallet& playerWallet,
     PlayerOperationsStore& playerOperationsStore,
+    PlayerOrganizationStore& playerOrganizationStore,
+    PlayerStreetCrimeStore& playerStreetCrimeStore,
+    PlayerLawEnforcementStore& playerLawEnforcementStore,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
     CityControlStore& cityControlStore,

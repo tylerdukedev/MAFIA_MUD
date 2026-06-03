@@ -1,4 +1,7 @@
 #include "persistence/save_game.h"
+#include "game/player_law_enforcement.h"
+#include "game/player_organization.h"
+#include "game/street_crime.h"
 #include "procgen/world_generator.h"
 #include "world/tile_vitality.h"
 #include "world/city_control.h"
@@ -74,7 +77,10 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         sourceCities,
         sourceOperations,
         WorldEventStore{},
-        sourceAgents));
+        sourceAgents,
+        PlayerOrganizationStore{},
+        PlayerLawEnforcementStore{},
+        PlayerStreetCrimeStore{}));
     REQUIRE(saveGameToFile(TEST_SAVE_PATH, snapshot));
     REQUIRE(saveFileExists(TEST_SAVE_PATH));
     SaveGameSnapshot loadedSnapshot{};
@@ -88,6 +94,9 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     PlayerOperationsStore loadedOperations{};
     CharacterAgentStore loadedAgents{};
     WorldEventStore loadedWorldEvents{};
+    PlayerOrganizationStore loadedOrganization{};
+    PlayerLawEnforcementStore loadedLaw{};
+    PlayerStreetCrimeStore loadedStreetCrime{};
     uint64_t loadedSeed = 0;
     REQUIRE(applySaveSnapshot(
         loadedSnapshot,
@@ -100,7 +109,10 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         loadedCities,
         loadedOperations,
         loadedWorldEvents,
-        loadedAgents));
+        loadedAgents,
+        loadedOrganization,
+        loadedLaw,
+        loadedStreetCrime));
     const WorldCoord sampleCoord{200, 180};
     REQUIRE(loadedSeed == DEFAULT_WORLD_SEED);
     REQUIRE(loadedDraft.heritageId == sourceDraft.heritageId);

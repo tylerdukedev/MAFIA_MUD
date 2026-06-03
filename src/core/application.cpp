@@ -233,6 +233,9 @@ void Application::renderFrame() {
             boroughVitalityStore,
             playerWallet,
             playerOperationsStore,
+            playerOrganizationStore,
+            playerStreetCrimeStore,
+            playerLawEnforcementStore,
             characterAgentStore,
             worldEventStore,
             cityControlStore,
@@ -255,6 +258,8 @@ void Application::renderFrame() {
     devGameplaySnapshot.playerWallet = isWorldReady ? &playerWallet : nullptr;
     devGameplaySnapshot.cityControlStore = isWorldReady ? &cityControlStore : nullptr;
     devGameplaySnapshot.playerOperationsStore = isWorldReady ? &playerOperationsStore : nullptr;
+    devGameplaySnapshot.playerOrganizationStore = isWorldReady ? &playerOrganizationStore : nullptr;
+    devGameplaySnapshot.playerLawEnforcementStore = isWorldReady ? &playerLawEnforcementStore : nullptr;
     devGameplaySnapshot.characterAgentStore = isWorldReady ? &characterAgentStore : nullptr;
     devGameplaySnapshot.worldEventStore = isWorldReady ? &worldEventStore : nullptr;
     devGameplaySnapshot.tickCount = simClock.getTickCount();
@@ -276,6 +281,9 @@ void Application::startNewSimulation() {
     resetBoroughVitalityStore(boroughVitalityStore);
     resetCityControlStore(cityControlStore);
     resetPlayerOperationsStore(playerOperationsStore);
+    resetPlayerOrganizationStore(playerOrganizationStore);
+    resetPlayerStreetCrimeStore(playerStreetCrimeStore);
+    resetPlayerLawEnforcementStore(playerLawEnforcementStore);
     resetPlayerWorldState(playerWorldState);
     resetGameModalState(gameModalState);
     resetWorldEventStore(worldEventStore);
@@ -297,9 +305,12 @@ void Application::startNewSimulation() {
         &simEventQueue,
         &playerProfile,
         &playerOperationsStore,
+        &playerOrganizationStore,
+        &playerLawEnforcementStore,
+        &playerStreetCrimeStore,
         &characterAgentStore,
         &worldEventStore};
-    systemRegistry.initialize(simBindings, &characterAgentStore);
+    systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore);
     requestDefaultDockLayoutOnNextFrame();
     panelVisibility = GamePanelVisibility{};
     mapCamera = MapCamera{};
@@ -334,7 +345,10 @@ bool Application::saveCurrentGame() {
             cityControlStore,
             playerOperationsStore,
             worldEventStore,
-            characterAgentStore)) {
+            characterAgentStore,
+            playerOrganizationStore,
+            playerLawEnforcementStore,
+            playerStreetCrimeStore)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
         return false;
     }
@@ -367,7 +381,10 @@ bool Application::loadSavedGame() {
             cityControlStore,
             playerOperationsStore,
             worldEventStore,
-            characterAgentStore)) {
+            characterAgentStore,
+            playerOrganizationStore,
+            playerLawEnforcementStore,
+            playerStreetCrimeStore)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
         return false;
     }
@@ -382,9 +399,12 @@ bool Application::loadSavedGame() {
         &simEventQueue,
         &playerProfile,
         &playerOperationsStore,
+        &playerOrganizationStore,
+        &playerLawEnforcementStore,
+        &playerStreetCrimeStore,
         &characterAgentStore,
         &worldEventStore};
-    systemRegistry.initialize(simBindings, &characterAgentStore);
+    systemRegistry.initialize(simBindings, &characterAgentStore, &playerStreetCrimeStore, &playerLawEnforcementStore);
     requestDefaultDockLayoutOnNextFrame();
     panelVisibility = GamePanelVisibility{};
     playerProfile = buildPlayerProfile(characterDraft);

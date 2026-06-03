@@ -9,8 +9,11 @@
 #include "ui/context_help.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
+#include "game/player_law_enforcement.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/player_organization.h"
+#include "game/street_crime.h"
 #include "game/player_world_state.h"
 #include "ui/game_modal_state.h"
 #include "sim/character_agent.h"
@@ -50,6 +53,9 @@ private:
     PlayerWorldState playerWorldState{};
     GameModalState gameModalState{};
     PlayerOperationsStore playerOperationsStore{};
+    PlayerOrganizationStore playerOrganizationStore{};
+    PlayerStreetCrimeStore playerStreetCrimeStore{};
+    PlayerLawEnforcementStore playerLawEnforcementStore{};
     CharacterAgentStore characterAgentStore{};
     CityControlStore cityControlStore{};
     GamePanelVisibility panelVisibility{};

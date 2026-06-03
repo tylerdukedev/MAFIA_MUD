@@ -1,4 +1,6 @@
 #include "dev/dev_console.h"
+#include "game/player_law_enforcement.h"
+#include "game/player_organization.h"
 #include "character/character_family.h"
 #include "character/character_tables.h"
 #include "character/profile_builder.h"
@@ -217,12 +219,12 @@ void logAgentsFields(DevConsoleLog& log, const CharacterAgentStore& store) {
 }
 
 void logHelp(DevConsoleLog& log) {
-    devConsoleLogAppend(log, "Build: family culture, kin DPA landlord, official record contacts");
+    devConsoleLogAppend(log, "Build: crew tiers, org incorporation, police warrants/witnesses");
     devConsoleLogAppend(log, "Commands:");
     devConsoleLogAppend(log, "  help");
     devConsoleLogAppend(log, "  log clear");
     devConsoleLogAppend(log, "  profile dump | draft show");
-    devConsoleLogAppend(log, "  wallet show | cities show | operations show | agents show  (in-game)");
+    devConsoleLogAppend(log, "  wallet show | cities show | operations show | crew show | law show | agents show  (in-game)");
     devConsoleLogAppend(log, "  event fire <id> | event flags | agent deactivate <slot>");
     devConsoleLogAppend(log, "  profile set generation <immigrant|first|second|third>");
     devConsoleLogAppend(log, "  profile set heritage <name> | nationality <name> | age <16-25>");
@@ -486,6 +488,51 @@ void devConsoleExecuteCommand(
             return;
         }
         logOperationsFields(log, *gameplaySnapshot->playerOperationsStore);
+        return;
+    }
+    if (std::strcmp(token, "crew") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken)) || std::strcmp(subToken, "show") != 0) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->playerOrganizationStore == nullptr) {
+            devConsoleLogAppend(log, "crew show requires an active in-game session.");
+            return;
+        }
+        const PlayerOrganizationStore& organization = *gameplaySnapshot->playerOrganizationStore;
+        char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+        std::snprintf(
+            buffer,
+            sizeof(buffer),
+            "tier=%s members=%d crew=%s org=%s",
+            playerPowerTierToString(organization.powerTier),
+            organization.crewMemberCount,
+            organization.crewName,
+            organization.organizationName);
+        devConsoleLogAppend(log, buffer);
+        return;
+    }
+    if (std::strcmp(token, "law") == 0) {
+        char subToken[64];
+        if (!readToken(cursor, subToken, sizeof(subToken)) || std::strcmp(subToken, "show") != 0) {
+            return;
+        }
+        if (gameplaySnapshot == nullptr || !gameplaySnapshot->isWorldReady || gameplaySnapshot->playerLawEnforcementStore == nullptr) {
+            devConsoleLogAppend(log, "law show requires an active in-game session.");
+            return;
+        }
+        const PlayerLawEnforcementStore& law = *gameplaySnapshot->playerLawEnforcementStore;
+        char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
+        std::snprintf(
+            buffer,
+            sizeof(buffer),
+            "heat=%d tier=%s evidence=%d warrants=%d witnesses=%d",
+            law.personalHeat,
+            getPoliceInvestigationLabel(law.investigationTier),
+            law.evidenceScore,
+            law.activeWarrantCount,
+            law.witnessCount);
+        devConsoleLogAppend(log, buffer);
         return;
     }
     if (std::strcmp(token, "event") == 0) {

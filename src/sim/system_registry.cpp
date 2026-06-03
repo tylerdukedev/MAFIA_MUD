@@ -26,13 +26,21 @@ SystemRegistry::SystemRegistry()
     }
 }
 
-void SystemRegistry::initialize(const SimWorldBindings& bindings, CharacterAgentStore* agentStore) {
+void SystemRegistry::initialize(
+    const SimWorldBindings& bindings,
+    CharacterAgentStore* agentStore,
+    PlayerStreetCrimeStore* crimeStore,
+    PlayerLawEnforcementStore* lawStore) {
     systemCount = 0;
+    streetCrimeSystem.bind(bindings, crimeStore, lawStore);
     operationSystem.bind(bindings, agentStore);
     cityControlSystem.bind(bindings);
     worldEventSystem.bind(bindings);
+    policeSystem.bind(bindings, lawStore);
     economySystem.bind(bindings);
     boroughVitalitySystem.bind(bindings);
+    systems[systemCount++] = &policeSystem;
+    systems[systemCount++] = &streetCrimeSystem;
     systems[systemCount++] = &operationSystem;
     systems[systemCount++] = &cityControlSystem;
     systems[systemCount++] = &boroughVitalitySystem;

@@ -8,7 +8,7 @@ namespace {
 constexpr OperationDefinition OPERATION_CATALOG[] = {
     {"hq_rented_room", "Rented Room", OperationCategory::Headquarters, HeadquartersKind::RentedRoom, HQ_RENTED_ROOM_COST_CENTS, 0.0f, 0, 0, false, false},
     {"hq_apartment", "Apartment", OperationCategory::Headquarters, HeadquartersKind::Apartment, HQ_APARTMENT_COST_CENTS, HQ_APARTMENT_MIN_NETWORK_ACCESS, 0, 0, false, false},
-    {"hq_family_dpa", "Family / Friend DPA", OperationCategory::Headquarters, HeadquartersKind::FamilyFriendDpa, HQ_FAMILY_DPA_COST_CENTS, 0.0f, 0, 0, false, true},
+    {"hq_family_dpa", "Family / Friend Stay (DPA)", OperationCategory::Headquarters, HeadquartersKind::FamilyFriendDpa, HQ_FAMILY_DPA_COST_CENTS, 0.0f, 0, 0, false, true},
     {"racket_numbers", "Numbers Bank", OperationCategory::Racket, HeadquartersKind::None, 85000, 0.18f, 25000, 20, true, false},
     {"racket_protection", "Protection Ring", OperationCategory::Racket, HeadquartersKind::None, 120000, 0.25f, 40000, 30, true, false},
     {"biz_import_front", "Import Front Company", OperationCategory::Business, HeadquartersKind::None, 200000, 0.35f, 75000, 40, true, false},

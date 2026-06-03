@@ -44,6 +44,16 @@ bool pushSimEvent(SimEventQueue& queue, SimEventType type, int32_t landmarkIndex
     return true;
 }
 
+bool pushSimEventRestored(SimEventQueue& queue, const SimEvent& event) {
+    if (queue.eventCount >= SIM_EVENT_QUEUE_CAPACITY) {
+        return false;
+    }
+    queue.events[queue.tailIndex] = event;
+    queue.tailIndex = (queue.tailIndex + 1) % SIM_EVENT_QUEUE_CAPACITY;
+    ++queue.eventCount;
+    return true;
+}
+
 bool popSimEvent(SimEventQueue& queue, SimEvent& outEvent) {
     if (queue.eventCount <= 0) {
         return false;

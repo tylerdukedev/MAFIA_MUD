@@ -1,8 +1,10 @@
 #pragma once
 
 #include "character/player_profile.h"
+#include "game/player_law_enforcement.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/street_crime.h"
 #include "sim/character_agent.h"
 #include "sim/sim_event_queue.h"
 #include "sim/world_event_store.h"
@@ -19,6 +21,9 @@ namespace Core {
 
 void renderOperationsPanel(
     PlayerOperationsStore& playerOperationsStore,
+    PlayerOrganizationStore& playerOrganizationStore,
+    PlayerStreetCrimeStore& playerStreetCrimeStore,
+    PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerWallet& playerWallet,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
@@ -46,6 +51,9 @@ void renderBusinessPanel(
 
 void renderContactsPanel(
     const CharacterAgentStore& characterAgentStore,
+    const PlayerOrganizationStore& playerOrganizationStore,
+    GameModalState& gameModalState,
+    SimClock& simClock,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState);
 
