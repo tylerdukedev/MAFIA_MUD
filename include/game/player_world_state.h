@@ -19,6 +19,14 @@ struct PlayerWorldState {
     int32_t homeTileY = 0;
     bool hasLandlordContact = false;
     bool isAtWork = false;
+    bool isTraveling = false;
+    int32_t travelOriginTileX = 0;
+    int32_t travelOriginTileY = 0;
+    int32_t travelDestTileX = 0;
+    int32_t travelDestTileY = 0;
+    uint8_t travelDestRegionId = 0;
+    uint64_t travelStartTick = 0;
+    uint64_t travelCompleteTick = 0;
     uint64_t lastWorkDayPromptTick = 0;
     uint64_t lastCommuteTick = 0;
 };
@@ -28,5 +36,16 @@ void initializePlayerWorldStateFromStart(PlayerWorldState& state, int32_t startT
 int32_t computeTravelTicksBetweenTiles(int32_t fromTileX, int32_t fromTileY, int32_t toTileX, int32_t toTileY);
 bool canPlayerOperateInRegion(const PlayerWorldState& state, RegionId targetRegionId);
 bool tryTravelPlayerToTile(PlayerWorldState& state, int32_t targetTileX, int32_t targetTileY, RegionId targetRegionId, uint64_t tickCount);
+bool beginPlayerTravel(
+    PlayerWorldState& state,
+    int32_t targetTileX,
+    int32_t targetTileY,
+    RegionId targetRegionId,
+    uint64_t tickCount,
+    int32_t travelDurationTicks);
+void tickPlayerTravel(PlayerWorldState& state, uint64_t tickCount);
+float computePlayerTravelVisualT(const PlayerWorldState& state, uint64_t tickCount);
+void getPlayerDisplayTile(const PlayerWorldState& state, uint64_t tickCount, float& outTileX, float& outTileY);
+bool isPlayerTraveling(const PlayerWorldState& state);
 
 } // namespace Core

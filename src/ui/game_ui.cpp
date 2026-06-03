@@ -25,6 +25,13 @@
 #include <cstring>
 #include "ui/dock_layout.h"
 #include "ui/map_status_hud.h"
+#include "ui/map_notification_layer.h"
+#include "ui/player_map_marker.h"
+#include "ui/dock_panel_helpers.h"
+#include "ui/map_ui_requests.h"
+#include "game/player_career.h"
+#include "game/player_information_feed.h"
+#include "game/player_narrative_archive.h"
 #include "persistence/playthrough_archive.h"
 #include "game/game_calendar.h"
 #include "game/player_health.h"
@@ -44,6 +51,7 @@
 namespace Core {
 
 char saveLoadStatusMessage[128]{};
+MapNotificationLayerState g_mapNotificationLayer{};
 
 namespace {
 constexpr float MIN_WINDOW_WIDTH = 960.0f;
@@ -132,6 +140,15 @@ void renderCharacterCreationForm(CharacterDraft& characterDraft, FrontendUiEvent
         [](void*, int index) { return getBoroughPreferenceLabel(index); },
         nullptr,
         getBoroughPreferenceCount());
+    float markerColor[3] = {
+        static_cast<float>(characterDraft.mapMarkerColorR) / 255.0f,
+        static_cast<float>(characterDraft.mapMarkerColorG) / 255.0f,
+        static_cast<float>(characterDraft.mapMarkerColorB) / 255.0f};
+    if (ImGui::ColorEdit3("Map marker color", markerColor)) {
+        characterDraft.mapMarkerColorR = static_cast<uint8_t>(markerColor[0] * 255.0f);
+        characterDraft.mapMarkerColorG = static_cast<uint8_t>(markerColor[1] * 255.0f);
+        characterDraft.mapMarkerColorB = static_cast<uint8_t>(markerColor[2] * 255.0f);
+    }
     ImGui::Spacing();
     ImGui::Separator();
     const bool canStart = isCharacterNameValid(characterDraft);
@@ -453,8 +470,6 @@ void renderSimulationPanel(
     const WorldConfig& worldConfig,
     const ChunkStore& chunkStore,
     const BoroughVitalityStore& boroughVitalityStore,
-    const GameCalendarStore& calendarStore,
-    const PlayerWorkScheduleStore& workScheduleStore,
     const PlayerOperationsStore& playerOperationsStore,
     bool& mapCrimeOverlayEnabled,
     const SystemRegistry& systemRegistry,
@@ -472,6 +487,7 @@ void renderSimulationPanel(
         return;
     }
     panelVisibility.showSimulation = isOpen;
+    resetDockPanelScrollIfNeeded();
         contextHelpPanelTag(
             "Simulation Panel",
             "Clock status, speed controls, and world summary.",
@@ -499,14 +515,6 @@ void renderSimulationPanel(
         ImGui::Text("Speed: %.2fx", simClock.getSpeedMultiplier());
         ImGui::Text("Tick count: %llu", static_cast<unsigned long long>(simClock.getTickCount()));
         ImGui::Text("Ticks this frame: %d", simClock.getTicksThisFrame());
-        ImGui::Separator();
-        char calendarLine[64];
-        formatCalendarDateLabel(calendarStore, calendarLine, sizeof(calendarLine));
-        ImGui::Text("Calendar: %s", calendarLine);
-        ImGui::Text("Hour: %02d:00 | Week hours: %d / %d", calendarStore.hourOfDay, calendarStore.hoursWorkedThisWeek, calendarStore.scheduledHoursThisWeek);
-        if (isPlayerEmployed(playerOperationsStore)) {
-            ImGui::Text("Shift: %d:00-%d:00", workScheduleStore.shiftStartHour, workScheduleStore.shiftEndHour);
-        }
         ImGui::Separator();
         ImGui::Text("Speed multiplier");
         if (contextHelpState.isInspectMode) {
@@ -613,6 +621,7 @@ void renderCharacterPanel(
         return;
     }
     panelVisibility.showCharacter = isOpen;
+    resetDockPanelScrollIfNeeded();
         contextHelpPanelTag(
             "Character Panel",
             "Your identity and foundational trait profile during play.",
@@ -679,33 +688,44 @@ void renderCharacterPanel(
             std::snprintf(cityLine, sizeof(cityLine), "Starting city: %s", startingCity->fullName);
             contextHelpTextLine(cityLine, "Random landmark node in your starting borough.", "city_panel", contextHelpState);
         }
-        contextHelpSectionHeader("Health & career", "Vitality and résumé progress.", "player_health", contextHelpState);
-        ImGui::Text("Health: %s", playerHealthStatusLabel(playerHealthStore));
-        ImGui::Text("Work experience: %d months", playerOperationsStore.workExperienceMonths);
-        if (getPlayerCustodyPhase(playerCriminalJusticeStore) != CustodyPhase::Free) {
-            ImGui::Text("Custody: %s", custodyPhaseToString(getPlayerCustodyPhase(playerCriminalJusticeStore)));
-            if (playerCriminalJusticeStore.phaseTicksRemaining > 0) {
-                ImGui::Text("Time remaining: %d ticks", playerCriminalJusticeStore.phaseTicksRemaining);
-            }
-            if (playerCriminalJusticeStore.probationTicksRemaining > 0) {
-                ImGui::Text("Probation: %d ticks", playerCriminalJusticeStore.probationTicksRemaining);
-            }
-            if (playerCriminalJusticeStore.paroleTicksRemaining > 0) {
-                ImGui::Text("Parole: %d ticks", playerCriminalJusticeStore.paroleTicksRemaining);
+        if (ImGui::CollapsingHeader("Health", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Status: %s", playerHealthStatusLabel(playerHealthStore));
+            if (getPlayerCustodyPhase(playerCriminalJusticeStore) != CustodyPhase::Free) {
+                ImGui::Text("Custody: %s", custodyPhaseToString(getPlayerCustodyPhase(playerCriminalJusticeStore)));
+                if (playerCriminalJusticeStore.phaseTicksRemaining > 0) {
+                    ImGui::Text("Time remaining: %d ticks", playerCriminalJusticeStore.phaseTicksRemaining);
+                }
+                if (playerCriminalJusticeStore.probationTicksRemaining > 0) {
+                    ImGui::Text("Probation: %d ticks", playerCriminalJusticeStore.probationTicksRemaining);
+                }
+                if (playerCriminalJusticeStore.paroleTicksRemaining > 0) {
+                    ImGui::Text("Parole: %d ticks", playerCriminalJusticeStore.paroleTicksRemaining);
+                }
             }
         }
-        ImGui::Text("Power tier: %s", playerPowerTierToString(playerOrganizationStore.powerTier));
-        if (playerWallet.lastDeltaKind != WalletDeltaKind::None) {
-            char deltaBuffer[48];
-            formatCashCents(deltaBuffer, sizeof(deltaBuffer), playerWallet.lastDeltaCents < 0 ? -playerWallet.lastDeltaCents : playerWallet.lastDeltaCents);
-            const char* deltaLabel = playerWallet.lastDeltaKind == WalletDeltaKind::Loss ? "Last change"
-                : (playerWallet.lastDeltaKind == WalletDeltaKind::GainLegit ? "Last legit gain" : "Last crime gain");
-            ImGui::Text("%s: %s%s", deltaLabel, playerWallet.lastDeltaCents < 0 ? "-" : "+", deltaBuffer);
+        if (ImGui::CollapsingHeader("Career", ImGuiTreeNodeFlags_DefaultOpen)) {
+            char careerTitle[96];
+            formatPlayerCareerTitle(playerProfile, playerOperationsStore, playerOrganizationStore, careerTitle, sizeof(careerTitle));
+            ImGui::Text("Title: %s", careerTitle);
+            ImGui::Text("Work experience: %d months", playerOperationsStore.workExperienceMonths);
+            ImGui::Text("Power tier: %s", playerPowerTierToString(playerOrganizationStore.powerTier));
+            if (isPlayerEmployed(playerOperationsStore)) {
+                const BusinessNodeDefinition* employer = getBusinessNodeDefinition(playerOperationsStore.employedBusinessIndex);
+                if (employer != nullptr) {
+                    ImGui::Text("Day job: %s", employer->fullName);
+                }
+            }
+            if (playerWallet.lastDeltaKind != WalletDeltaKind::None) {
+                char deltaBuffer[48];
+                formatCashCents(deltaBuffer, sizeof(deltaBuffer), playerWallet.lastDeltaCents < 0 ? -playerWallet.lastDeltaCents : playerWallet.lastDeltaCents);
+                const char* deltaLabel = playerWallet.lastDeltaKind == WalletDeltaKind::Loss ? "Last change"
+                    : (playerWallet.lastDeltaKind == WalletDeltaKind::GainLegit ? "Last legit gain" : "Last crime gain");
+                ImGui::Text("%s: %s%s", deltaLabel, playerWallet.lastDeltaCents < 0 ? "-" : "+", deltaBuffer);
+            }
+            if (isWalletBroke(playerWallet)) {
+                ImGui::TextWrapped("You are broke. Scrape together cash or claim a city when you can afford it.");
+            }
         }
-        if (isWalletBroke(playerWallet)) {
-            ImGui::TextWrapped("You are broke. Scrape together cash or claim a city when you can afford it.");
-        }
-        ImGui::TextDisabled("Aspiration: build income and connections; family vs legit forks come later.");
         char identityLine[128];
         std::snprintf(identityLine, sizeof(identityLine), "Identity label: %s", identityBuffer);
         contextHelpTextLine(identityLine, "Short identity string built from generation and heritage.", "profile_overview", contextHelpState);
@@ -877,6 +897,7 @@ void renderBoroughsPanel(
         return;
     }
     panelVisibility.showBoroughs = isOpen;
+    resetDockPanelScrollIfNeeded();
         contextHelpPanelTag(
             "Boroughs Panel",
             "Playable boroughs with live vitality bars.",
@@ -939,6 +960,7 @@ void renderCityPanel(
         return;
     }
     panelVisibility.showCity = isOpen;
+    resetDockPanelScrollIfNeeded();
         contextHelpPanelTag("City Panel", "Stats for a selected map landmark city node.", "city_panel", contextHelpState);
         if (!viewportPickState.hasLandmarkSelection || viewportPickState.selectedLandmarkIndex < 0) {
             ImGui::TextDisabled("Click a labeled city landmark on the map.");
@@ -1045,6 +1067,7 @@ void renderTileInspectorPanel(
         return;
     }
     panelVisibility.showTileInspector = isOpen;
+    resetDockPanelScrollIfNeeded();
         contextHelpPanelTag("Tile Inspector", "Details for the hovered or selected map tile.", "tile_inspector", contextHelpState);
         if (!viewportPickState.hasHover && !viewportPickState.hasSelection) {
             ImGui::TextDisabled("Hover or click the map viewport to inspect tiles.");
@@ -1107,16 +1130,24 @@ void renderMapViewportPanel(
     MapCamera& mapCamera,
     ViewportPickState& viewportPickState,
     bool showCrimeOverlay,
+    const PlayerProfile& playerProfile,
     const PlayerWallet& playerWallet,
     const PlayerLawEnforcementStore& playerLawEnforcementStore,
     const PlayerLawIntelStore& playerLawIntelStore,
     const PlayerHealthStore& playerHealthStore,
     const GameCalendarStore& calendarStore,
+    const PlayerWorldState& playerWorldState,
+    uint64_t tickCount,
+    MapHudInteraction& mapHudInteraction,
+    PlayerInformationFeedStore& informationFeedStore,
+    MapNotificationLayerState& notificationLayer,
+    bool& pauseFromMapNotification,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
     if (!panelVisibility.showMapViewport) {
         return;
     }
+    pauseFromMapNotification = false;
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
     if (!ImGui::Begin(GameDockPanel::MapViewport, &isOpen)) {
@@ -1125,6 +1156,7 @@ void renderMapViewportPanel(
         return;
     }
     panelVisibility.showMapViewport = isOpen;
+    resetDockPanelScrollIfNeeded();
         contextHelpPanelTag("Map Viewport", "Pan, zoom, and pick tiles on the world map.", "map_viewport", contextHelpState);
         const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
@@ -1157,7 +1189,23 @@ void renderMapViewportPanel(
                 viewportPickState.hoveredLandmarkIndex = -1;
                 viewportPickState.hasBusinessHover = false;
                 viewportPickState.hoveredBusinessIndex = -1;
-                const int32_t businessIndex = pickBusinessNodeAtScreen(
+                viewportPickState.hasPlayerHover = pickPlayerMarkerAtScreen(
+                    io.MousePos.x,
+                    io.MousePos.y,
+                    mapCamera,
+                    playerWorldState,
+                    tickCount,
+                    canvasPos,
+                    canvasSize,
+                    PLAYER_HIT_RADIUS_PIXELS);
+                if (viewportPickState.hasPlayerHover) {
+                    ImGui::SetTooltip("%s (you)", playerProfile.draft.nameBuffer);
+                    if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                        mapHudInteraction.requestFocusCharacterPanel = true;
+                        mapHudInteraction.requestCenterOnPlayer = true;
+                    }
+                }
+                const int32_t businessIndex = viewportPickState.hasPlayerHover ? -1 : pickBusinessNodeAtScreen(
                     io.MousePos.x,
                     io.MousePos.y,
                     mapCamera,
@@ -1228,6 +1276,15 @@ void renderMapViewportPanel(
             renderMapTiles(drawList, mapCamera, worldConfig, chunkStore, canvasPos, canvasSize, hoveredTileCoord, showCrimeOverlay);
             renderBusinessNodesOnMap(drawList, mapCamera, canvasPos, canvasSize, viewportPickState);
             renderLandmarkOverlays(drawList, mapCamera, canvasPos, canvasSize, viewportPickState);
+            renderPlayerMapMarker(
+                drawList,
+                mapCamera,
+                playerProfile.draft,
+                playerWorldState,
+                tickCount,
+                canvasPos,
+                canvasSize,
+                viewportPickState);
         }
         drawList->PopClipRect();
         if (isCanvasHovered) {
@@ -1249,11 +1306,21 @@ void renderMapViewportPanel(
             playerLawIntelStore,
             playerHealthStore,
             calendarStore,
-            viewportPickState,
+            chunkStore,
+            playerWorldState,
+            mapHudInteraction,
             canvasPos.x,
             canvasPos.y,
             canvasSize.x,
             canvasSize.y);
+        renderMapNotificationLayer(
+            notificationLayer,
+            informationFeedStore,
+            canvasPos.x,
+            canvasPos.y,
+            canvasSize.x,
+            canvasSize.y,
+            pauseFromMapNotification);
     ImGui::End();
 }
 } // namespace
@@ -1264,6 +1331,7 @@ void setSaveLoadStatusMessage(const char* message) {
         return;
     }
     std::snprintf(saveLoadStatusMessage, sizeof(saveLoadStatusMessage), "%s", message);
+    pushMapTopToast(g_mapNotificationLayer, MapToastKind::Save, saveLoadStatusMessage);
 }
 
 const char* getSaveLoadStatusMessage() {
@@ -1323,6 +1391,8 @@ void renderGameUi(
     (void)chunkStore;
     const bool blockPanels = shouldBlockGameplayPanels(gameModalState);
     const uint64_t tickCount = simClock.getTickCount();
+    tickMapNotificationLayer(g_mapNotificationLayer, ImGui::GetIO().DeltaTime);
+    MapHudInteraction mapHudInteraction{};
     tickPlayerWorkSchedule(
         gameplayStores.workScheduleStore,
         gameplayStores.calendarStore,
@@ -1347,8 +1417,6 @@ void renderGameUi(
             worldConfig,
             chunkStore,
             boroughVitalityStore,
-            gameplayStores.calendarStore,
-            gameplayStores.workScheduleStore,
             playerOperationsStore,
             mapCrimeOverlayEnabled,
             systemRegistry,
@@ -1356,11 +1424,14 @@ void renderGameUi(
             panelVisibility,
             contextHelpState);
         renderOperationsPanel(
+            gameplayStores.workScheduleStore,
+            chunkStore,
             playerOperationsStore,
             playerOrganizationStore,
             playerStreetCrimeStore,
             playerLawEnforcementStore,
             gameplayStores.lawIntelStore,
+            gameplayStores.informationFeedStore,
             playerCriminalJusticeStore,
             gameplayStores.legalCounselStore,
             gameplayStores.narrativeArchiveStore,
@@ -1376,6 +1447,8 @@ void renderGameUi(
             panelVisibility,
             contextHelpState);
         renderContactsPanel(
+            gameplayStores.workScheduleStore,
+            playerWorldState,
             characterAgentStore,
             playerOrganizationStore,
             playerLawEnforcementStore,
@@ -1401,11 +1474,14 @@ void renderGameUi(
             contextHelpState);
         renderBusinessPanel(
             worldConfig,
+            chunkStore,
             playerOperationsStore,
             playerWallet,
             simEventQueue,
             playerProfile,
             playerWorldState,
+            gameplayStores.calendarStore,
+            gameplayStores.workScheduleStore,
             gameModalState,
             simClock,
             viewportPickState,
@@ -1413,19 +1489,46 @@ void renderGameUi(
             panelVisibility,
             contextHelpState);
     }
+    for (int32_t feedIndex = 0; feedIndex < gameplayStores.informationFeedStore.itemCount; ++feedIndex) {
+        if (!gameplayStores.informationFeedStore.items[feedIndex].isDismissed
+            && !gameplayStores.informationFeedStore.items[feedIndex].isRead) {
+            pushMapEventFromFeed(g_mapNotificationLayer, gameplayStores.informationFeedStore, feedIndex);
+        }
+    }
+    bool pauseFromMapNotification = false;
     renderMapViewportPanel(
         worldConfig,
         chunkStore,
         mapCamera,
         viewportPickState,
         mapCrimeOverlayEnabled,
+        playerProfile,
         playerWallet,
         playerLawEnforcementStore,
         gameplayStores.lawIntelStore,
         gameplayStores.playerHealthStore,
         gameplayStores.calendarStore,
+        playerWorldState,
+        tickCount,
+        mapHudInteraction,
+        gameplayStores.informationFeedStore,
+        g_mapNotificationLayer,
+        pauseFromMapNotification,
         panelVisibility,
         contextHelpState);
+    if (pauseFromMapNotification) {
+        simClock.setPaused(true);
+    }
+    if (mapHudInteraction.requestCenterOnPlayer) {
+        float displayTileX = 0.0f;
+        float displayTileY = 0.0f;
+        getPlayerDisplayTile(playerWorldState, tickCount, displayTileX, displayTileY);
+        mapCamera.centerOnTile(static_cast<int32_t>(displayTileX), static_cast<int32_t>(displayTileY), mapCamera.pixelsPerTile);
+    }
+    if (mapHudInteraction.requestFocusCharacterPanel) {
+        panelVisibility.showCharacter = true;
+        ImGui::SetWindowFocus(GameDockPanel::Character);
+    }
     renderGameModalOverlay(
         gameModalState,
         simClock,
@@ -1437,6 +1540,7 @@ void renderGameUi(
         gameplayStores.playerHealthStore,
         gameplayStores.lawIntelStore,
         gameplayStores.narrativeArchiveStore,
+        gameplayStores.informationFeedStore,
         playerWallet,
         playerWorldState,
         gameplayStores.workScheduleStore,

@@ -12,6 +12,7 @@
 #include "game/player_wallet.h"
 #include "game/player_work_schedule.h"
 #include "game/player_law_intel.h"
+#include "game/player_information_feed.h"
 #include "game/player_narrative_archive.h"
 #include "game/action_reason_catalog.h"
 #include "game/player_world_state.h"
@@ -59,6 +60,7 @@ void renderGameModalOverlay(
     PlayerHealthStore& playerHealthStore,
     PlayerLawIntelStore& lawIntelStore,
     PlayerNarrativeArchiveStore& narrativeArchiveStore,
+    PlayerInformationFeedStore& informationFeedStore,
     PlayerWallet& playerWallet,
     PlayerWorldState& playerWorldState,
     PlayerWorkScheduleStore& workScheduleStore,

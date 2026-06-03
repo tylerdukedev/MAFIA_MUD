@@ -26,6 +26,9 @@ struct CharacterDraft {
     FamilyCulturalProfile familyCulturalProfile{};
     FamilyMemberRecord familyMembers[MAX_FAMILY_MEMBER_COUNT]{};
     int32_t familyMemberCount = 0;
+    uint8_t mapMarkerColorR = 220;
+    uint8_t mapMarkerColorG = 180;
+    uint8_t mapMarkerColorB = 60;
 };
 
 } // namespace Core

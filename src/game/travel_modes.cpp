@@ -55,10 +55,21 @@ bool tryExecuteTravelPlan(TravelPlan& plan, PlayerWorldState& worldState, Region
     if (definition->upfrontCostCents > 0 && !tryDebitCash(wallet, definition->upfrontCostCents)) {
         return false;
     }
-    if (!canPlayerOperateInRegion(worldState, targetRegionId)) {
+    if (worldState.isTraveling) {
         return false;
     }
-    return tryTravelPlayerToTile(worldState, plan.toTileX, plan.toTileY, targetRegionId, tickCount);
+    if (canPlayerOperateInRegion(worldState, targetRegionId)
+        && worldState.currentTileX == plan.toTileX
+        && worldState.currentTileY == plan.toTileY) {
+        return true;
+    }
+    return beginPlayerTravel(
+        worldState,
+        plan.toTileX,
+        plan.toTileY,
+        targetRegionId,
+        tickCount,
+        plan.estimatedTicks);
 }
 
 } // namespace Core

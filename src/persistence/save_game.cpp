@@ -1,5 +1,6 @@
 #include "persistence/save_game.h"
 #include "persistence/save_gameplay_stores.h"
+#include "game/player_information_feed.h"
 #include "game/player_narrative_archive.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
@@ -17,7 +18,7 @@ namespace Core {
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
 constexpr uint32_t SAVE_VERSION_MIN = 10U;
-constexpr uint32_t SAVE_VERSION = 12U;
+constexpr uint32_t SAVE_VERSION = 13U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -461,9 +462,14 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     }
     bool workExperienceRead = true;
     bool gameplayRead = true;
-    if (header.version >= 12U) {
+    if (header.version >= 13U) {
         workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
         gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, sizeof(outSnapshot.gameplayStores));
+    } else if (header.version >= 12U) {
+        workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
+        const size_t legacyGameplayBytes = offsetof(SaveGameplayStores, informationFeedStore);
+        gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, legacyGameplayBytes);
+        resetPlayerInformationFeedStore(outSnapshot.gameplayStores.informationFeedStore);
     } else if (header.version >= 11U) {
         workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
         const size_t legacyGameplayBytes = offsetof(SaveGameplayStores, narrativeArchiveStore);

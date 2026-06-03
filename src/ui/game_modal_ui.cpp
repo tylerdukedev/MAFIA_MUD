@@ -13,6 +13,8 @@
 #include "game/player_operations.h"
 #include "game/player_work_schedule.h"
 #include "game/covert_action_executor.h"
+#include "game/player_information_feed.h"
+#include "game/player_narrative_archive.h"
 #include "game/action_reason_catalog.h"
 #include "game/agent_relation_events.h"
 #include "sim/character_agent.h"
@@ -183,6 +185,7 @@ void renderGameModalOverlay(
     PlayerHealthStore& playerHealthStore,
     PlayerLawIntelStore& lawIntelStore,
     PlayerNarrativeArchiveStore& narrativeArchiveStore,
+    PlayerInformationFeedStore& informationFeedStore,
     PlayerWallet& playerWallet,
     PlayerWorldState& playerWorldState,
     PlayerWorkScheduleStore& workScheduleStore,
@@ -479,6 +482,17 @@ void renderGameModalOverlay(
                     calendarStore,
                     worldSeed,
                     tickCount);
+                const int32_t beatCount = getNarrativeBeatCount(narrativeArchiveStore);
+                if (beatCount > 0) {
+                    const NarrativeBeatRecord& beat = narrativeArchiveStore.beats[beatCount - 1];
+                    pushInformationFeedItem(
+                        informationFeedStore,
+                        InformationChannel::Newspaper,
+                        beat.headline,
+                        beat.narrativeTag,
+                        tickCount,
+                        true);
+                }
                 if (actionResult.succeeded) {
                     setModalStatus(modal, "Done. The city will remember this — check your narrative archive.");
                 } else {

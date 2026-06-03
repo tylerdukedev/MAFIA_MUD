@@ -6,6 +6,7 @@
 #include "game/player_law_intel.h"
 #include "game/player_narrative_archive.h"
 #include "game/player_work_schedule.h"
+#include "game/player_information_feed.h"
 #include "game/player_world_state.h"
 
 namespace Core {
@@ -19,6 +20,7 @@ struct SaveGameplayStores {
     PopulationHealthStore populationHealthStore{};
     PlayerLegalCounselStore legalCounselStore{};
     PlayerWorldState worldState{};
+    PlayerInformationFeedStore informationFeedStore{};
 };
 
 void resetSaveGameplayStores(SaveGameplayStores& stores);

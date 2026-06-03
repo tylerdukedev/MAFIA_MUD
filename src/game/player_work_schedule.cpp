@@ -84,4 +84,12 @@ void tickPlayerWorkSchedule(
     }
 }
 
+bool isPlayerOnWorkShift(const PlayerWorkScheduleStore& scheduleStore, const PlayerWorldState& worldState) {
+    return worldState.isAtWork && scheduleStore.shiftPhase == WorkShiftPhase::OnShift;
+}
+
+bool isPlayerUiRestrictedAtWork(const PlayerWorkScheduleStore& scheduleStore, const PlayerWorldState& worldState) {
+    return isPlayerOnWorkShift(scheduleStore, worldState);
+}
+
 } // namespace Core

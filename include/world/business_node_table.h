@@ -5,11 +5,31 @@
 
 namespace Core {
 
-constexpr int32_t MAX_BUSINESS_NODE_COUNT = 48;
+constexpr int32_t MAX_BUSINESS_NODE_COUNT = 64;
 
 enum class BusinessNodeKind : uint8_t {
     Employer = 0,
     LawOffice = 1,
+};
+
+enum class BusinessIndustry : uint8_t {
+    Retail = 0,
+    FoodService = 1,
+    Logistics = 2,
+    Manufacturing = 3,
+    Office = 4,
+    Hospitality = 5,
+    Construction = 6,
+};
+
+enum class BusinessTraitFlags : uint16_t {
+    None = 0,
+    UnionShop = 1U << 0,
+    CashHeavy = 1U << 1,
+    NightShift = 1U << 2,
+    HighTurnover = 1U << 3,
+    StreetFacing = 1U << 4,
+    InstitutionalCover = 1U << 5,
 };
 
 struct BusinessNodeDefinition {
@@ -21,7 +41,15 @@ struct BusinessNodeDefinition {
     int64_t jobWageCents;
     float minNetworkAccess;
     BusinessNodeKind kind = BusinessNodeKind::Employer;
+    BusinessIndustry industry = BusinessIndustry::Retail;
+    uint16_t traitFlags = 0;
+    float wageMultiplier = 1.0f;
+    uint8_t preferredBackgroundId = 0;
 };
+
+const char* businessIndustryToLabel(BusinessIndustry industry);
+const char* businessTraitsToShortLabel(uint16_t traitFlags);
+int64_t computeBusinessMonthlyWageCents(const BusinessNodeDefinition& business);
 
 bool isLawOfficeBusinessIndex(int32_t businessIndex);
 

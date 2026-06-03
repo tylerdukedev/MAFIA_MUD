@@ -11,6 +11,7 @@ void resetSaveGameplayStores(SaveGameplayStores& stores) {
     resetPopulationHealthStore(stores.populationHealthStore);
     resetPlayerLegalCounselStore(stores.legalCounselStore);
     resetPlayerWorldState(stores.worldState);
+    resetPlayerInformationFeedStore(stores.informationFeedStore);
 }
 
 } // namespace Core

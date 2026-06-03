@@ -20,8 +20,13 @@
 #include "game/job_catalog.h"
 #include "game/legal_counsel.h"
 #include "game/player_law_intel.h"
+#include "game/player_information_feed.h"
 #include "game/agent_relation_events.h"
 #include "game/travel_modes.h"
+#include "game/game_calendar.h"
+#include "game/player_work_schedule.h"
+#include "game/player_employment.h"
+#include "ui/dock_panel_helpers.h"
 #include "imgui.h"
 #include <cstdio>
 
@@ -101,11 +106,14 @@ void renderStreetCrimeTierGroup(
 } // namespace
 
 void renderOperationsPanel(
+    const PlayerWorkScheduleStore& workScheduleStore,
+    const ChunkStore& chunkStore,
     PlayerOperationsStore& playerOperationsStore,
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerLawIntelStore& playerLawIntelStore,
+    const PlayerInformationFeedStore& informationFeedStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     PlayerLegalCounselStore& legalCounselStore,
     const PlayerNarrativeArchiveStore& narrativeArchiveStore,
@@ -131,7 +139,14 @@ void renderOperationsPanel(
         return;
     }
     panelVisibility.showOperations = isOpen;
+    resetDockPanelScrollIfNeeded();
     contextHelpPanelTag("Operations Panel", "Establish headquarters, rackets, and fronts.", "operations_panel", contextHelpState);
+    const bool isAtWorkRestricted = isPlayerUiRestrictedAtWork(workScheduleStore, playerWorldState);
+    if (isAtWorkRestricted) {
+        ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.0f, 1.0f), "On shift — limited panel access. Simulation keeps running.");
+        ImGui::TextDisabled("Street ops and travel are locked. Contacts and map events can still reach you.");
+        ImGui::Separator();
+    }
     if (!hasPlayerHeadquarters(playerOperationsStore)) {
         ImGui::TextWrapped("Your first operation must be a headquarters: rented room, apartment, or family/friend stay (DPA).");
         ImGui::TextDisabled("Move-in deposit is paid once; rent, taxes, and utilities bill monthly.");
@@ -298,7 +313,7 @@ void renderOperationsPanel(
     }
     if (!hasPlayerHeadquarters(playerOperationsStore)) {
         ImGui::TextDisabled("Establish a headquarters before street work.");
-    } else {
+    } else if (!isAtWorkRestricted) {
         renderStreetCrimeTierGroup(
             StreetCrimeTier::Solo,
             playerOperationsStore,
@@ -335,6 +350,10 @@ void renderOperationsPanel(
         ImGui::TextDisabled("Bigger scores will tie into racket upkeep and crew payroll in later builds.");
     }
     ImGui::Separator();
+    contextHelpSectionHeader("Information", "Newspapers, rumors, and network intel.", "law_intel", contextHelpState);
+    ImGui::Text("Unread items: %d", getUnreadInformationFeedCount(informationFeedStore));
+    ImGui::TextDisabled("Map alerts appear bottom-right; newspapers pause sim when opened.");
+    ImGui::Separator();
     contextHelpSectionHeader("Narrative archive", "Logged motives for headlines and former-life collectibles.", "law_intel", contextHelpState);
     ImGui::Text("Story beats recorded: %d", getNarrativeBeatCount(narrativeArchiveStore));
     const int32_t beatCount = getNarrativeBeatCount(narrativeArchiveStore);
@@ -356,32 +375,41 @@ void renderOperationsPanel(
             tryHireLawyer(legalCounselStore, playerWallet, tier);
         }
     }
-    ImGui::Separator();
-    contextHelpSectionHeader("Travel", "Move between boroughs with realistic time costs.", "travel_modes", contextHelpState);
-    ImGui::Text("Location: tile (%d, %d)", playerWorldState.currentTileX, playerWorldState.currentTileY);
-    static int32_t travelTargetX = 240;
-    static int32_t travelTargetY = 240;
-    static int32_t travelModeIndex = 0;
-    ImGui::InputInt("Target X", &travelTargetX);
-    ImGui::InputInt("Target Y", &travelTargetY);
-    ImGui::Combo("Mode", &travelModeIndex, "Walk\0Bicycle\0Car\0Train\0");
-    if (ImGui::Button("Plan / execute travel")) {
-        TravelPlan plan{};
-        const TravelMode mode = static_cast<TravelMode>(travelModeIndex);
-        buildTravelPlan(plan, mode, playerWorldState.currentTileX, playerWorldState.currentTileY, travelTargetX, travelTargetY);
-        const RegionId targetRegion = RegionId::Manhattan;
-        tryExecuteTravelPlan(plan, playerWorldState, targetRegion, tickCount, playerWallet);
+    if (!isAtWorkRestricted) {
+        ImGui::Separator();
+        contextHelpSectionHeader("Travel", "Move between boroughs with realistic time costs.", "travel_modes", contextHelpState);
+        ImGui::Text("Location: tile (%d, %d)", playerWorldState.currentTileX, playerWorldState.currentTileY);
+        if (playerWorldState.isTraveling) {
+            ImGui::TextDisabled("In transit...");
+        }
+        static int32_t travelTargetX = 240;
+        static int32_t travelTargetY = 240;
+        static int32_t travelModeIndex = 0;
+        ImGui::InputInt("Target X", &travelTargetX);
+        ImGui::InputInt("Target Y", &travelTargetY);
+        ImGui::Combo("Mode", &travelModeIndex, "Walk\0Bicycle\0Car\0Train\0");
+        if (ImGui::Button("Plan / execute travel")) {
+            TravelPlan plan{};
+            const TravelMode mode = static_cast<TravelMode>(travelModeIndex);
+            buildTravelPlan(plan, mode, playerWorldState.currentTileX, playerWorldState.currentTileY, travelTargetX, travelTargetY);
+            const WorldCoord targetCoord{travelTargetX, travelTargetY};
+            const RegionId targetRegion = chunkStore.getRegionAt(targetCoord);
+            tryExecuteTravelPlan(plan, playerWorldState, targetRegion, tickCount, playerWallet);
+        }
     }
     ImGui::End();
 }
 
 void renderBusinessPanel(
     const WorldConfig& worldConfig,
+    const ChunkStore& chunkStore,
     PlayerOperationsStore& playerOperationsStore,
     PlayerWallet& playerWallet,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
     const PlayerWorldState& playerWorldState,
+    const GameCalendarStore& calendarStore,
+    const PlayerWorkScheduleStore& workScheduleStore,
     GameModalState& gameModalState,
     SimClock& simClock,
     const ViewportPickState& viewportPickState,
@@ -399,7 +427,17 @@ void renderBusinessPanel(
         return;
     }
     panelVisibility.showBusiness = isOpen;
+    resetDockPanelScrollIfNeeded();
     contextHelpPanelTag("Business Panel", "Blue map nodes: jobs and borough trade.", "business_panel", contextHelpState);
+    contextHelpSectionHeader("Calendar & shift", "Date, hours, and work schedule.", "travel_schedule", contextHelpState);
+    char calendarLine[64];
+    formatCalendarDateLabel(calendarStore, calendarLine, sizeof(calendarLine));
+    ImGui::Text("Calendar: %s", calendarLine);
+    ImGui::Text("Hour: %02d:00 | Week hours: %d / %d", calendarStore.hourOfDay, calendarStore.hoursWorkedThisWeek, calendarStore.scheduledHoursThisWeek);
+    if (isPlayerEmployed(playerOperationsStore)) {
+        ImGui::Text("Shift: %d:00-%d:00", workScheduleStore.shiftStartHour, workScheduleStore.shiftEndHour);
+    }
+    ImGui::Separator();
     if (!viewportPickState.hasBusinessSelection || viewportPickState.selectedBusinessIndex < 0) {
         ImGui::TextDisabled("Click a blue business node on the map.");
     } else {
@@ -408,8 +446,11 @@ void renderBusinessPanel(
             ImGui::TextDisabled("Invalid business selection.");
         } else {
             ImGui::Text("%s", business->fullName);
+            ImGui::Text("Industry: %s", businessIndustryToLabel(business->industry));
+            ImGui::TextWrapped("Traits: %s", businessTraitsToShortLabel(business->traitFlags));
             ImGui::Text("Tile: (%d, %d)", business->tileX, business->tileY);
             const RegionId businessRegion = getBusinessNodeRegionId(viewportPickState.selectedBusinessIndex);
+            (void)chunkStore;
             const bool isInRegion = canPlayerOperateInRegion(playerWorldState, businessRegion);
             if (isLawOfficeBusinessIndex(viewportPickState.selectedBusinessIndex)) {
                 if (!isInRegion) {
@@ -419,7 +460,7 @@ void renderBusinessPanel(
                 }
             } else {
                 char wageBuffer[32];
-                formatCashCents(wageBuffer, sizeof(wageBuffer), business->jobWageCents);
+                formatCashCents(wageBuffer, sizeof(wageBuffer), computeBusinessMonthlyWageCents(*business));
                 ImGui::Text("Monthly wage (est.): %s", wageBuffer);
                 const JobDefinitionExtension* extension = getJobDefinitionExtension(viewportPickState.selectedBusinessIndex);
                 if (extension != nullptr) {
@@ -470,6 +511,8 @@ void renderBusinessPanel(
 }
 
 void renderContactsPanel(
+    const PlayerWorkScheduleStore& workScheduleStore,
+    const PlayerWorldState& playerWorldState,
     const CharacterAgentStore& characterAgentStore,
     const PlayerOrganizationStore& playerOrganizationStore,
     const PlayerLawEnforcementStore& playerLawEnforcementStore,
@@ -489,7 +532,12 @@ void renderContactsPanel(
         return;
     }
     panelVisibility.showContacts = isOpen;
+    resetDockPanelScrollIfNeeded();
     contextHelpPanelTag("Contacts Panel", "AI characters and their view of you.", "contacts_panel", contextHelpState);
+    if (isPlayerUiRestrictedAtWork(workScheduleStore, playerWorldState)) {
+        ImGui::TextDisabled("On shift: approaches and intel contacts can still reach you here.");
+        ImGui::Separator();
+    }
     for (int32_t agentIndex = 0; agentIndex < MAX_CHARACTER_AGENT_COUNT; ++agentIndex) {
         const CharacterAgentState* state = getCharacterAgentState(characterAgentStore, agentIndex);
         const char* displayName = nullptr;

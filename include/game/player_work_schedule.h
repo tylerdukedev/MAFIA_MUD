@@ -36,5 +36,7 @@ bool shouldOpenWorkCommuteModal(const PlayerWorkScheduleStore& scheduleStore, co
 bool computeWorkDayLateness(const PlayerWorkScheduleStore& scheduleStore, const GameCalendarStore& calendarStore);
 void markWorkShiftStarted(PlayerWorkScheduleStore& scheduleStore, PlayerWorldState& worldState, GameCalendarStore& calendarStore, bool isLate);
 void markWorkShiftSkipped(PlayerWorkScheduleStore& scheduleStore, GameCalendarStore& calendarStore);
+bool isPlayerOnWorkShift(const PlayerWorkScheduleStore& scheduleStore, const PlayerWorldState& worldState);
+bool isPlayerUiRestrictedAtWork(const PlayerWorkScheduleStore& scheduleStore, const PlayerWorldState& worldState);
 
 } // namespace Core

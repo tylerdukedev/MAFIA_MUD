@@ -132,7 +132,11 @@ set(CAPITAL_VICE_SOURCES
     src/game/job_catalog.cpp
     src/game/legal_counsel.cpp
     src/game/travel_modes.cpp
+    src/game/player_career.cpp
+    src/game/player_information_feed.cpp
     src/persistence/save_gameplay_stores.cpp
+    src/ui/player_map_marker.cpp
+    src/ui/map_notification_layer.cpp
     src/ui/game_modal_state.cpp
     src/ui/game_modal_ui.cpp
     src/procgen/world_generator.cpp
@@ -224,6 +228,7 @@ add_executable(save_game_test
     src/game/game_calendar.cpp
     src/game/action_reason_catalog.cpp
     src/game/player_narrative_archive.cpp
+    src/game/player_information_feed.cpp
     src/game/covert_action_executor.cpp
     src/persistence/playthrough_archive.cpp
     src/game/player_work_schedule.cpp

@@ -17,6 +17,7 @@ struct ViewportPickState {
     bool hasBusinessSelection = false;
     int32_t hoveredBusinessIndex = -1;
     int32_t selectedBusinessIndex = -1;
+    bool hasPlayerHover = false;
 };
 
 } // namespace Core

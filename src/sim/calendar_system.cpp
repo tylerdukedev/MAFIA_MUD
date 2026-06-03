@@ -38,6 +38,9 @@ void CalendarSystem::onTick(uint64_t tickCount) {
     if (populationHealthStore != nullptr && agentStore != nullptr && bindings.worldSeed != nullptr) {
         tickPopulationHealth(*populationHealthStore, *agentStore, tickCount, *bindings.worldSeed);
     }
+    if (worldState != nullptr) {
+        tickPlayerTravel(*worldState, tickCount);
+    }
 }
 
 } // namespace Core

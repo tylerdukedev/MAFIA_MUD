@@ -26,6 +26,16 @@ constexpr JobExtensionEntry JOB_EXTENSION_TABLE[] = {
     {9, {4, static_cast<uint32_t>(JobPerkFlags::TransitPass), 1}},
     {10, {6, static_cast<uint32_t>(JobPerkFlags::MealAllowance), 2}},
     {11, {0, static_cast<uint32_t>(JobPerkFlags::None), 0}},
+    {12, {10, static_cast<uint32_t>(JobPerkFlags::TransitPass) | static_cast<uint32_t>(JobPerkFlags::MealAllowance), 2}},
+    {13, {14, static_cast<uint32_t>(JobPerkFlags::HealthBenefits) | static_cast<uint32_t>(JobPerkFlags::UnionProtection), 3}},
+    {14, {8, static_cast<uint32_t>(JobPerkFlags::TransitPass), 2}},
+    {15, {1, static_cast<uint32_t>(JobPerkFlags::MealAllowance), 0}},
+    {16, {2, static_cast<uint32_t>(JobPerkFlags::MealAllowance), 1}},
+    {17, {3, static_cast<uint32_t>(JobPerkFlags::TransitPass), 1}},
+    {18, {20, static_cast<uint32_t>(JobPerkFlags::HealthBenefits) | static_cast<uint32_t>(JobPerkFlags::UnionProtection), 3}},
+    {19, {6, static_cast<uint32_t>(JobPerkFlags::UnionProtection), 2}},
+    {20, {12, static_cast<uint32_t>(JobPerkFlags::HealthBenefits), 2}},
+    {21, {9, static_cast<uint32_t>(JobPerkFlags::UnionProtection) | static_cast<uint32_t>(JobPerkFlags::MealAllowance), 2}},
 };
 
 constexpr int32_t JOB_EXTENSION_COUNT = static_cast<int32_t>(sizeof(JOB_EXTENSION_TABLE) / sizeof(JOB_EXTENSION_TABLE[0]));
@@ -98,8 +108,17 @@ bool evaluateJobEligibility(
         outLockReason = "Invalid workplace";
         return false;
     }
+    if (isLawOfficeBusinessIndex(businessIndex)) {
+        outLockReason = "Not a job site";
+        return false;
+    }
     if (getNetworkAccessScore(profile) < business->minNetworkAccess) {
         outLockReason = "Need more network access";
+        return false;
+    }
+    if (business->preferredBackgroundId != 0
+        && static_cast<uint8_t>(profile.draft.backgroundId) != business->preferredBackgroundId) {
+        outLockReason = "This workplace favors another background";
         return false;
     }
     const JobDefinitionExtension* extension = findExtension(businessIndex);

@@ -47,7 +47,7 @@ float computeEmployedLegitIncomePerTickCents(const PlayerOperationsStore& store)
     if (business == nullptr) {
         return 0.0f;
     }
-    const float monthlyCents = static_cast<float>(business->jobWageCents) * static_cast<float>(JOB_MONTHLY_WAGE_MULTIPLIER);
+    const float monthlyCents = static_cast<float>(computeBusinessMonthlyWageCents(*business)) * static_cast<float>(JOB_MONTHLY_WAGE_MULTIPLIER);
     return monthlyCents / static_cast<float>(MONTHLY_LEDGER_INTERVAL_TICKS);
 }
 
