@@ -138,6 +138,19 @@ RegionId getBusinessNodeRegionId(int32_t businessIndex) {
     return BUSINESS_NODE_REGION_IDS[businessIndex];
 }
 
+RegionId getBusinessNodeRegionId(int32_t businessIndex, const ChunkStore& chunkStore) {
+    const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
+    if (business == nullptr) {
+        return RegionId::None;
+    }
+    const WorldCoord coord{business->tileX, business->tileY};
+    const RegionId sampledRegion = chunkStore.getRegionAt(coord);
+    if (sampledRegion != RegionId::None) {
+        return sampledRegion;
+    }
+    return getBusinessNodeRegionId(businessIndex);
+}
+
 bool isLawOfficeBusinessIndex(int32_t businessIndex) {
     const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
     return business != nullptr && business->kind == BusinessNodeKind::LawOffice;

@@ -2,7 +2,11 @@
 
 #include "game/crime_legal_tier.h"
 #include "game/player_law_enforcement.h"
+#include "game/player_organization.h"
 #include "game/player_wallet.h"
+#include "game/player_world_state.h"
+#include "world/chunk_store.h"
+#include "world/world_config.h"
 #include "sim/character_agent.h"
 #include "world/city_control.h"
 #include <cstdint>
@@ -19,6 +23,7 @@ enum class CustodyPhase : uint8_t {
     InPrison = 4,
     OnProbation = 5,
     OnParole = 6,
+    OnBail = 7,
 };
 
 enum class CourtOutcome : uint8_t {
@@ -29,7 +34,12 @@ enum class CourtOutcome : uint8_t {
 };
 
 constexpr int32_t JUSTICE_ARREST_BOOKING_TICKS = 30;
-constexpr int32_t JUSTICE_JAIL_HOLD_TICKS = 100;
+constexpr int32_t JUSTICE_JAIL_HOLD_TICKS = 35;
+constexpr int32_t JUSTICE_PRETRIAL_PAROLE_EVIDENCE_THRESHOLD = 24;
+constexpr int32_t JUSTICE_SKIP_COURT_WARRANT_COUNT = 1;
+constexpr int32_t JUSTICE_SKIP_COURT_HEAT_PENALTY = 14;
+constexpr int32_t COURT_APPEARANCE_TILE_X = 252;
+constexpr int32_t COURT_APPEARANCE_TILE_Y = 232;
 constexpr int32_t JUSTICE_COURT_DELAY_AFTER_BOND_TICKS = 60;
 constexpr int32_t JUSTICE_PRISON_BASE_TICKS = 120;
 constexpr int32_t JUSTICE_PRISON_PER_LEGAL_TIER_TICKS = 40;
@@ -64,6 +74,8 @@ struct PlayerCriminalJusticeStore {
     int32_t paroleTicksRemaining = 0;
     int32_t arrestCount = 0;
     uint64_t custodyStartedTick = 0;
+    uint64_t courtAppearanceTick = 0;
+    uint8_t isPreTrialParoleRelease = 0;
     uint64_t lastRivalEncroachTick = 0;
     uint64_t lastArrestRollTick = 0;
     char lastCustodyLabel[48]{};
@@ -89,11 +101,27 @@ void beginPlayerArrest(
 bool tryPayPlayerBond(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerWallet& wallet,
+    const PlayerLawEnforcementStore& lawStore,
+    const PlayerOrganizationStore& organizationStore,
+    const PlayerWorldState& worldState,
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig,
+    uint64_t tickCount);
+void commitPlayerCustodyDetention(PlayerCriminalJusticeStore& justiceStore, uint64_t tickCount);
+bool shouldReleaseOnPreTrialParole(
+    const PlayerCriminalJusticeStore& justiceStore,
+    CrimeLegalTier legalTier,
+    const PlayerLawEnforcementStore& lawStore,
+    const PlayerOrganizationStore& organizationStore);
+bool trySkipPlayerCourtDate(
+    PlayerCriminalJusticeStore& justiceStore,
+    PlayerLawEnforcementStore& lawStore,
     uint64_t tickCount);
 void resolvePlayerCourt(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerLawEnforcementStore& lawStore,
     const PlayerLegalCounselStore& legalCounselStore,
+    CharacterAgentStore& agentStore,
     uint64_t worldSeed,
     uint64_t tickCount);
 void releasePlayerFromCustody(PlayerCriminalJusticeStore& justiceStore, PlayerLawEnforcementStore& lawStore);

@@ -3,6 +3,7 @@
 #include "character/player_profile.h"
 #include "game/operation_types.h"
 #include "game/player_wallet.h"
+#include "world/business_node_table.h"
 #include <cstdint>
 
 namespace Core {
@@ -21,6 +22,7 @@ struct PlayerOperationsStore {
     int32_t rentMultiplierBps = 10000;
     int32_t rentEventAdjustmentBps = 0;
     int32_t workExperienceMonths = 0;
+    uint64_t jobReapplyAvailableTickByBusiness[MAX_BUSINESS_NODE_COUNT]{};
 };
 
 void resetPlayerOperationsStore(PlayerOperationsStore& store);

@@ -1,9 +1,13 @@
 #include "game/player_criminal_justice.h"
 #include "game/legal_counsel.h"
+#include "game/game_calendar.h"
+#include "game/travel_modes.h"
 #include "character/character_social_network.h"
 #include "game/economy_constants.h"
 #include "game/player_wallet.h"
 #include "world/landmark_table.h"
+#include "game/agent_relation_events.h"
+#include "utils/seed_hash.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -137,6 +141,8 @@ void resetPlayerCriminalJusticeStore(PlayerCriminalJusticeStore& store) {
     store.arrestCount = 0;
     store.custodyStartedTick = 0;
     store.lastRivalEncroachTick = 0;
+    store.courtAppearanceTick = 0;
+    store.isPreTrialParoleRelease = 0;
     store.lastArrestRollTick = 0;
     store.lastCustodyLabel[0] = '\0';
     for (int32_t agentIndex = 0; agentIndex < MAX_CHARACTER_AGENT_COUNT; ++agentIndex) {
@@ -150,14 +156,15 @@ CustodyPhase getPlayerCustodyPhase(const PlayerCriminalJusticeStore& store) {
 
 bool isPlayerFullyIncarcerated(const PlayerCriminalJusticeStore& store) {
     const CustodyPhase phase = getPlayerCustodyPhase(store);
-    return phase == CustodyPhase::Arrested || phase == CustodyPhase::InJail || phase == CustodyPhase::AwaitingCourt
-        || phase == CustodyPhase::InPrison;
+    return phase == CustodyPhase::Arrested || phase == CustodyPhase::InJail || phase == CustodyPhase::InPrison;
 }
 
 bool isPlayerFreeForStreetOperations(const PlayerCriminalJusticeStore& store) {
-    return getPlayerCustodyPhase(store) == CustodyPhase::Free
-        || getPlayerCustodyPhase(store) == CustodyPhase::OnProbation
-        || getPlayerCustodyPhase(store) == CustodyPhase::OnParole;
+    const CustodyPhase phase = getPlayerCustodyPhase(store);
+    return phase == CustodyPhase::Free
+        || phase == CustodyPhase::OnProbation
+        || phase == CustodyPhase::OnParole
+        || phase == CustodyPhase::OnBail;
 }
 
 CrimeLegalTier getPlayerMaxCrimeLegalTier(const PlayerCriminalJusticeStore& store) {
@@ -192,6 +199,8 @@ const char* custodyPhaseToString(CustodyPhase phase) {
         return "Probation";
     case CustodyPhase::OnParole:
         return "Parole";
+    case CustodyPhase::OnBail:
+        return "Out on bail";
     default:
         return "Free";
     }
@@ -247,19 +256,94 @@ void beginPlayerArrest(
     }
 }
 
-bool tryPayPlayerBond(PlayerCriminalJusticeStore& justiceStore, PlayerWallet& wallet, uint64_t tickCount) {
+bool shouldReleaseOnPreTrialParole(
+    const PlayerCriminalJusticeStore& justiceStore,
+    CrimeLegalTier legalTier,
+    const PlayerLawEnforcementStore& lawStore,
+    const PlayerOrganizationStore& organizationStore) {
+    if (justiceStore.arrestCount >= 2) {
+        return true;
+    }
+    if (static_cast<int32_t>(legalTier) >= static_cast<int32_t>(CrimeLegalTier::Organization)) {
+        return true;
+    }
+    if (lawStore.evidenceScore >= JUSTICE_PRETRIAL_PAROLE_EVIDENCE_THRESHOLD) {
+        return true;
+    }
+    if (organizationStore.powerTier != PlayerPowerTier::Solo) {
+        return true;
+    }
+    return false;
+}
+
+void commitPlayerCustodyDetention(PlayerCriminalJusticeStore& justiceStore, uint64_t tickCount) {
+    const CustodyPhase phase = getPlayerCustodyPhase(justiceStore);
+    if (phase != CustodyPhase::Arrested) {
+        return;
+    }
+    justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::InJail);
+    justiceStore.phaseTicksRemaining = JUSTICE_JAIL_HOLD_TICKS;
+    justiceStore.custodyStartedTick = tickCount;
+    justiceStore.pendingCourtModal = 0;
+    std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Held in county jail — court soon");
+}
+
+bool tryPayPlayerBond(
+    PlayerCriminalJusticeStore& justiceStore,
+    PlayerWallet& wallet,
+    const PlayerLawEnforcementStore& lawStore,
+    const PlayerOrganizationStore& organizationStore,
+    const PlayerWorldState& worldState,
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig,
+    uint64_t tickCount) {
     if (getPlayerCustodyPhase(justiceStore) != CustodyPhase::Arrested && getPlayerCustodyPhase(justiceStore) != CustodyPhase::InJail) {
         return false;
     }
     if (!tryDebitCash(wallet, justiceStore.bondCents)) {
         return false;
     }
+    const CrimeLegalTier legalTier = static_cast<CrimeLegalTier>(justiceStore.pendingLegalTier);
     justiceStore.isBondPosted = 1;
-    justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::AwaitingCourt);
-    justiceStore.phaseTicksRemaining = JUSTICE_COURT_DELAY_AFTER_BOND_TICKS;
-    justiceStore.pendingCourtModal = 1;
+    const int32_t travelLeadHours = computeTravelLeadHours(
+        chunkStore,
+        worldConfig,
+        worldState,
+        COURT_APPEARANCE_TILE_X,
+        COURT_APPEARANCE_TILE_Y,
+        TravelMode::Walk);
+    const int32_t courtDelayTicks = JUSTICE_COURT_DELAY_AFTER_BOND_TICKS + travelLeadHours * CALENDAR_TICKS_PER_HOUR;
+    justiceStore.courtAppearanceTick = tickCount + static_cast<uint64_t>(courtDelayTicks);
+    justiceStore.phaseTicksRemaining = 0;
+    justiceStore.pendingCourtModal = 0;
     justiceStore.custodyStartedTick = tickCount;
-    std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Bond posted — court date set");
+    justiceStore.isPreTrialParoleRelease = 0;
+    if (shouldReleaseOnPreTrialParole(justiceStore, legalTier, lawStore, organizationStore)) {
+        justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::OnParole);
+        justiceStore.paroleTicksRemaining = JUSTICE_COURT_DELAY_AFTER_BOND_TICKS;
+        justiceStore.isPreTrialParoleRelease = 1;
+        std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Bond posted — pre-trial parole until court");
+    } else {
+        justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::OnBail);
+        std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Bond posted — attend court on time");
+    }
+    return true;
+}
+
+bool trySkipPlayerCourtDate(
+    PlayerCriminalJusticeStore& justiceStore,
+    PlayerLawEnforcementStore& lawStore,
+    uint64_t tickCount) {
+    (void)tickCount;
+    if (getPlayerCustodyPhase(justiceStore) != CustodyPhase::OnBail && getPlayerCustodyPhase(justiceStore) != CustodyPhase::AwaitingCourt) {
+        return false;
+    }
+    lawStore.activeWarrantCount += JUSTICE_SKIP_COURT_WARRANT_COUNT;
+    lawStore.personalHeat = std::clamp(lawStore.personalHeat + JUSTICE_SKIP_COURT_HEAT_PENALTY, PLAYER_HEAT_MIN, PLAYER_HEAT_MAX);
+    lawStore.evidenceScore = std::min(PLAYER_HEAT_MAX, lawStore.evidenceScore + 8);
+    refreshInvestigationTier(lawStore);
+    releasePlayerFromCustody(justiceStore, lawStore);
+    std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Failure to appear — warrant issued");
     return true;
 }
 
@@ -267,9 +351,41 @@ void resolvePlayerCourt(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerLawEnforcementStore& lawStore,
     const PlayerLegalCounselStore& legalCounselStore,
+    CharacterAgentStore& agentStore,
     uint64_t worldSeed,
     uint64_t tickCount) {
     clearPlayerCourtModalPending(justiceStore);
+
+    // If a witness is on record, check whether a known contact turns state's evidence.
+    // Only contacts who are alive, active, and under enough pressure will cooperate.
+    if (lawStore.witnessCount > 0) {
+        const int32_t candidateSlots[2] = { FRIEND_AGENT_SLOT_INDEX, RIVAL_AGENT_SLOT_INDEX };
+        for (int32_t i = 0; i < 2; ++i) {
+            const int32_t slot = candidateSlots[i];
+            CharacterAgentState& agentState = agentStore.states[slot];
+            if (!agentState.isActive) {
+                continue;
+            }
+            if (hasAgentRelationEvent(agentState, AgentRelationEventFlags::SnitchedToPolice)) {
+                continue;
+            }
+            const int32_t pressure = computeAgentSnitchPressure(agentState);
+            // Court pressure: under oath with evidence against them, threshold is lower.
+            const int32_t courtThreshold = AGENT_SNITCH_PRESSURE_THRESHOLD - 10;
+            if (pressure < courtThreshold) {
+                continue;
+            }
+            const uint32_t roll = Utils::hashSeedMix(worldSeed, static_cast<int32_t>(tickCount), slot + 0x434F5254) % 100U;
+            if (static_cast<int32_t>(roll) >= pressure) {
+                continue;
+            }
+            // Contact testifies — flag them and add evidence weight.
+            markAgentSnitchedToPolice(agentStore, slot);
+            lawStore.evidenceScore = std::min(PLAYER_HEAT_MAX, lawStore.evidenceScore + 8);
+            break;
+        }
+    }
+
     const CrimeLegalTier legalTier = static_cast<CrimeLegalTier>(justiceStore.pendingLegalTier);
     const CourtOutcome outcome = rollCourtOutcome(legalTier, lawStore, legalCounselStore, worldSeed, tickCount);
     applyCourtOutcome(justiceStore, lawStore, outcome, legalTier, tickCount);
@@ -291,6 +407,8 @@ void releasePlayerFromCustody(PlayerCriminalJusticeStore& justiceStore, PlayerLa
     justiceStore.isBondPosted = 0;
     justiceStore.pendingCourtModal = 0;
     justiceStore.pendingLegalTier = 0;
+    justiceStore.courtAppearanceTick = 0;
+    justiceStore.isPreTrialParoleRelease = 0;
 }
 
 void markPlayerCourtModalPending(PlayerCriminalJusticeStore& justiceStore) {
@@ -350,12 +468,30 @@ void tickPlayerCriminalJustice(
         return;
     }
     if (phase == CustodyPhase::OnParole) {
+        if (justiceStore.isPreTrialParoleRelease != 0) {
+            if (justiceStore.courtAppearanceTick > 0ULL && tickCount >= justiceStore.courtAppearanceTick) {
+                justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::AwaitingCourt);
+                justiceStore.pendingCourtModal = 1;
+                justiceStore.isPreTrialParoleRelease = 0;
+                justiceStore.paroleTicksRemaining = 0;
+                std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Court date — report now");
+            }
+            return;
+        }
         if (justiceStore.paroleTicksRemaining > 0) {
             justiceStore.paroleTicksRemaining -= 1;
         }
         if (justiceStore.paroleTicksRemaining <= 0) {
             releasePlayerFromCustody(justiceStore, lawStore);
             std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Parole complete");
+        }
+        return;
+    }
+    if (phase == CustodyPhase::OnBail) {
+        if (justiceStore.courtAppearanceTick > 0ULL && tickCount >= justiceStore.courtAppearanceTick) {
+            justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::AwaitingCourt);
+            justiceStore.pendingCourtModal = 1;
+            std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Court date — report now");
         }
         return;
     }
@@ -387,13 +523,17 @@ void tickPlayerCriminalJustice(
     }
     if (phase == CustodyPhase::InJail && justiceStore.phaseTicksRemaining <= 0) {
         justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::AwaitingCourt);
-        justiceStore.phaseTicksRemaining = JUSTICE_COURT_DELAY_AFTER_BOND_TICKS;
+        justiceStore.phaseTicksRemaining = 0;
         justiceStore.pendingCourtModal = 1;
+        justiceStore.courtAppearanceTick = tickCount;
+        std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Transported to court");
     }
-    if (getPlayerCustodyPhase(justiceStore) == CustodyPhase::AwaitingCourt && justiceStore.pendingCourtModal == 0
-        && justiceStore.phaseTicksRemaining <= 0) {
+    if (getPlayerCustodyPhase(justiceStore) == CustodyPhase::AwaitingCourt
+        && justiceStore.pendingCourtModal == 0
+        && justiceStore.phaseTicksRemaining <= 0
+        && justiceStore.isBondPosted == 0) {
         const PlayerLegalCounselStore defaultCounsel{};
-        resolvePlayerCourt(justiceStore, lawStore, defaultCounsel, worldSeed, tickCount);
+        resolvePlayerCourt(justiceStore, lawStore, defaultCounsel, agentStore, worldSeed, tickCount);
     }
     if (getPlayerCustodyPhase(justiceStore) == CustodyPhase::InPrison) {
         if (justiceStore.phaseTicksRemaining > 0) {

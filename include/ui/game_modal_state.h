@@ -18,6 +18,7 @@ enum class GameModalKind : uint8_t {
     BondHearing = 7,
     CourtHearing = 8,
     CovertAction = 9,
+    InformationFeed = 10,
 };
 
 struct GameModalState {
@@ -26,6 +27,7 @@ struct GameModalState {
     bool pauseSimulation = false;
     bool lockOtherPanels = false;
     int32_t businessNodeIndex = -1;
+    int32_t informationFeedIndex = -1;
     int32_t targetAgentIndex = -1;
     JobInterviewSession interviewSession{};
     int32_t interviewQuestionIndex = 0;

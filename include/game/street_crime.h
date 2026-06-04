@@ -13,7 +13,7 @@
 
 namespace Core {
 
-constexpr int32_t MAX_STREET_CRIME_COUNT = 8;
+constexpr int32_t MAX_STREET_CRIME_COUNT = 11;
 constexpr int32_t STREET_CRIME_BROKE_CASH_THRESHOLD_CENTS = 500;
 enum class StreetCrimeTier : uint8_t {
     Solo = 0,
@@ -55,6 +55,7 @@ struct StreetCrimeDefinition {
     int32_t minCriminalTrust;
     int32_t minTrustedCrewContacts;
     int32_t maxHeatToAttempt;
+    bool allowsWithoutHeadquarters;
 };
 
 struct PlayerStreetCrimeStore {

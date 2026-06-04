@@ -3,22 +3,25 @@
 namespace Core {
 
 void ChunkTileData::initialize(int32_t tileCount) {
-    const size_t tileCountSize = static_cast<size_t>(tileCount);
-    regionId.assign(tileCountSize, RegionId::None);
-    terrainId.assign(tileCountSize, TerrainId::None);
-    elevation.assign(tileCountSize, 0);
-    flags.assign(tileCountSize, 0U);
-    economicWeight.assign(tileCountSize, 0U);
-    population.assign(tileCountSize, 0U);
-    crimePressure.assign(tileCountSize, 0U);
-    lawPressure.assign(tileCountSize, 0U);
-    businessVitality.assign(tileCountSize, 0U);
-    playerInfluence.assign(tileCountSize, 0U);
-    oppositionInfluence.assign(tileCountSize, 0U);
+    const int32_t clampedCount = tileCount < WorldConfig::TILES_PER_CHUNK ? tileCount : WorldConfig::TILES_PER_CHUNK;
+    for (int32_t tileIndex = 0; tileIndex < clampedCount; ++tileIndex) {
+        regionId[static_cast<size_t>(tileIndex)] = RegionId::None;
+        terrainId[static_cast<size_t>(tileIndex)] = TerrainId::None;
+        elevation[static_cast<size_t>(tileIndex)] = 0;
+        flags[static_cast<size_t>(tileIndex)] = 0U;
+        economicWeight[static_cast<size_t>(tileIndex)] = 0U;
+        population[static_cast<size_t>(tileIndex)] = 0U;
+        crimePressure[static_cast<size_t>(tileIndex)] = 0U;
+        lawPressure[static_cast<size_t>(tileIndex)] = 0U;
+        businessVitality[static_cast<size_t>(tileIndex)] = 0U;
+        playerInfluence[static_cast<size_t>(tileIndex)] = 0U;
+        oppositionInfluence[static_cast<size_t>(tileIndex)] = 0U;
+    }
+    hasAllocatedTiles = true;
 }
 
 bool ChunkTileData::isInitialized() const {
-    return !regionId.empty();
+    return hasAllocatedTiles;
 }
 
 ChunkStore::ChunkStore(const WorldConfig& worldConfig)
@@ -350,17 +353,7 @@ void ChunkStore::resetAll() {
         chunk.id = INVALID_CHUNK_ID;
         chunk.coord = ChunkCoord{};
         chunk.isActive = false;
-        chunk.tiles.regionId.clear();
-        chunk.tiles.terrainId.clear();
-        chunk.tiles.elevation.clear();
-        chunk.tiles.flags.clear();
-        chunk.tiles.economicWeight.clear();
-        chunk.tiles.population.clear();
-        chunk.tiles.crimePressure.clear();
-        chunk.tiles.lawPressure.clear();
-        chunk.tiles.businessVitality.clear();
-        chunk.tiles.playerInfluence.clear();
-        chunk.tiles.oppositionInfluence.clear();
+        chunk.tiles.hasAllocatedTiles = false;
     }
     activeChunkCount = 0;
 }

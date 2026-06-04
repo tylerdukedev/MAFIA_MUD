@@ -88,8 +88,8 @@ void renderMapNotificationLayer(
     float canvasPosY,
     float canvasWidth,
     float canvasHeight,
-    bool& outPauseSimulation) {
-    outPauseSimulation = false;
+    int32_t& outClickedFeedItemIndex) {
+    outClickedFeedItemIndex = -1;
     ImDrawList* drawList = ImGui::GetForegroundDrawList();
     const ImVec2 clipMin(canvasPosX, canvasPosY);
     const ImVec2 clipMax(canvasPosX + canvasWidth, canvasPosY + canvasHeight);
@@ -153,9 +153,7 @@ void renderMapNotificationLayer(
         const bool panelHovered = mousePos.x >= panelMin.x && mousePos.x <= panelMax.x && mousePos.y >= panelMin.y && mousePos.y <= panelMax.y;
         if (panelHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !dismissHovered) {
             feedItem.isRead = true;
-            if (feedItem.pausesSimulation) {
-                outPauseSimulation = true;
-            }
+            outClickedFeedItemIndex = eventSlot.feedItemIndex;
         }
         bottomYOffset += panelHeight + 6.0f;
     }

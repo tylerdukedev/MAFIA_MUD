@@ -41,10 +41,18 @@ TEST_CASE("Crew street crime stays locked without trusted criminal contact", "[s
     PlayerOrganizationStore organization{};
     CharacterAgentStore agents{};
     initializeCharacterAgentStore(agents);
-    const StreetCrimeDefinition* crewCrime = getStreetCrimeDefinition(3);
+    int32_t crewCrimeIndex = -1;
+    for (int32_t crimeIndex = 0; crimeIndex < getStreetCrimeCount(); ++crimeIndex) {
+        const StreetCrimeDefinition* crime = getStreetCrimeDefinition(crimeIndex);
+        if (crime != nullptr && crime->tier == StreetCrimeTier::Crew) {
+            crewCrimeIndex = crimeIndex;
+            break;
+        }
+    }
+    REQUIRE(crewCrimeIndex >= 0);
+    const StreetCrimeDefinition* crewCrime = getStreetCrimeDefinition(crewCrimeIndex);
     REQUIRE(crewCrime != nullptr);
-    REQUIRE(crewCrime->tier == StreetCrimeTier::Crew);
     const StreetCrimeLockReason lockReason = evaluateStreetCrimeLock(
-        operations, crimeStore, lawStore, justiceStore, organization, profile, agents, 3, *crewCrime, 200ULL);
+        operations, crimeStore, lawStore, justiceStore, organization, profile, agents, crewCrimeIndex, *crewCrime, 200ULL);
     REQUIRE(lockReason == StreetCrimeLockReason::NeedsCrewTier);
 }

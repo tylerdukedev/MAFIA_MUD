@@ -1,5 +1,6 @@
 #include "character/character_family.h"
 #include "character/character_social_network.h"
+#include "game/job_catalog.h"
 #include "character/profile_builder.h"
 #include "game/housing_living_costs.h"
 #include "game/kin_housing.h"
@@ -25,7 +26,7 @@ int32_t findLowestWageBusinessIndex() {
     const int32_t businessCount = getBusinessNodeCount();
     for (int32_t businessIndex = 0; businessIndex < businessCount; ++businessIndex) {
         const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
-        if (business == nullptr) {
+        if (business == nullptr || isLawOfficeBusinessIndex(businessIndex)) {
             continue;
         }
         if (business->jobWageCents < lowestWage) {
@@ -50,7 +51,8 @@ TEST_CASE("Employed income matches monthly ledger wage and covers rented room", 
     PlayerOperationsStore store{};
     store.employedBusinessIndex = lowestWageIndex;
     const float perTickIncome = computeEmployedLegitIncomePerTickCents(store);
-    const int64_t expectedMonthlyIncome = business->jobWageCents * JOB_MONTHLY_WAGE_MULTIPLIER;
+    const int64_t expectedMonthlyIncome =
+        computeBusinessMonthlyWageCents(*business) * static_cast<int64_t>(JOB_MONTHLY_WAGE_MULTIPLIER);
     const float simulatedMonthlyIncome = perTickIncome * static_cast<float>(MONTHLY_LEDGER_INTERVAL_TICKS);
     REQUIRE(static_cast<int64_t>(simulatedMonthlyIncome) == expectedMonthlyIncome);
     store.headquartersKind = HeadquartersKind::RentedRoom;
@@ -65,11 +67,14 @@ TEST_CASE("Job interview pass threshold separates strong and weak answers", "[ga
     PlayerOperationsStore store{};
     PlayerProfile profile = buildPlayerProfile(CharacterDraft{});
     const int32_t businessIndex = 0;
-    REQUIRE_FALSE(tryHirePlayerAtBusiness(store, profile, businessIndex, JOB_INTERVIEW_WORST_SCORE));
-    REQUIRE_FALSE(tryHirePlayerAtBusiness(store, profile, businessIndex, JOB_INTERVIEW_PASS_SCORE - 1));
-    REQUIRE(tryHirePlayerAtBusiness(store, profile, businessIndex, JOB_INTERVIEW_PASS_SCORE));
+    CharacterAgentStore agents{};
+    REQUIRE_FALSE(tryHirePlayerAtBusiness(store, profile, agents, businessIndex, JOB_INTERVIEW_WORST_SCORE));
+    REQUIRE_FALSE(tryHirePlayerAtBusiness(store, profile, agents, businessIndex, JOB_INTERVIEW_PASS_SCORE - 1));
+    REQUIRE(tryHirePlayerAtBusiness(store, profile, agents, businessIndex, JOB_INTERVIEW_PASS_SCORE));
+    REQUIRE(agents.states[BOSS_AGENT_SLOT_INDEX].isActive);
     store.employedBusinessIndex = -1;
-    REQUIRE(tryHirePlayerAtBusiness(store, profile, businessIndex, JOB_INTERVIEW_BEST_SCORE));
+    clearEmployerBossContact(agents);
+    REQUIRE(tryHirePlayerAtBusiness(store, profile, agents, businessIndex, JOB_INTERVIEW_BEST_SCORE));
     REQUIRE(store.employedBusinessIndex == businessIndex);
 }
 
@@ -175,4 +180,16 @@ TEST_CASE("Starting contact preview includes rolled personal agents", "[game_int
 TEST_CASE("Interview mixed competent answers meet pass score", "[game_integration][employment]") {
     REQUIRE(JOB_INTERVIEW_MIXED_PASS_SCORE >= JOB_INTERVIEW_PASS_SCORE);
     REQUIRE(JOB_INTERVIEW_BEST_SCORE > JOB_INTERVIEW_MIXED_PASS_SCORE);
+}
+
+TEST_CASE("Job interview draws unique questions from the bank", "[game_integration][employment]") {
+    JobInterviewSession session{};
+    buildJobInterviewSession(session, 3, 99123ULL);
+    REQUIRE(session.questionCount >= JOB_INTERVIEW_MIN_QUESTIONS);
+    REQUIRE(session.questionCount <= JOB_INTERVIEW_MAX_QUESTIONS);
+    for (int32_t firstIndex = 0; firstIndex < session.questionCount; ++firstIndex) {
+        for (int32_t secondIndex = firstIndex + 1; secondIndex < session.questionCount; ++secondIndex) {
+            REQUIRE(std::strcmp(session.questions[firstIndex].prompt, session.questions[secondIndex].prompt) != 0);
+        }
+    }
 }

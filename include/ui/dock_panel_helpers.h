@@ -4,16 +4,13 @@
 
 namespace Core {
 
-inline void resetDockPanelScrollIfNeeded() {
-    if (ImGui::IsWindowAppearing()) {
-        ImGui::SetScrollY(0.0f);
-        return;
-    }
-    const float scrollMaxY = ImGui::GetScrollMaxY();
-    const float scrollY = ImGui::GetScrollY();
-    if (scrollY > scrollMaxY) {
-        ImGui::SetScrollY(scrollMaxY);
-    }
+inline ImGuiWindowFlags dockPanelWindowFlags() {
+    return ImGuiWindowFlags_AlwaysVerticalScrollbar;
+}
+
+// Returns false when the dock tab is inactive or clipped; still requires a matching ImGui::End().
+inline bool beginDockPanelWindow(const char* title, bool* isOpen, ImGuiWindowFlags extraFlags = 0) {
+    return ImGui::Begin(title, isOpen, dockPanelWindowFlags() | extraFlags);
 }
 
 } // namespace Core

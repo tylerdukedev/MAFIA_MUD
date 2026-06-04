@@ -43,6 +43,6 @@ void renderMapNotificationLayer(
     float canvasPosY,
     float canvasWidth,
     float canvasHeight,
-    bool& outPauseSimulation);
+    int32_t& outClickedFeedItemIndex);
 
 } // namespace Core

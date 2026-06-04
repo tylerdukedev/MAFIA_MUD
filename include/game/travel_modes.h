@@ -2,6 +2,8 @@
 
 #include "game/player_world_state.h"
 #include "game/player_wallet.h"
+#include "world/chunk_store.h"
+#include "world/world_config.h"
 #include <cstdint>
 
 namespace Core {
@@ -34,7 +36,29 @@ struct TravelPlan {
 int32_t getTravelModeCount();
 const TravelModeDefinition* getTravelModeDefinition(TravelMode mode);
 int32_t computeTravelTicksForMode(TravelMode mode, int32_t manhattanTileDistance);
-void buildTravelPlan(TravelPlan& plan, TravelMode mode, int32_t fromTileX, int32_t fromTileY, int32_t toTileX, int32_t toTileY);
-bool tryExecuteTravelPlan(TravelPlan& plan, PlayerWorldState& worldState, RegionId targetRegionId, uint64_t tickCount, PlayerWallet& wallet);
+void buildTravelPlan(
+    TravelPlan& plan,
+    TravelMode mode,
+    int32_t fromTileX,
+    int32_t fromTileY,
+    int32_t toTileX,
+    int32_t toTileY,
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig);
+int32_t computeTravelLeadHours(
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig,
+    const PlayerWorldState& state,
+    int32_t toTileX,
+    int32_t toTileY,
+    TravelMode mode);
+bool tryExecuteTravelPlan(
+    TravelPlan& plan,
+    PlayerWorldState& worldState,
+    RegionId targetRegionId,
+    uint64_t tickCount,
+    PlayerWallet& wallet,
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig);
 
 } // namespace Core

@@ -39,9 +39,11 @@ if (Test-Path $PortableZip) {
 Compress-Archive -Path (Join-Path $StageDir "*") -DestinationPath $PortableZip
 Write-Host "Portable zip: $PortableZip" -ForegroundColor Green
 
+$LocalInno = Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe"
 $IsccCandidates = @(
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
     "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
+    $LocalInno,
     "ISCC.exe"
 )
 $Iscc = $null

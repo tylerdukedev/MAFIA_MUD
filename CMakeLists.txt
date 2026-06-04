@@ -79,6 +79,13 @@ set(PLAYER_CRIMINAL_JUSTICE_SOURCES
     src/game/player_criminal_justice.cpp
     src/game/crime_legal_tier.cpp
     src/game/legal_counsel.cpp
+    src/game/player_world_state.cpp
+    src/game/travel_modes.cpp
+    src/game/road_pathfinding.cpp
+    src/game/game_calendar.cpp
+    src/world/chunk_store.cpp
+    src/world/world_config.cpp
+    src/world/region_table.cpp
 )
 
 # --- Main executable ---
@@ -87,6 +94,7 @@ set(CAPITAL_VICE_SOURCES
     src/core/application.cpp
     src/core/sim_clock.cpp
     src/sim/system_registry.cpp
+    src/sim/sim_world_bindings.cpp
     src/sim/calendar_system.cpp
     src/sim/borough_vitality_system.cpp
     src/sim/city_control_system.cpp
@@ -132,6 +140,7 @@ set(CAPITAL_VICE_SOURCES
     src/game/job_catalog.cpp
     src/game/legal_counsel.cpp
     src/game/travel_modes.cpp
+    src/game/road_pathfinding.cpp
     src/game/player_career.cpp
     src/game/player_information_feed.cpp
     src/persistence/save_gameplay_stores.cpp
@@ -244,7 +253,6 @@ add_executable(save_game_test
     test/save_game_test.cpp
     src/persistence/save_game.cpp
     src/persistence/save_gameplay_stores.cpp
-    src/game/game_calendar.cpp
     src/game/action_reason_catalog.cpp
     src/game/player_narrative_archive.cpp
     src/game/player_information_feed.cpp
@@ -253,15 +261,11 @@ add_executable(save_game_test
     src/game/player_work_schedule.cpp
     src/game/player_law_intel.cpp
     src/game/player_health.cpp
-    src/game/player_world_state.cpp
     src/game/player_employment.cpp
     src/game/job_catalog.cpp
     src/world/business_node_table.cpp
     src/procgen/world_generator.cpp
     src/utils/seed_hash.cpp
-    src/world/world_config.cpp
-    src/world/chunk_store.cpp
-    src/world/region_table.cpp
     src/world/tile_vitality.cpp
     src/world/landmark_table.cpp
     src/world/city_control.cpp
@@ -426,6 +430,9 @@ catch_discover_tests(player_operations_test)
 add_executable(business_node_test
     test/business_node_test.cpp
     src/world/business_node_table.cpp
+    src/world/chunk_store.cpp
+    src/world/world_config.cpp
+    src/world/region_table.cpp
 )
 target_include_directories(business_node_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(business_node_test PRIVATE Catch2::Catch2WithMain)
@@ -461,8 +468,12 @@ add_executable(calendar_travel_test
     test/calendar_travel_test.cpp
     src/game/game_calendar.cpp
     src/game/travel_modes.cpp
+    src/game/road_pathfinding.cpp
     src/game/player_world_state.cpp
     src/game/player_wallet.cpp
+    src/world/chunk_store.cpp
+    src/world/world_config.cpp
+    src/world/region_table.cpp
     src/utils/seed_hash.cpp
 )
 target_include_directories(calendar_travel_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -496,9 +507,6 @@ add_executable(dev_console_test
     src/sim/world_event_store.cpp
     src/game/housing_economy.cpp
     src/world/tile_vitality.cpp
-    src/world/world_config.cpp
-    src/world/chunk_store.cpp
-    src/world/region_table.cpp
     src/world/city_control.cpp
     src/world/landmark_table.cpp
     src/game/player_law_enforcement.cpp

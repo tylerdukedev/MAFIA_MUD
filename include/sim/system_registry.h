@@ -51,6 +51,7 @@ private:
     CalendarSystem calendarSystem;
     ISimSystem* systems[13];
     int32_t systemCount;
+    bool bindingsValid = false;
 };
 
 } // namespace Core

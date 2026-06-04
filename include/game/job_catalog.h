@@ -7,7 +7,10 @@
 
 namespace Core {
 
-constexpr int32_t JOB_INTERVIEW_MAX_QUESTIONS = 5;
+constexpr int32_t JOB_INTERVIEW_QUESTION_BANK_SIZE = 20;
+constexpr int32_t JOB_INTERVIEW_ANSWER_VARIANT_COUNT = 10;
+constexpr int32_t JOB_INTERVIEW_MIN_QUESTIONS = 4;
+constexpr int32_t JOB_INTERVIEW_MAX_QUESTIONS = 6;
 constexpr int32_t JOB_INTERVIEW_ANSWER_COUNT = 3;
 
 enum class JobPerkFlags : uint32_t {
@@ -48,6 +51,7 @@ bool evaluateJobEligibility(
     const PlayerOperationsStore& operationsStore,
     int32_t businessIndex,
     int32_t playerWorkExperienceMonths,
+    uint64_t tickCount,
     const char*& outLockReason);
 void buildJobInterviewSession(JobInterviewSession& session, int32_t businessIndex, uint64_t worldSeed);
 bool evaluateJobInterviewPass(const JobInterviewSession& session, int32_t businessIndex);

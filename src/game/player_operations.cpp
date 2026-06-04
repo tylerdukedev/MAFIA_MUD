@@ -22,6 +22,10 @@ void resetPlayerOperationsStore(PlayerOperationsStore& store) {
     for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
         store.activeCatalogIndices[index] = -1;
     }
+    store.workExperienceMonths = 0;
+    for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
+        store.jobReapplyAvailableTickByBusiness[businessIndex] = 0ULL;
+    }
 }
 
 void clearPlayerHeadquarters(PlayerOperationsStore& store) {

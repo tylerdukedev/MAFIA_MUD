@@ -1,84 +1,12 @@
 #pragma once
 
-#include "character/player_profile.h"
-#include "game/player_criminal_justice.h"
-#include "game/player_law_enforcement.h"
-#include "game/player_information_feed.h"
-#include "game/player_law_intel.h"
-#include "game/player_narrative_archive.h"
-#include "game/legal_counsel.h"
-#include "game/travel_modes.h"
-#include "game/player_operations.h"
-#include "game/player_wallet.h"
-#include "game/street_crime.h"
-#include "sim/character_agent.h"
-#include "sim/sim_event_queue.h"
-#include "sim/world_event_store.h"
-#include "game/game_calendar.h"
-#include "game/player_work_schedule.h"
-#include "game/player_world_state.h"
-#include "world/chunk_store.h"
-#include "ui/context_help.h"
 #include "ui/game_modal_state.h"
-#include "ui/panel_visibility.h"
-#include "core/sim_clock.h"
-#include "ui/viewport_state.h"
-#include "world/city_control.h"
-#include "world/world_config.h"
+#include "ui/game_ui_frame_context.h"
 
 namespace Core {
 
-void renderOperationsPanel(
-    const PlayerWorkScheduleStore& workScheduleStore,
-    const ChunkStore& chunkStore,
-    PlayerOperationsStore& playerOperationsStore,
-    PlayerOrganizationStore& playerOrganizationStore,
-    PlayerStreetCrimeStore& playerStreetCrimeStore,
-    PlayerLawEnforcementStore& playerLawEnforcementStore,
-    PlayerLawIntelStore& playerLawIntelStore,
-    const PlayerInformationFeedStore& informationFeedStore,
-    PlayerCriminalJusticeStore& playerCriminalJusticeStore,
-    PlayerLegalCounselStore& legalCounselStore,
-    const PlayerNarrativeArchiveStore& narrativeArchiveStore,
-    PlayerWallet& playerWallet,
-    PlayerWorldState& playerWorldState,
-    CharacterAgentStore& characterAgentStore,
-    const WorldEventStore& worldEventStore,
-    SimEventQueue& simEventQueue,
-    const PlayerProfile& playerProfile,
-    GameModalState& gameModalState,
-    SimClock& simClock,
-    uint64_t tickCount,
-    GamePanelVisibility& panelVisibility,
-    ContextHelpState& contextHelpState);
-
-void renderBusinessPanel(
-    const WorldConfig& worldConfig,
-    const ChunkStore& chunkStore,
-    PlayerOperationsStore& playerOperationsStore,
-    PlayerWallet& playerWallet,
-    SimEventQueue& simEventQueue,
-    const PlayerProfile& playerProfile,
-    const PlayerWorldState& playerWorldState,
-    const GameCalendarStore& calendarStore,
-    const PlayerWorkScheduleStore& workScheduleStore,
-    GameModalState& gameModalState,
-    SimClock& simClock,
-    const ViewportPickState& viewportPickState,
-    uint64_t worldSeed,
-    GamePanelVisibility& panelVisibility,
-    ContextHelpState& contextHelpState);
-
-void renderContactsPanel(
-    const PlayerWorkScheduleStore& workScheduleStore,
-    const PlayerWorldState& playerWorldState,
-    const CharacterAgentStore& characterAgentStore,
-    const PlayerOrganizationStore& playerOrganizationStore,
-    const PlayerLawEnforcementStore& playerLawEnforcementStore,
-    const PlayerLawIntelStore& playerLawIntelStore,
-    GameModalState& gameModalState,
-    SimClock& simClock,
-    GamePanelVisibility& panelVisibility,
-    ContextHelpState& contextHelpState);
+void renderOperationsPanel(const GameUiFrameContext& frame, GameModalState& gameModalState);
+void renderBusinessPanel(const GameUiFrameContext& frame, GameModalState& gameModalState);
+void renderContactsPanel(const GameUiFrameContext& frame, GameModalState& gameModalState);
 
 } // namespace Core

@@ -11,6 +11,7 @@ constexpr int32_t FRIEND_AGENT_SLOT_INDEX = 1;
 constexpr int32_t FIRST_COMMUNITY_AGENT_SLOT_INDEX = 2;
 constexpr int32_t BEAT_COP_AGENT_SLOT_INDEX = FIRST_COMMUNITY_AGENT_SLOT_INDEX + 1;
 constexpr int32_t RIVAL_AGENT_SLOT_INDEX = FIRST_COMMUNITY_AGENT_SLOT_INDEX + 3;
+constexpr int32_t BOSS_AGENT_SLOT_INDEX = 6;
 
 void rollCharacterSocialNetwork(CharacterDraft& draft);
 void buildStartingContactPreviewStore(const CharacterDraft& draft, CharacterAgentStore& store);

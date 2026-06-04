@@ -2,23 +2,25 @@
 
 #include "core/types.h"
 #include "world/world_config.h"
+#include <array>
 #include <cstdint>
 #include <vector>
 
 namespace Core {
 
 struct ChunkTileData {
-    std::vector<RegionId> regionId;
-    std::vector<TerrainId> terrainId;
-    std::vector<int16_t> elevation;
-    std::vector<uint32_t> flags;
-    std::vector<uint8_t> economicWeight;
-    std::vector<uint16_t> population;
-    std::vector<uint8_t> crimePressure;
-    std::vector<uint8_t> lawPressure;
-    std::vector<uint8_t> businessVitality;
-    std::vector<uint8_t> playerInfluence;
-    std::vector<uint8_t> oppositionInfluence;
+    std::array<RegionId, WorldConfig::TILES_PER_CHUNK> regionId{};
+    std::array<TerrainId, WorldConfig::TILES_PER_CHUNK> terrainId{};
+    std::array<int16_t, WorldConfig::TILES_PER_CHUNK> elevation{};
+    std::array<uint32_t, WorldConfig::TILES_PER_CHUNK> flags{};
+    std::array<uint8_t, WorldConfig::TILES_PER_CHUNK> economicWeight{};
+    std::array<uint16_t, WorldConfig::TILES_PER_CHUNK> population{};
+    std::array<uint8_t, WorldConfig::TILES_PER_CHUNK> crimePressure{};
+    std::array<uint8_t, WorldConfig::TILES_PER_CHUNK> lawPressure{};
+    std::array<uint8_t, WorldConfig::TILES_PER_CHUNK> businessVitality{};
+    std::array<uint8_t, WorldConfig::TILES_PER_CHUNK> playerInfluence{};
+    std::array<uint8_t, WorldConfig::TILES_PER_CHUNK> oppositionInfluence{};
+    bool hasAllocatedTiles = false;
     void initialize(int32_t tileCount);
     bool isInitialized() const;
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "world/chunk_store.h"
 #include <cstdint>
 
 namespace Core {
@@ -57,5 +58,6 @@ int32_t getBusinessNodeCount();
 const BusinessNodeDefinition* getBusinessNodeDefinition(int32_t businessIndex);
 int32_t findBusinessNodeIndexAtTile(int32_t tileX, int32_t tileY);
 RegionId getBusinessNodeRegionId(int32_t businessIndex);
+RegionId getBusinessNodeRegionId(int32_t businessIndex, const ChunkStore& chunkStore);
 
 } // namespace Core

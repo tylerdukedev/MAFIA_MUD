@@ -18,7 +18,7 @@ namespace Core {
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
 constexpr uint32_t SAVE_VERSION_MIN = 10U;
-constexpr uint32_t SAVE_VERSION = 13U;
+constexpr uint32_t SAVE_VERSION = 14U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -144,6 +144,10 @@ bool buildSaveSnapshot(
     outSnapshot.streetCrimeStore = streetCrimeStore;
     outSnapshot.criminalJusticeStore = criminalJusticeStore;
     outSnapshot.workExperienceMonths = playerOperationsStore.workExperienceMonths;
+    for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
+        outSnapshot.jobReapplyAvailableTickByBusiness[businessIndex] =
+            playerOperationsStore.jobReapplyAvailableTickByBusiness[businessIndex];
+    }
     outSnapshot.gameplayStores = gameplayStores;
     outSnapshot.tickCount = simClock.getTickCount();
     outSnapshot.isPaused = simClock.isPaused();
@@ -343,12 +347,16 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     const bool streetCrimeWritten = writeAllBytes(fileHandle, &snapshot.streetCrimeStore, sizeof(snapshot.streetCrimeStore));
     const bool justiceWritten = writeAllBytes(fileHandle, &snapshot.criminalJusticeStore, sizeof(snapshot.criminalJusticeStore));
     const bool workExperienceWritten = writeAllBytes(fileHandle, &snapshot.workExperienceMonths, sizeof(snapshot.workExperienceMonths));
+    const bool jobReapplyWritten = writeAllBytes(
+        fileHandle,
+        snapshot.jobReapplyAvailableTickByBusiness,
+        sizeof(snapshot.jobReapplyAvailableTickByBusiness));
     const bool gameplayWritten = writeAllBytes(fileHandle, &snapshot.gameplayStores, sizeof(snapshot.gameplayStores));
     const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
         && economicWeightsWritten && populationsWritten && crimePressuresWritten && lawPressuresWritten
         && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten && cityOwnersWritten
         && catalogWritten && agentsWritten && agentCountWritten && organizationWritten && lawWritten && streetCrimeWritten
-        && justiceWritten && workExperienceWritten && gameplayWritten;
+        && justiceWritten && workExperienceWritten && jobReapplyWritten && gameplayWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -462,9 +470,20 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     }
     bool workExperienceRead = true;
     bool gameplayRead = true;
-    if (header.version >= 13U) {
+    if (header.version >= 14U) {
+        workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
+        const bool jobReapplyRead = readAllBytes(
+            fileHandle,
+            outSnapshot.jobReapplyAvailableTickByBusiness,
+            sizeof(outSnapshot.jobReapplyAvailableTickByBusiness));
+        gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, sizeof(outSnapshot.gameplayStores));
+        workExperienceRead = workExperienceRead && jobReapplyRead;
+    } else if (header.version >= 13U) {
         workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
         gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, sizeof(outSnapshot.gameplayStores));
+        for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
+            outSnapshot.jobReapplyAvailableTickByBusiness[businessIndex] = 0ULL;
+        }
     } else if (header.version >= 12U) {
         workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
         const size_t legacyGameplayBytes = offsetof(SaveGameplayStores, informationFeedStore);
@@ -478,6 +497,11 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     } else {
         outSnapshot.workExperienceMonths = 0;
         resetSaveGameplayStores(outSnapshot.gameplayStores);
+    }
+    if (header.version < 14U) {
+        for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
+            outSnapshot.jobReapplyAvailableTickByBusiness[businessIndex] = 0ULL;
+        }
     }
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead

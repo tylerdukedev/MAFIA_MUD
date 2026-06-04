@@ -118,6 +118,11 @@ void beginCourtHearingModal(GameModalState& modal, SimClock& simClock) {
     openModal(modal, simClock, GameModalKind::CourtHearing, "Court is in session — the judge will rule on your case.");
 }
 
+void beginInformationFeedModal(GameModalState& modal, int32_t feedItemIndex, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::InformationFeed, "Story update — simulation paused.");
+    modal.informationFeedIndex = feedItemIndex;
+}
+
 void beginCovertActionModal(
     GameModalState& modal,
     CovertActionKind actionKind,
@@ -154,7 +159,11 @@ void tickCriminalJusticeModals(
         return;
     }
     const CustodyPhase phase = getPlayerCustodyPhase(justiceStore);
-    if (phase == CustodyPhase::Arrested || phase == CustodyPhase::InJail) {
+    if (phase == CustodyPhase::Arrested) {
+        beginBondHearingModal(modal, simClock);
+        return;
+    }
+    if (phase == CustodyPhase::InJail) {
         beginBondHearingModal(modal, simClock);
         return;
     }
@@ -188,6 +197,8 @@ void renderGameModalOverlay(
     PlayerInformationFeedStore& informationFeedStore,
     PlayerWallet& playerWallet,
     PlayerWorldState& playerWorldState,
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig,
     PlayerWorkScheduleStore& workScheduleStore,
     GameCalendarStore& calendarStore,
     CharacterAgentStore& characterAgentStore,
@@ -206,6 +217,7 @@ void renderGameModalOverlay(
     const ImVec2 modalSize = modal.kind == GameModalKind::OrganizationCreation ? ImVec2(580.0f, 420.0f) : ImVec2(520.0f, 360.0f);
     ImGui::SetNextWindowSize(modalSize, ImGuiCond_Always);
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    ImGui::SetNextWindowFocus();
     if (!ImGui::Begin("Event", nullptr, flags)) {
         ImGui::End();
         return;
@@ -222,7 +234,14 @@ void renderGameModalOverlay(
             if (!modal.hasFlowResult) {
                 const bool passed = evaluateJobInterviewPass(session, modal.businessNodeIndex);
                 const bool hired = passed && tryHirePlayerAtBusiness(
-                    playerOperationsStore, playerProfile, modal.businessNodeIndex, session.totalScore);
+                    playerOperationsStore,
+                    playerProfile,
+                    characterAgentStore,
+                    modal.businessNodeIndex,
+                    session.totalScore);
+                if (!passed) {
+                    recordJobRejection(playerOperationsStore, modal.businessNodeIndex, tickCount);
+                }
                 if (hired) {
                     const JobDefinitionExtension* extension = getJobDefinitionExtension(modal.businessNodeIndex);
                     if (extension != nullptr
@@ -421,8 +440,16 @@ void renderGameModalOverlay(
         ImGui::Text("Bond amount: %s", bondBuffer);
         ImGui::TextDisabled("While you are inside, rivals may move on your territory.");
         if (ImGui::Button("Post bond", ImVec2(160.0f, 0.0f))) {
-            if (tryPayPlayerBond(playerCriminalJusticeStore, playerWallet, tickCount)) {
-                setModalStatus(modal, "Bond posted. Court date scheduled.");
+            if (tryPayPlayerBond(
+                    playerCriminalJusticeStore,
+                    playerWallet,
+                    playerLawEnforcementStore,
+                    playerOrganizationStore,
+                    playerWorldState,
+                    chunkStore,
+                    worldConfig,
+                    tickCount)) {
+                setModalStatus(modal, playerCriminalJusticeStore.lastCustodyLabel);
                 closeModal(modal, simClock);
             } else {
                 setModalStatus(modal, "Not enough cash for bond.");
@@ -430,7 +457,8 @@ void renderGameModalOverlay(
         }
         ImGui::SameLine();
         if (ImGui::Button("Stay inside", ImVec2(160.0f, 0.0f))) {
-            setModalStatus(modal, "You wait it out in county jail.");
+            commitPlayerCustodyDetention(playerCriminalJusticeStore, tickCount);
+            setModalStatus(modal, playerCriminalJusticeStore.lastCustodyLabel);
             closeModal(modal, simClock);
         }
     } else if (modal.kind == GameModalKind::CovertAction) {
@@ -513,18 +541,57 @@ void renderGameModalOverlay(
             if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
                 closeModal(modal, simClock);
             }
-        } else if (ImGui::Button("Enter courtroom", ImVec2(200.0f, 0.0f))) {
-            resolvePlayerCourt(playerCriminalJusticeStore, playerLawEnforcementStore, legalCounselStore, worldSeed, tickCount);
-            const CourtOutcome outcome = static_cast<CourtOutcome>(playerCriminalJusticeStore.lastCourtOutcome);
-            char outcomeBuffer[96];
-            std::snprintf(
-                outcomeBuffer,
-                sizeof(outcomeBuffer),
-                "Ruling: %s — %s",
-                courtOutcomeToString(outcome),
-                playerCriminalJusticeStore.lastCustodyLabel);
-            setModalStatus(modal, outcomeBuffer);
-            modal.hasFlowResult = true;
+        } else {
+            const CustodyPhase custodyPhase = getPlayerCustodyPhase(playerCriminalJusticeStore);
+            if (custodyPhase == CustodyPhase::OnBail) {
+                if (ImGui::Button("Attend court", ImVec2(200.0f, 0.0f))) {
+                    resolvePlayerCourt(playerCriminalJusticeStore, playerLawEnforcementStore, legalCounselStore, characterAgentStore, worldSeed, tickCount);
+                    const CourtOutcome outcome = static_cast<CourtOutcome>(playerCriminalJusticeStore.lastCourtOutcome);
+                    char outcomeBuffer[96];
+                    std::snprintf(
+                        outcomeBuffer,
+                        sizeof(outcomeBuffer),
+                        "Ruling: %s — %s",
+                        courtOutcomeToString(outcome),
+                        playerCriminalJusticeStore.lastCustodyLabel);
+                    setModalStatus(modal, outcomeBuffer);
+                    modal.hasFlowResult = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Skip court date", ImVec2(200.0f, 0.0f))) {
+                    trySkipPlayerCourtDate(playerCriminalJusticeStore, playerLawEnforcementStore, tickCount);
+                    setModalStatus(modal, playerCriminalJusticeStore.lastCustodyLabel);
+                    modal.hasFlowResult = true;
+                }
+            } else if (ImGui::Button("Enter courtroom", ImVec2(200.0f, 0.0f))) {
+                resolvePlayerCourt(playerCriminalJusticeStore, playerLawEnforcementStore, legalCounselStore, characterAgentStore, worldSeed, tickCount);
+                const CourtOutcome outcome = static_cast<CourtOutcome>(playerCriminalJusticeStore.lastCourtOutcome);
+                char outcomeBuffer[96];
+                std::snprintf(
+                    outcomeBuffer,
+                    sizeof(outcomeBuffer),
+                    "Ruling: %s — %s",
+                    courtOutcomeToString(outcome),
+                    playerCriminalJusticeStore.lastCustodyLabel);
+                setModalStatus(modal, outcomeBuffer);
+                modal.hasFlowResult = true;
+            }
+        }
+    } else if (modal.kind == GameModalKind::InformationFeed) {
+        ImGui::Text("Story update");
+        ImGui::Separator();
+        if (modal.informationFeedIndex >= 0 && modal.informationFeedIndex < informationFeedStore.itemCount) {
+            const InformationFeedItem& feedItem = informationFeedStore.items[modal.informationFeedIndex];
+            const char* channelLabel = feedItem.channel == InformationChannel::Newspaper
+                ? "Newspaper"
+                : (feedItem.channel == InformationChannel::Intel ? "Intel" : "Rumor");
+            ImGui::Text("[%s] %s", channelLabel, feedItem.headline);
+            ImGui::TextWrapped("%s", feedItem.body);
+        } else {
+            ImGui::TextWrapped("This alert is no longer available.");
+        }
+        if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+            closeModal(modal, simClock);
         }
     }
     ImGui::End();

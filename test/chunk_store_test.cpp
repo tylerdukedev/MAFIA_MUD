@@ -63,7 +63,7 @@ TEST_CASE("ChunkStore lazy allocation", "[world][chunk]") {
         const Chunk* chunk = chunkStore.getChunk(chunkId);
         REQUIRE(chunk != nullptr);
         REQUIRE(chunk->tiles.isInitialized());
-        REQUIRE(chunk->tiles.regionId.size() == static_cast<size_t>(WorldConfig::TILES_PER_CHUNK));
+        REQUIRE(WorldConfig::TILES_PER_CHUNK == WorldConfig::CHUNK_SIZE * WorldConfig::CHUNK_SIZE);
     }
     SECTION("Tile read/write respects world coordinates") {
         WorldCoord inputCoord{40, 40};

@@ -1,8 +1,12 @@
 #include "game/player_employment.h"
+#include "character/character_social_network.h"
 #include "game/housing_living_costs.h"
 #include "game/job_catalog.h"
 #include "game/player_operations.h"
+#include "sim/character_agent.h"
 #include "world/business_node_table.h"
+#include <algorithm>
+#include <cstring>
 
 namespace Core {
 
@@ -10,9 +14,59 @@ bool isPlayerEmployed(const PlayerOperationsStore& store) {
     return store.employedBusinessIndex >= 0;
 }
 
+bool canReapplyForJob(const PlayerOperationsStore& store, int32_t businessNodeIndex, uint64_t tickCount) {
+    if (businessNodeIndex < 0 || businessNodeIndex >= MAX_BUSINESS_NODE_COUNT) {
+        return false;
+    }
+    const uint64_t availableTick = store.jobReapplyAvailableTickByBusiness[businessNodeIndex];
+    return tickCount >= availableTick;
+}
+
+uint64_t getJobReapplyTicksRemaining(
+    const PlayerOperationsStore& store,
+    int32_t businessNodeIndex,
+    uint64_t tickCount) {
+    if (businessNodeIndex < 0 || businessNodeIndex >= MAX_BUSINESS_NODE_COUNT) {
+        return 0ULL;
+    }
+    const uint64_t availableTick = store.jobReapplyAvailableTickByBusiness[businessNodeIndex];
+    if (tickCount >= availableTick) {
+        return 0ULL;
+    }
+    return availableTick - tickCount;
+}
+
+void recordJobRejection(PlayerOperationsStore& store, int32_t businessNodeIndex, uint64_t tickCount) {
+    if (businessNodeIndex < 0 || businessNodeIndex >= MAX_BUSINESS_NODE_COUNT) {
+        return;
+    }
+    store.jobReapplyAvailableTickByBusiness[businessNodeIndex] = tickCount + JOB_REAPPLY_COOLDOWN_TICKS;
+}
+
+void spawnEmployerBossContact(CharacterAgentStore& store, int32_t businessNodeIndex) {
+    const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessNodeIndex);
+    if (business == nullptr) {
+        return;
+    }
+    CharacterAgentState& bossState = store.states[BOSS_AGENT_SLOT_INDEX];
+    bossState = CharacterAgentState{};
+    bossState.hasGeneratedIdentity = true;
+    bossState.isActive = true;
+    std::snprintf(bossState.generatedDisplayName, sizeof(bossState.generatedDisplayName), "%s", business->mapLabel);
+    std::snprintf(bossState.generatedRoleLabel, sizeof(bossState.generatedRoleLabel), "Boss");
+    bossState.opinionOfPlayer = 18;
+    deriveRelationshipStatsFromOpinion(bossState);
+    bossState.currentEmotion = AgentEmotion::Calm;
+}
+
+void clearEmployerBossContact(CharacterAgentStore& store) {
+    store.states[BOSS_AGENT_SLOT_INDEX] = CharacterAgentState{};
+}
+
 bool tryHirePlayerAtBusiness(
     PlayerOperationsStore& store,
     const PlayerProfile& profile,
+    CharacterAgentStore& agentStore,
     int32_t businessNodeIndex,
     int32_t interviewScore) {
     if (isPlayerEmployed(store)) {
@@ -29,13 +83,14 @@ bool tryHirePlayerAtBusiness(
         return false;
     }
     const char* lockReason = nullptr;
-    if (!evaluateJobEligibility(profile, store, businessNodeIndex, store.workExperienceMonths, lockReason)) {
+    if (!evaluateJobEligibility(profile, store, businessNodeIndex, store.workExperienceMonths, 0ULL, lockReason)) {
         return false;
     }
     store.employedBusinessIndex = businessNodeIndex;
     if (store.workExperienceMonths < 240) {
         store.workExperienceMonths += 1;
     }
+    spawnEmployerBossContact(agentStore, businessNodeIndex);
     return true;
 }
 

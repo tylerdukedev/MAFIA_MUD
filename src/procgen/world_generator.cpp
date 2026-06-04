@@ -2,6 +2,7 @@
 #include "procgen/borough_map_data.h"
 #include "utils/seed_hash.h"
 #include "world/tile_vitality.h"
+#include <algorithm>
 #include <cstdint>
 
 namespace Core {
@@ -34,6 +35,7 @@ void WorldGenerator::generate(const WorldConfig& worldConfig, ChunkStore& chunkS
     decodeBakedMap();
     passBoroughs(chunkStore);
     passStreets(chunkStore);
+    passBridges(chunkStore);
     passElevation(chunkStore);
     passTileVitality(chunkStore);
 }
@@ -95,6 +97,41 @@ void WorldGenerator::passStreets(ChunkStore& chunkStore) {
             }
         }
     }
+}
+
+namespace {
+
+void stampBridgeTile(ChunkStore& chunkStore, int32_t tileX, int32_t tileY, RegionId regionId) {
+    const WorldCoord coord{tileX, tileY};
+    chunkStore.setTerrainAt(coord, TerrainId::Road);
+    if (regionId != RegionId::None) {
+        chunkStore.setRegionAt(coord, regionId);
+    }
+}
+
+void stampBridgeSegment(ChunkStore& chunkStore, int32_t startTileX, int32_t startTileY, int32_t endTileX, int32_t endTileY) {
+    const WorldCoord startCoord{startTileX, startTileY};
+    const WorldCoord endCoord{endTileX, endTileY};
+    const RegionId startRegion = chunkStore.getRegionAt(startCoord);
+    const RegionId endRegion = chunkStore.getRegionAt(endCoord);
+    const int32_t deltaX = endTileX - startTileX;
+    const int32_t deltaY = endTileY - startTileY;
+    const int32_t stepCount = std::max(std::abs(deltaX), std::abs(deltaY));
+    for (int32_t stepIndex = 0; stepIndex <= stepCount; ++stepIndex) {
+        const int32_t tileX = stepCount == 0 ? startTileX : startTileX + (deltaX * stepIndex) / stepCount;
+        const int32_t tileY = stepCount == 0 ? startTileY : startTileY + (deltaY * stepIndex) / stepCount;
+        const float blend = stepCount == 0 ? 0.0f : static_cast<float>(stepIndex) / static_cast<float>(stepCount);
+        const RegionId bridgeRegion = blend < 0.5f ? startRegion : endRegion;
+        stampBridgeTile(chunkStore, tileX, tileY, bridgeRegion);
+    }
+}
+
+} // namespace
+
+void WorldGenerator::passBridges(ChunkStore& chunkStore) {
+    stampBridgeSegment(chunkStore, 182, 370, 202, 370);
+    stampBridgeSegment(chunkStore, 270, 210, 260, 210);
+    stampBridgeSegment(chunkStore, 259, 235, 268, 235);
 }
 
 

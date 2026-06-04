@@ -19,44 +19,39 @@ void copyString(char* destination, size_t destinationSize, const char* source) {
     std::snprintf(destination, destinationSize, "%s", source);
 }
 
-void registerHoverTarget(
+void applyContextHelpToRect(
     ContextHelpState& state,
     const char* title,
     const char* tooltip,
     const char* manualTopicId,
     const ImVec2& rectMin,
     const ImVec2& rectMax) {
-    ImGui::SetCursorScreenPos(rectMin);
     const ImVec2 size(rectMax.x - rectMin.x, rectMax.y - rectMin.y);
     if (size.x <= 0.0f || size.y <= 0.0f) {
         return;
     }
-    ImGui::PushID(title);
-    ImGui::InvisibleButton("##ctx_help_hit", size);
+    const bool isHovered = ImGui::IsMouseHoveringRect(rectMin, rectMax, true);
     if (state.isInspectMode) {
-        if (ImGui::IsItemHovered()) {
+        if (isHovered) {
             ImGui::GetWindowDrawList()->AddRect(rectMin, rectMax, IM_COL32(255, 210, 80, 220), 0.0f, 0, 2.0f);
             state.hasHoveredTarget = true;
             copyString(state.hoveredTitle, sizeof(state.hoveredTitle), title);
             copyString(state.hoveredTooltip, sizeof(state.hoveredTooltip), tooltip);
             copyString(state.hoveredManualTopicId, sizeof(state.hoveredManualTopicId), manualTopicId);
         }
-        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             state.showInspectPopup = true;
             copyString(state.popupTitle, sizeof(state.popupTitle), title);
             copyString(state.popupTooltip, sizeof(state.popupTooltip), tooltip);
             copyString(state.popupManualTopicId, sizeof(state.popupManualTopicId), manualTopicId);
         }
-    } else if (ImGui::IsItemHovered()) {
+    } else if (isHovered) {
         ImGui::SetTooltip("%s", tooltip);
     }
-    ImGui::PopID();
 }
 
 void registerLastItem(ContextHelpState& state, const char* title, const char* tooltip, const char* manualTopicId) {
-    const ImVec2 rectMin = ImGui::GetItemRectMin();
-    const ImVec2 rectMax = ImGui::GetItemRectMax();
-    registerHoverTarget(state, title, tooltip, manualTopicId, rectMin, rectMax);
+    applyContextHelpToRect(state, title, tooltip, manualTopicId, ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
 }
 
 } // namespace
@@ -132,7 +127,7 @@ void contextHelpPanelTag(const char* panelTitle, const char* tooltip, const char
     }
     const ImVec2 rectMin = ImGui::GetWindowPos();
     const ImVec2 rectMax(rectMin.x + ImGui::GetWindowWidth(), rectMin.y + ImGui::GetFrameHeight());
-    registerHoverTarget(state, panelTitle, tooltip, manualTopicId, rectMin, rectMax);
+    applyContextHelpToRect(state, panelTitle, tooltip, manualTopicId, rectMin, rectMax);
 }
 
 void contextHelpWrappedText(const char* text, const char* title, const char* tooltip, const char* manualTopicId, ContextHelpState& state) {

@@ -16,6 +16,7 @@
 #include "game/player_wallet.h"
 #include "ui/business_renderer.h"
 #include "ui/game_ui_panels.h"
+#include "ui/game_ui_frame_context.h"
 #include "ui/panel_visibility.h"
 #include "sim/sim_event_queue.h"
 #include "world/city_control.h"
@@ -481,13 +482,9 @@ void renderSimulationPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 200.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin(GameDockPanel::Simulation, &isOpen)) {
-        ImGui::End();
-        panelVisibility.showSimulation = isOpen;
-        return;
-    }
+    const bool isDockPanelVisible = beginDockPanelWindow(GameDockPanel::Simulation, &isOpen);
     panelVisibility.showSimulation = isOpen;
-    resetDockPanelScrollIfNeeded();
+    if (isDockPanelVisible) {
         contextHelpPanelTag(
             "Simulation Panel",
             "Clock status, speed controls, and world summary.",
@@ -594,6 +591,7 @@ void renderSimulationPanel(
         ImGui::Checkbox("Crime heat overlay", &mapCrimeOverlayEnabled);
         ImGui::Separator();
         ImGui::TextDisabled("Space = pause/resume | S = step tick | Ctrl = inspect help");
+    }
     ImGui::End();
 }
 
@@ -615,13 +613,9 @@ void renderCharacterPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 400.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin(GameDockPanel::Character, &isOpen)) {
-        ImGui::End();
-        panelVisibility.showCharacter = isOpen;
-        return;
-    }
+    const bool isDockPanelVisible = beginDockPanelWindow(GameDockPanel::Character, &isOpen);
     panelVisibility.showCharacter = isOpen;
-    resetDockPanelScrollIfNeeded();
+    if (isDockPanelVisible) {
         contextHelpPanelTag(
             "Character Panel",
             "Your identity and foundational trait profile during play.",
@@ -879,6 +873,7 @@ void renderCharacterPanel(
                 "stat_corporate",
                 contextHelpState);
         }
+    }
     ImGui::End();
 }
 
@@ -891,13 +886,9 @@ void renderBoroughsPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(220.0f, 160.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin(GameDockPanel::Boroughs, &isOpen)) {
-        ImGui::End();
-        panelVisibility.showBoroughs = isOpen;
-        return;
-    }
+    const bool isDockPanelVisible = beginDockPanelWindow(GameDockPanel::Boroughs, &isOpen);
     panelVisibility.showBoroughs = isOpen;
-    resetDockPanelScrollIfNeeded();
+    if (isDockPanelVisible) {
         contextHelpPanelTag(
             "Boroughs Panel",
             "Playable boroughs with live vitality bars.",
@@ -933,6 +924,7 @@ void renderBoroughsPanel(
             ImGui::Separator();
             ImGui::PopID();
         }
+    }
     ImGui::End();
 }
 
@@ -954,13 +946,9 @@ void renderCityPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, 220.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin(GameDockPanel::City, &isOpen)) {
-        ImGui::End();
-        panelVisibility.showCity = isOpen;
-        return;
-    }
+    const bool isDockPanelVisible = beginDockPanelWindow(GameDockPanel::City, &isOpen);
     panelVisibility.showCity = isOpen;
-    resetDockPanelScrollIfNeeded();
+    if (isDockPanelVisible) {
         contextHelpPanelTag("City Panel", "Stats for a selected map landmark city node.", "city_panel", contextHelpState);
         if (!viewportPickState.hasLandmarkSelection || viewportPickState.selectedLandmarkIndex < 0) {
             ImGui::TextDisabled("Click a labeled city landmark on the map.");
@@ -1046,6 +1034,7 @@ void renderCityPanel(
                 }
             }
         }
+    }
     ImGui::End();
 }
 
@@ -1061,13 +1050,9 @@ void renderTileInspectorPanel(
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 140.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin(GameDockPanel::TileInspector, &isOpen)) {
-        ImGui::End();
-        panelVisibility.showTileInspector = isOpen;
-        return;
-    }
+    const bool isDockPanelVisible = beginDockPanelWindow(GameDockPanel::TileInspector, &isOpen);
     panelVisibility.showTileInspector = isOpen;
-    resetDockPanelScrollIfNeeded();
+    if (isDockPanelVisible) {
         contextHelpPanelTag("Tile Inspector", "Details for the hovered or selected map tile.", "tile_inspector", contextHelpState);
         if (!viewportPickState.hasHover && !viewportPickState.hasSelection) {
             ImGui::TextDisabled("Hover or click the map viewport to inspect tiles.");
@@ -1108,6 +1093,7 @@ void renderTileInspectorPanel(
                 }
             }
         }
+    }
     ImGui::End();
 }
 
@@ -1141,22 +1127,21 @@ void renderMapViewportPanel(
     MapHudInteraction& mapHudInteraction,
     PlayerInformationFeedStore& informationFeedStore,
     MapNotificationLayerState& notificationLayer,
-    bool& pauseFromMapNotification,
+    int32_t& clickedFeedItemIndex,
     GamePanelVisibility& panelVisibility,
     ContextHelpState& contextHelpState) {
     if (!panelVisibility.showMapViewport) {
         return;
     }
-    pauseFromMapNotification = false;
+    clickedFeedItemIndex = -1;
     ImGui::SetNextWindowSizeConstraints(ImVec2(MIN_WINDOW_WIDTH * 0.4f, MIN_WINDOW_HEIGHT * 0.4f), ImVec2(FLT_MAX, FLT_MAX));
     bool isOpen = true;
-    if (!ImGui::Begin(GameDockPanel::MapViewport, &isOpen)) {
-        ImGui::End();
-        panelVisibility.showMapViewport = isOpen;
-        return;
-    }
+    const bool isDockPanelVisible = beginDockPanelWindow(
+        GameDockPanel::MapViewport,
+        &isOpen,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     panelVisibility.showMapViewport = isOpen;
-    resetDockPanelScrollIfNeeded();
+    if (isDockPanelVisible) {
         contextHelpPanelTag("Map Viewport", "Pan, zoom, and pick tiles on the world map.", "map_viewport", contextHelpState);
         const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
@@ -1287,6 +1272,12 @@ void renderMapViewportPanel(
                 viewportPickState);
         }
         drawList->PopClipRect();
+        renderMapTileCoordReadout(
+            viewportPickState,
+            canvasPos.x,
+            canvasPos.y,
+            canvasSize.x,
+            canvasSize.y);
         if (isCanvasHovered) {
             char overlayBuffer[96];
             std::snprintf(
@@ -1295,8 +1286,9 @@ void renderMapViewportPanel(
                 "Scroll: zoom | Drag: pan | Zoom: %.2f px/tile",
                 mapCamera.pixelsPerTile);
             const ImVec2 hintSize = ImGui::CalcTextSize(overlayBuffer);
+            const float lineHeight = ImGui::GetTextLineHeight();
             drawList->AddText(
-                ImVec2(canvasPos.x + 8.0f, canvasMax.y - hintSize.y - 8.0f),
+                ImVec2(canvasPos.x + 8.0f, canvasMax.y - hintSize.y - lineHeight - 14.0f),
                 IM_COL32(220, 224, 232, 230),
                 overlayBuffer);
         }
@@ -1320,7 +1312,8 @@ void renderMapViewportPanel(
             canvasPos.y,
             canvasSize.x,
             canvasSize.y,
-            pauseFromMapNotification);
+            clickedFeedItemIndex);
+    }
     ImGui::End();
 }
 } // namespace
@@ -1391,6 +1384,27 @@ void renderGameUi(
     (void)chunkStore;
     const bool blockPanels = shouldBlockGameplayPanels(gameModalState);
     const uint64_t tickCount = simClock.getTickCount();
+    const GameUiFrameContext uiFrame{
+        tickCount,
+        worldSeed,
+        worldConfig,
+        chunkStore,
+        playerOperationsStore,
+        playerOrganizationStore,
+        playerStreetCrimeStore,
+        playerLawEnforcementStore,
+        playerCriminalJusticeStore,
+        playerWallet,
+        playerWorldState,
+        characterAgentStore,
+        worldEventStore,
+        simEventQueue,
+        playerProfile,
+        gameplayStores,
+        simClock,
+        viewportPickState,
+        panelVisibility,
+        contextHelpState};
     tickMapNotificationLayer(g_mapNotificationLayer, ImGui::GetIO().DeltaTime);
     MapHudInteraction mapHudInteraction{};
     tickPlayerWorkSchedule(
@@ -1398,6 +1412,8 @@ void renderGameUi(
         gameplayStores.calendarStore,
         playerWorldState,
         playerOperationsStore,
+        chunkStore,
+        worldConfig,
         gameModalState.isActive);
     tickWorkScheduleModals(gameModalState, gameplayStores.workScheduleStore, gameplayStores.calendarStore, simClock);
     tickCriminalJusticeModals(gameModalState, playerCriminalJusticeStore, simClock);
@@ -1423,40 +1439,8 @@ void renderGameUi(
             worldSeed,
             panelVisibility,
             contextHelpState);
-        renderOperationsPanel(
-            gameplayStores.workScheduleStore,
-            chunkStore,
-            playerOperationsStore,
-            playerOrganizationStore,
-            playerStreetCrimeStore,
-            playerLawEnforcementStore,
-            gameplayStores.lawIntelStore,
-            gameplayStores.informationFeedStore,
-            playerCriminalJusticeStore,
-            gameplayStores.legalCounselStore,
-            gameplayStores.narrativeArchiveStore,
-            playerWallet,
-            playerWorldState,
-            characterAgentStore,
-            worldEventStore,
-            simEventQueue,
-            playerProfile,
-            gameModalState,
-            simClock,
-            tickCount,
-            panelVisibility,
-            contextHelpState);
-        renderContactsPanel(
-            gameplayStores.workScheduleStore,
-            playerWorldState,
-            characterAgentStore,
-            playerOrganizationStore,
-            playerLawEnforcementStore,
-            gameplayStores.lawIntelStore,
-            gameModalState,
-            simClock,
-            panelVisibility,
-            contextHelpState);
+        renderOperationsPanel(uiFrame, gameModalState);
+        renderContactsPanel(uiFrame, gameModalState);
         renderBoroughsPanel(boroughVitalityStore, panelVisibility, contextHelpState);
         renderTileInspectorPanel(worldConfig, chunkStore, boroughVitalityStore, viewportPickState, panelVisibility, contextHelpState);
         renderCityPanel(
@@ -1472,22 +1456,7 @@ void renderGameUi(
             viewportPickState,
             panelVisibility,
             contextHelpState);
-        renderBusinessPanel(
-            worldConfig,
-            chunkStore,
-            playerOperationsStore,
-            playerWallet,
-            simEventQueue,
-            playerProfile,
-            playerWorldState,
-            gameplayStores.calendarStore,
-            gameplayStores.workScheduleStore,
-            gameModalState,
-            simClock,
-            viewportPickState,
-            worldSeed,
-            panelVisibility,
-            contextHelpState);
+        renderBusinessPanel(uiFrame, gameModalState);
     }
     for (int32_t feedIndex = 0; feedIndex < gameplayStores.informationFeedStore.itemCount; ++feedIndex) {
         if (!gameplayStores.informationFeedStore.items[feedIndex].isDismissed
@@ -1495,7 +1464,7 @@ void renderGameUi(
             pushMapEventFromFeed(g_mapNotificationLayer, gameplayStores.informationFeedStore, feedIndex);
         }
     }
-    bool pauseFromMapNotification = false;
+    int32_t clickedFeedItemIndex = -1;
     renderMapViewportPanel(
         worldConfig,
         chunkStore,
@@ -1513,11 +1482,11 @@ void renderGameUi(
         mapHudInteraction,
         gameplayStores.informationFeedStore,
         g_mapNotificationLayer,
-        pauseFromMapNotification,
+        clickedFeedItemIndex,
         panelVisibility,
         contextHelpState);
-    if (pauseFromMapNotification) {
-        simClock.setPaused(true);
+    if (clickedFeedItemIndex >= 0 && !gameModalState.isActive) {
+        beginInformationFeedModal(gameModalState, clickedFeedItemIndex, simClock);
     }
     if (mapHudInteraction.requestCenterOnPlayer) {
         float displayTileX = 0.0f;
@@ -1543,6 +1512,8 @@ void renderGameUi(
         gameplayStores.informationFeedStore,
         playerWallet,
         playerWorldState,
+        chunkStore,
+        worldConfig,
         gameplayStores.workScheduleStore,
         gameplayStores.calendarStore,
         characterAgentStore,

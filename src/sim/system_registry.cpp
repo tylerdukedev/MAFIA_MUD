@@ -38,6 +38,7 @@ void SystemRegistry::initialize(
     PlayerHealthStore* playerHealthStore,
     PopulationHealthStore* populationHealthStore) {
     systemCount = 0;
+    bindingsValid = isSimWorldBindingsValid(bindings);
     streetCrimeSystem.bind(bindings, crimeStore, lawStore, justiceStore);
     operationSystem.bind(bindings, agentStore);
     cityControlSystem.bind(bindings, justiceStore);
@@ -72,6 +73,9 @@ const BoroughVitalitySystem* SystemRegistry::getBoroughVitalitySystem() const {
 }
 
 void SystemRegistry::runTick(uint64_t tickCount) {
+    if (!bindingsValid) {
+        return;
+    }
     for (int32_t index = 0; index < systemCount; ++index) {
         if (systems[index] != nullptr) {
             systems[index]->onTick(tickCount);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "game/road_pathfinding.h"
 #include "world/region_table.h"
 #include <cstdint>
 
@@ -11,6 +12,7 @@ constexpr int32_t WORK_SHIFT_END_HOUR = 17;
 constexpr int32_t TICKS_PER_TRAVEL_TILE = 12;
 constexpr int32_t WORK_DAY_INTERVAL_TICKS = 1600;
 constexpr int32_t LATE_ARRIVAL_WAGE_PENALTY_PERCENT = 35;
+constexpr int32_t TRAVEL_SCHEDULE_BUFFER_HOURS = 1;
 struct PlayerWorldState {
     int32_t currentTileX = 0;
     int32_t currentTileY = 0;
@@ -25,6 +27,9 @@ struct PlayerWorldState {
     int32_t travelDestTileX = 0;
     int32_t travelDestTileY = 0;
     uint8_t travelDestRegionId = 0;
+    int32_t travelPathTileCount = 0;
+    int32_t travelPathTileX[MAX_ROAD_PATH_TILES]{};
+    int32_t travelPathTileY[MAX_ROAD_PATH_TILES]{};
     uint64_t travelStartTick = 0;
     uint64_t travelCompleteTick = 0;
     uint64_t lastWorkDayPromptTick = 0;
@@ -42,7 +47,8 @@ bool beginPlayerTravel(
     int32_t targetTileY,
     RegionId targetRegionId,
     uint64_t tickCount,
-    int32_t travelDurationTicks);
+    int32_t travelDurationTicks,
+    const RoadPathResult* roadPath);
 void tickPlayerTravel(PlayerWorldState& state, uint64_t tickCount);
 float computePlayerTravelVisualT(const PlayerWorldState& state, uint64_t tickCount);
 void getPlayerDisplayTile(const PlayerWorldState& state, uint64_t tickCount, float& outTileX, float& outTileY);

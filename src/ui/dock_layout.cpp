@@ -100,6 +100,7 @@ void applyPendingLayout(const ImVec2& viewportSize) {
     isDockLayoutCommitted = true;
     pendingLayoutCommand = DockLayoutCommand::None;
 }
+
 } // namespace
 
 void requestDefaultGameDockLayout() {

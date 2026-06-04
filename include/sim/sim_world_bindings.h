@@ -36,4 +36,6 @@ struct SimWorldBindings {
     WorldEventStore* worldEventStore = nullptr;
 };
 
+bool isSimWorldBindingsValid(const SimWorldBindings& bindings);
+
 } // namespace Core

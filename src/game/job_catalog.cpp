@@ -40,7 +40,7 @@ constexpr JobExtensionEntry JOB_EXTENSION_TABLE[] = {
 
 constexpr int32_t JOB_EXTENSION_COUNT = static_cast<int32_t>(sizeof(JOB_EXTENSION_TABLE) / sizeof(JOB_EXTENSION_TABLE[0]));
 
-constexpr const char* QUESTION_PROMPTS[] = {
+constexpr const char* QUESTION_PROMPTS[JOB_INTERVIEW_QUESTION_BANK_SIZE] = {
     "Why do you want this job?",
     "How do you handle a difficult customer?",
     "What is your biggest weakness?",
@@ -48,39 +48,89 @@ constexpr const char* QUESTION_PROMPTS[] = {
     "The boss asks you to stay late without pay. Your move?",
     "You see a coworker skimming. What happens next?",
     "How do you show up when the neighborhood is tense?",
+    "A supplier offers you a kickback. Your response?",
+    "You are blamed for a mistake you did not make.",
+    "How do you treat regulars who know your name?",
+    "Two coworkers ask you to cover conflicting favors.",
+    "What would you do if business slows for a month?",
+    "How do you handle a boss who micromanages?",
+    "A friend asks you to bend policy for them.",
+    "You find cash left behind at a table.",
+    "How do you learn a task you have never done?",
+    "What does loyalty to this workplace mean to you?",
+    "How do you act when a rival insults the shop?",
+    "You overhear talk about a strike or slowdown.",
+    "Why should we trust you with the register?",
 };
 
-constexpr const char* ANSWER_SET_A[] = {
-    "I need steady pay and I will show up on time.",
-    "Stay calm, listen, and fix what I can.",
-    "I talk too much when I am nervous.",
-    "Report it immediately and make the books whole.",
-    "I ask for comp time or a straight trade next week.",
-    "I keep my head down unless it touches my crew.",
-    "I keep my business quiet and do my work.",
-};
-constexpr const char* ANSWER_SET_B[] = {
-    "My cousin said you hire anyone.",
-    "I yell back until they leave.",
-    "I have no weaknesses.",
-    "Cover it tonight and fix it tomorrow.",
-    "Sure, family comes second to the job.",
-    "I take a cut if they share.",
-    "I lean on people I know to keep heat off.",
-};
-constexpr const char* ANSWER_SET_C[] = {
-    "I am between rackets and need cover.",
-    "I know a guy who handles problems.",
-    "I sometimes borrow from the till.",
-    "Split the difference and move on.",
-    "I refuse unless there is cash on the table.",
-    "I tell the boss if the price is right.",
-    "I make sure the right people vouch for me.",
+constexpr const char* ANSWER_VARIANT_GOOD[JOB_INTERVIEW_ANSWER_VARIANT_COUNT] = {
+    "I stay honest, show up on time, and keep the books clean.",
+    "I listen first, stay calm, and fix what I can without drama.",
+    "I admit a real flaw and explain how I work around it.",
+    "I report problems early and make the numbers right.",
+    "I ask for fair comp or trade hours — no free favors.",
+    "I keep my head down and do the job I was hired for.",
+    "I treat customers fair even when the block is hot.",
+    "I refuse side deals and stay on the straight wage.",
+    "I take the write-up, learn, and do better next shift.",
+    "I remember faces, stay polite, and protect the house.",
 };
 
-constexpr int32_t SCORE_A[] = {3, 3, 2, 4, 3, 1, 2};
-constexpr int32_t SCORE_B[] = {1, 0, 1, -2, 0, -1, 0};
-constexpr int32_t SCORE_C[] = {0, 1, -2, -3, 2, 0, 1};
+constexpr const char* ANSWER_VARIANT_NEUTRAL[JOB_INTERVIEW_ANSWER_VARIANT_COUNT] = {
+    "I need steady pay and I will try to fit in.",
+    "I get loud until the other person backs off.",
+    "I say I have no weaknesses — I am reliable.",
+    "I cover it tonight and fix it tomorrow quietly.",
+    "I stay late if the family understands the sacrifice.",
+    "I watch who is skimming and decide later.",
+    "I keep to myself unless someone pushes me.",
+    "I hear them out but do not commit in writing.",
+    "I argue back but still clock my hours.",
+    "I am friendly but do not get too personal.",
+};
+
+constexpr const char* ANSWER_VARIANT_POOR[JOB_INTERVIEW_ANSWER_VARIANT_COUNT] = {
+    "I need cash fast and this job is cover.",
+    "I threaten them until they leave the counter.",
+    "I borrow from the till when things get tight.",
+    "I split the shortage and hope nobody counts.",
+    "I refuse extra work unless there is cash under the table.",
+    "I take a cut if they keep quiet about my name.",
+    "I lean on people I know to keep heat off me.",
+    "I take the kickback if the boss never finds out.",
+    "I blame someone else and walk off the shift.",
+    "I charm them, then charge extra when they return.",
+};
+
+constexpr int32_t SCORE_GOOD_BY_QUESTION[JOB_INTERVIEW_QUESTION_BANK_SIZE] = {
+    3, 3, 2, 4, 3, 1, 2, 4, 2, 3, 2, 3, 2, 3, 4, 3, 3, 2, 2, 4,
+};
+constexpr int32_t SCORE_NEUTRAL_BY_QUESTION[JOB_INTERVIEW_QUESTION_BANK_SIZE] = {
+    1, 0, 1, -2, 0, -1, 0, 0, 0, 1, 0, 1, 0, 0, -1, 1, 1, 0, 0, 0,
+};
+constexpr int32_t SCORE_POOR_BY_QUESTION[JOB_INTERVIEW_QUESTION_BANK_SIZE] = {
+    0, 1, -2, -3, 2, 0, 1, -3, -2, 0, -1, -1, -1, -2, -4, 0, -1, 1, -1, -3,
+};
+
+void copyAnswerVariant(char* destination, size_t destinationSize, const char* variantText) {
+    std::snprintf(destination, destinationSize, "%s", variantText);
+}
+
+void shuffleQuestionOrder(int32_t* questionOrder, int32_t questionCount, uint64_t seed, int32_t businessIndex) {
+    for (int32_t index = 0; index < questionCount; ++index) {
+        questionOrder[index] = index;
+    }
+    for (int32_t index = questionCount - 1; index > 0; --index) {
+        const uint32_t mix = Utils::hashSeedMix(
+            Utils::hashSeedMix(seed, businessIndex, static_cast<int32_t>(index)),
+            0x5149,
+            0x5249U);
+        const int32_t swapIndex = static_cast<int32_t>(mix % static_cast<uint32_t>(index + 1));
+        const int32_t temp = questionOrder[index];
+        questionOrder[index] = questionOrder[swapIndex];
+        questionOrder[swapIndex] = temp;
+    }
+}
 
 const JobDefinitionExtension* findExtension(int32_t businessIndex) {
     for (int32_t entryIndex = 0; entryIndex < JOB_EXTENSION_COUNT; ++entryIndex) {
@@ -102,6 +152,7 @@ bool evaluateJobEligibility(
     const PlayerOperationsStore& operationsStore,
     int32_t businessIndex,
     int32_t playerWorkExperienceMonths,
+    uint64_t tickCount,
     const char*& outLockReason) {
     const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
     if (business == nullptr) {
@@ -130,6 +181,10 @@ bool evaluateJobEligibility(
         outLockReason = "Already employed";
         return false;
     }
+    if (!canReapplyForJob(operationsStore, businessIndex, tickCount)) {
+        outLockReason = "Reapply cooldown";
+        return false;
+    }
     outLockReason = nullptr;
     return true;
 }
@@ -140,17 +195,28 @@ void buildJobInterviewSession(JobInterviewSession& session, int32_t businessInde
     session.totalScore = 0;
     const JobDefinitionExtension* extension = findExtension(businessIndex);
     const int32_t difficulty = extension != nullptr ? extension->interviewDifficulty : 1;
-    session.questionCount = std::min(JOB_INTERVIEW_MAX_QUESTIONS, 3 + difficulty);
+    const int32_t questionCount = std::clamp(
+        JOB_INTERVIEW_MIN_QUESTIONS + (difficulty % 3),
+        JOB_INTERVIEW_MIN_QUESTIONS,
+        JOB_INTERVIEW_MAX_QUESTIONS);
+    session.questionCount = questionCount;
+    int32_t questionOrder[JOB_INTERVIEW_QUESTION_BANK_SIZE]{};
+    shuffleQuestionOrder(questionOrder, JOB_INTERVIEW_QUESTION_BANK_SIZE, worldSeed, businessIndex);
     for (int32_t questionIndex = 0; questionIndex < session.questionCount; ++questionIndex) {
-        const int32_t promptIndex = static_cast<int32_t>(Utils::hashSeedMix(worldSeed, businessIndex, questionIndex) % 7U);
+        const int32_t bankIndex = questionOrder[questionIndex];
+        const uint32_t variantMix = Utils::hashSeedMix(
+            Utils::hashSeedMix(worldSeed, businessIndex, bankIndex),
+            0x5641,
+            0x5254U);
+        const int32_t variantIndex = static_cast<int32_t>(variantMix % static_cast<uint32_t>(JOB_INTERVIEW_ANSWER_VARIANT_COUNT));
         JobInterviewQuestionInstance& question = session.questions[questionIndex];
-        std::snprintf(question.prompt, sizeof(question.prompt), "%s", QUESTION_PROMPTS[promptIndex]);
-        std::snprintf(question.answers[0].text, sizeof(question.answers[0].text), "%s", ANSWER_SET_A[promptIndex]);
-        std::snprintf(question.answers[1].text, sizeof(question.answers[1].text), "%s", ANSWER_SET_B[promptIndex]);
-        std::snprintf(question.answers[2].text, sizeof(question.answers[2].text), "%s", ANSWER_SET_C[promptIndex]);
-        question.answers[0].scoreDelta = SCORE_A[promptIndex];
-        question.answers[1].scoreDelta = SCORE_B[promptIndex];
-        question.answers[2].scoreDelta = SCORE_C[promptIndex];
+        std::snprintf(question.prompt, sizeof(question.prompt), "%s", QUESTION_PROMPTS[bankIndex]);
+        copyAnswerVariant(question.answers[0].text, sizeof(question.answers[0].text), ANSWER_VARIANT_GOOD[variantIndex]);
+        copyAnswerVariant(question.answers[1].text, sizeof(question.answers[1].text), ANSWER_VARIANT_NEUTRAL[variantIndex]);
+        copyAnswerVariant(question.answers[2].text, sizeof(question.answers[2].text), ANSWER_VARIANT_POOR[variantIndex]);
+        question.answers[0].scoreDelta = SCORE_GOOD_BY_QUESTION[bankIndex];
+        question.answers[1].scoreDelta = SCORE_NEUTRAL_BY_QUESTION[bankIndex];
+        question.answers[2].scoreDelta = SCORE_POOR_BY_QUESTION[bankIndex];
     }
 }
 

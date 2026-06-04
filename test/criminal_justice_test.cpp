@@ -4,6 +4,9 @@
 #include "game/player_wallet.h"
 #include "sim/character_agent.h"
 #include "world/city_control.h"
+#include "world/chunk_store.h"
+#include "world/world_config.h"
+#include "game/player_world_state.h"
 #include <catch2/catch_test_macros.hpp>
 
 using namespace Core;
@@ -15,8 +18,14 @@ TEST_CASE("Bond payment moves player to awaiting court", "[criminal_justice]") {
     wallet.cashCents = 50000;
     beginPlayerArrest(justiceStore, lawStore, CrimeLegalTier::Street, 10ULL, "Test arrest");
     REQUIRE(getPlayerCustodyPhase(justiceStore) == CustodyPhase::Arrested);
-    REQUIRE(tryPayPlayerBond(justiceStore, wallet, 20ULL));
-    REQUIRE(getPlayerCustodyPhase(justiceStore) == CustodyPhase::AwaitingCourt);
+    PlayerOrganizationStore organizationStore{};
+    WorldConfig worldConfig{};
+    ChunkStore chunkStore{worldConfig};
+    PlayerWorldState worldState{};
+    initializePlayerWorldStateFromStart(worldState, 240, 240, RegionId::Manhattan);
+    REQUIRE(tryPayPlayerBond(justiceStore, wallet, lawStore, organizationStore, worldState, chunkStore, worldConfig, 20ULL));
+    const CustodyPhase releasePhase = getPlayerCustodyPhase(justiceStore);
+    REQUIRE((releasePhase == CustodyPhase::OnBail || releasePhase == CustodyPhase::OnParole));
     REQUIRE(wallet.cashCents < 50000);
 }
 

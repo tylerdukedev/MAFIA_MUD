@@ -31,6 +31,7 @@ void beginCrewFormalizeModal(GameModalState& modal, SimClock& simClock);
 void beginOrganizationCreationModal(GameModalState& modal, SimClock& simClock);
 void beginBondHearingModal(GameModalState& modal, SimClock& simClock);
 void beginCourtHearingModal(GameModalState& modal, SimClock& simClock);
+void beginInformationFeedModal(GameModalState& modal, int32_t feedItemIndex, SimClock& simClock);
 void beginCovertActionModal(
     GameModalState& modal,
     CovertActionKind actionKind,
@@ -63,6 +64,8 @@ void renderGameModalOverlay(
     PlayerInformationFeedStore& informationFeedStore,
     PlayerWallet& playerWallet,
     PlayerWorldState& playerWorldState,
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig,
     PlayerWorkScheduleStore& workScheduleStore,
     GameCalendarStore& calendarStore,
     CharacterAgentStore& characterAgentStore,

@@ -92,7 +92,8 @@ void buildMonthlyHousingLedger(
     if (employedBusinessIndex >= 0) {
         const BusinessNodeDefinition* business = getBusinessNodeDefinition(employedBusinessIndex);
         if (business != nullptr) {
-            outLedger.jobIncomeCents = business->jobWageCents * JOB_MONTHLY_WAGE_MULTIPLIER;
+            outLedger.jobIncomeCents =
+                computeBusinessMonthlyWageCents(*business) * static_cast<int64_t>(JOB_MONTHLY_WAGE_MULTIPLIER);
         }
     }
     outLedger.totalExpenseCents = outLedger.rentCents + outLedger.utilitiesCents + outLedger.taxesAndFeesCents;

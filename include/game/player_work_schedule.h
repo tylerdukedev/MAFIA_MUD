@@ -3,6 +3,8 @@
 #include "game/game_calendar.h"
 #include "game/player_operations.h"
 #include "game/player_world_state.h"
+#include "world/chunk_store.h"
+#include "world/world_config.h"
 #include <cstdint>
 
 namespace Core {
@@ -31,6 +33,8 @@ void tickPlayerWorkSchedule(
     GameCalendarStore& calendarStore,
     PlayerWorldState& worldState,
     const PlayerOperationsStore& operationsStore,
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig,
     bool isModalActive);
 bool shouldOpenWorkCommuteModal(const PlayerWorkScheduleStore& scheduleStore, const GameCalendarStore& calendarStore);
 bool computeWorkDayLateness(const PlayerWorkScheduleStore& scheduleStore, const GameCalendarStore& calendarStore);

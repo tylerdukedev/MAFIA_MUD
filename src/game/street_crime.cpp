@@ -14,14 +14,17 @@ namespace Core {
 namespace {
 
 constexpr StreetCrimeDefinition STREET_CRIME_DEFINITIONS[] = {
-    {"pickpocket", "Pickpocket", "Quick lift on a crowded corner. Solo work.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 35, 2, 1, 72, 18, 55, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX},
-    {"shoplift", "Shoplift", "Snatch goods from an open storefront.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 45, 3, 2, 68, 28, 85, 0.05f, 0.0f, 0, 0, PLAYER_HEAT_MAX},
-    {"shake_vendor", "Shake Down Vendor", "Lean on a pushcart for a few dollars.", StreetCrimeTier::Solo, CrimeLegalTier::Street, 55, 5, 3, 62, 45, 140, 0.12f, 0.0f, 0, 0, 90},
-    {"alley_mugging", "Alley Mugging", "One lookout, one muscle — split the take.", StreetCrimeTier::Crew, CrimeLegalTier::Street, 80, 8, 5, 55, 95, 240, 0.20f, 0.0f, 35, 1, 85},
-    {"warehouse_pinch", "Warehouse Pinch", "Slip a crate with a trusted runner.", StreetCrimeTier::Crew, CrimeLegalTier::Organization, 100, 10, 6, 50, 140, 320, 0.28f, 0.08f, 45, 1, 80},
-    {"numbers_drop", "Numbers Drop", "Run slips for a crew book on commission.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 120, 12, 8, 45, 220, 480, 0.35f, 0.15f, 50, 2, 75},
-    {"protection_cut", "Protection Cut", "Collect weekly from shops you cover.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 140, 14, 9, 40, 320, 720, 0.42f, 0.22f, 58, 2, 70},
-    {"import_skim", "Import Skim", "Divert a shipment with inside help.", StreetCrimeTier::Organization, CrimeLegalTier::Financial, 160, 18, 12, 38, 450, 1100, 0.50f, 0.30f, 65, 2, 65},
+    {"panhandle", "Panhandle", "Ask strangers for spare change. No HQ needed.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 25, 1, 1, 78, 8, 35, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
+    {"wash_windows", "Squeegee Work", "Clean windshields at a light for tips.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 30, 1, 1, 75, 12, 45, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
+    {"sell_scrap", "Sell Scrap", "Hawk loose goods or scrap metal.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 40, 2, 2, 70, 20, 65, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
+    {"pickpocket", "Pickpocket", "Quick lift on a crowded corner. Solo work.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 35, 2, 1, 72, 18, 55, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
+    {"shoplift", "Shoplift", "Snatch goods from an open storefront.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 45, 3, 2, 68, 28, 85, 0.05f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
+    {"shake_vendor", "Shake Down Vendor", "Lean on a pushcart for a few dollars.", StreetCrimeTier::Solo, CrimeLegalTier::Street, 55, 5, 3, 62, 45, 140, 0.12f, 0.0f, 0, 0, 90, false},
+    {"alley_mugging", "Alley Mugging", "One lookout, one muscle — split the take.", StreetCrimeTier::Crew, CrimeLegalTier::Street, 80, 8, 5, 55, 95, 240, 0.20f, 0.0f, 35, 1, 85, false},
+    {"warehouse_pinch", "Warehouse Pinch", "Slip a crate with a trusted runner.", StreetCrimeTier::Crew, CrimeLegalTier::Organization, 100, 10, 6, 50, 140, 320, 0.28f, 0.08f, 45, 1, 80, false},
+    {"numbers_drop", "Numbers Drop", "Run slips for a crew book on commission.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 120, 12, 8, 45, 220, 480, 0.35f, 0.15f, 50, 2, 75, false},
+    {"protection_cut", "Protection Cut", "Collect weekly from shops you cover.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 140, 14, 9, 40, 320, 720, 0.42f, 0.22f, 58, 2, 70, false},
+    {"import_skim", "Import Skim", "Divert a shipment with inside help.", StreetCrimeTier::Organization, CrimeLegalTier::Financial, 160, 18, 12, 38, 450, 1100, 0.50f, 0.30f, 65, 2, 65, false},
 };
 
 constexpr int32_t STREET_CRIME_DEFINITION_COUNT = static_cast<int32_t>(sizeof(STREET_CRIME_DEFINITIONS) / sizeof(STREET_CRIME_DEFINITIONS[0]));
@@ -133,7 +136,7 @@ StreetCrimeLockReason evaluateStreetCrimeLock(
         }
         return StreetCrimeLockReason::LegalTierRestricted;
     }
-    if (!hasPlayerHeadquarters(operationsStore)) {
+    if (!hasPlayerHeadquarters(operationsStore) && !crime.allowsWithoutHeadquarters) {
         return StreetCrimeLockReason::NeedsHeadquarters;
     }
     if (hasActivePoliceWarrant(lawStore) && crime.tier == StreetCrimeTier::Organization) {
@@ -194,15 +197,7 @@ bool tryCommitStreetCrime(
     const int32_t successChance = rollSuccessPercent(*crime, profile, agentStore, lawStore, worldSeed, crimeIndex, tickCount);
     const uint32_t roll = Utils::hashSeedMix(worldSeed, static_cast<int32_t>(tickCount), crimeIndex + 0x535563) % 100U;
     const bool isSuccess = static_cast<int32_t>(roll) < successChance;
-    const int32_t witnessesBefore = lawStore.witnessCount;
     rollStreetCrimeWitness(lawStore, organizationStore, profile, wallet, worldSeed, tickCount, crimeIndex, isSuccess);
-    if (lawStore.witnessCount > witnessesBefore) {
-        if (agentStore.states[FRIEND_AGENT_SLOT_INDEX].isActive) {
-            markAgentSnitchedToPolice(agentStore, FRIEND_AGENT_SLOT_INDEX);
-        } else if (agentStore.states[RIVAL_AGENT_SLOT_INDEX].isActive) {
-            markAgentSnitchedToPolice(agentStore, RIVAL_AGENT_SLOT_INDEX);
-        }
-    }
     if (isSuccess) {
         const int64_t payoutCents = rollPayoutCents(*crime, worldSeed, crimeIndex, tickCount);
         creditCrimeCash(wallet, payoutCents);

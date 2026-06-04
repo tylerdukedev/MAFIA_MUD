@@ -1,5 +1,7 @@
 #include "game/player_work_schedule.h"
 #include "game/player_employment.h"
+#include "game/travel_modes.h"
+#include "world/business_node_table.h"
 #include <algorithm>
 
 namespace Core {
@@ -43,6 +45,8 @@ void tickPlayerWorkSchedule(
     GameCalendarStore& calendarStore,
     PlayerWorldState& worldState,
     const PlayerOperationsStore& operationsStore,
+    const ChunkStore& chunkStore,
+    const WorldConfig& worldConfig,
     bool isModalActive) {
     if (!isPlayerEmployed(operationsStore)) {
         scheduleStore.shiftPhase = WorkShiftPhase::OffDuty;
@@ -74,7 +78,24 @@ void tickPlayerWorkSchedule(
     if (isModalActive) {
         return;
     }
-    if (calendarStore.hourOfDay == scheduleStore.shiftStartHour && scheduleStore.lastPromptHour != static_cast<uint64_t>(calendarStore.hourOfDay)) {
+    int32_t commutePromptHour = scheduleStore.shiftStartHour;
+    if (isPlayerEmployed(operationsStore)) {
+        const BusinessNodeDefinition* employer = getBusinessNodeDefinition(operationsStore.employedBusinessIndex);
+        if (employer != nullptr) {
+            const int32_t travelLeadHours = computeTravelLeadHours(
+                chunkStore,
+                worldConfig,
+                worldState,
+                employer->tileX,
+                employer->tileY,
+                TravelMode::Walk);
+            commutePromptHour = scheduleStore.shiftStartHour - travelLeadHours;
+            if (commutePromptHour < 0) {
+                commutePromptHour = 0;
+            }
+        }
+    }
+    if (calendarStore.hourOfDay == commutePromptHour && scheduleStore.lastPromptHour != static_cast<uint64_t>(calendarStore.hourOfDay)) {
         scheduleStore.lastPromptHour = static_cast<uint64_t>(calendarStore.hourOfDay);
         scheduleStore.shiftPhase = WorkShiftPhase::CommutePrompt;
         return;

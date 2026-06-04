@@ -6,6 +6,7 @@
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
+#include "world/business_node_table.h"
 #include "game/player_wallet.h"
 #include "persistence/save_gameplay_stores.h"
 #include "game/street_crime.h"
@@ -55,6 +56,7 @@ struct SaveGameSnapshot {
     PlayerStreetCrimeStore streetCrimeStore{};
     PlayerCriminalJusticeStore criminalJusticeStore{};
     int32_t workExperienceMonths = 0;
+    uint64_t jobReapplyAvailableTickByBusiness[MAX_BUSINESS_NODE_COUNT]{};
     SaveGameplayStores gameplayStores{};
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
