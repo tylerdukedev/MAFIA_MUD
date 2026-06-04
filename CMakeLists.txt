@@ -113,6 +113,9 @@ set(CAPITAL_VICE_SOURCES
     src/sim/world_event_store.cpp
     src/sim/world_event_system.cpp
     src/game/housing_economy.cpp
+    src/game/property_store.cpp
+    src/game/property_generator.cpp
+    src/game/npc_spatial_init.cpp
     src/sim/sim_event_queue.cpp
     src/sim/character_agent_store.cpp
     src/game/player_wallet.cpp
@@ -454,6 +457,15 @@ add_executable(character_agent_relationship_test
 target_include_directories(character_agent_relationship_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(character_agent_relationship_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(character_agent_relationship_test)
+
+add_executable(character_agent_spatial_test
+    test/character_agent_spatial_test.cpp
+    src/sim/character_agent_store.cpp
+    src/game/agent_relation_events.cpp
+)
+target_include_directories(character_agent_spatial_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(character_agent_spatial_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(character_agent_spatial_test)
 
 add_executable(profile_builder_test
     test/profile_builder_test.cpp

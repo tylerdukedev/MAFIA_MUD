@@ -129,4 +129,41 @@ bool tryGetAgentDisplayLabels(
     return true;
 }
 
+void setAgentPosition(CharacterAgentState& state, int32_t tileX, int32_t tileY) {
+    state.currentTileX = tileX;
+    state.currentTileY = tileY;
+}
+
+void setAgentActivity(CharacterAgentState& state, AgentActivity activity, uint64_t tickCount) {
+    state.currentActivity = activity;
+    state.activityStartTick = tickCount;
+    updateAgentMapVisibility(state);
+}
+
+bool isAgentVisibleOnMap(const CharacterAgentState& state) {
+    if (!state.isActive) {
+        return false;
+    }
+    return state.isVisibleOnMap;
+}
+
+void updateAgentMapVisibility(CharacterAgentState& state) {
+    switch (state.currentActivity) {
+        case AgentActivity::Idle:
+        case AgentActivity::Traveling:
+            state.isVisibleOnMap = true;
+            break;
+        case AgentActivity::AtHome:
+        case AgentActivity::AtWork:
+        case AgentActivity::InBuilding:
+        case AgentActivity::Abroad:
+        case AgentActivity::Incarcerated:
+            state.isVisibleOnMap = false;
+            break;
+        default:
+            state.isVisibleOnMap = false;
+            break;
+    }
+}
+
 } // namespace Core

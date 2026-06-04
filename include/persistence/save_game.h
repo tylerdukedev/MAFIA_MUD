@@ -6,6 +6,7 @@
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
+#include "game/property_store.h"
 #include "world/business_node_table.h"
 #include "game/player_wallet.h"
 #include "persistence/save_gameplay_stores.h"
@@ -51,6 +52,7 @@ struct SaveGameSnapshot {
     int32_t rentEventAdjustmentBps = 0;
     WorldEventStore worldEventStore{};
     CharacterAgentStore characterAgentStore{};
+    PropertyStore propertyStore{};
     PlayerOrganizationStore organizationStore{};
     PlayerLawEnforcementStore lawEnforcementStore{};
     PlayerStreetCrimeStore streetCrimeStore{};
@@ -85,6 +87,7 @@ bool buildSaveSnapshot(
     const PlayerOperationsStore& playerOperationsStore,
     const WorldEventStore& worldEventStore,
     const CharacterAgentStore& characterAgentStore,
+    const PropertyStore& propertyStore,
     const PlayerOrganizationStore& organizationStore,
     const PlayerLawEnforcementStore& lawEnforcementStore,
     const PlayerStreetCrimeStore& streetCrimeStore,
@@ -103,6 +106,7 @@ bool applySaveSnapshot(
     PlayerOperationsStore& playerOperationsStore,
     WorldEventStore& worldEventStore,
     CharacterAgentStore& characterAgentStore,
+    PropertyStore& propertyStore,
     PlayerOrganizationStore& organizationStore,
     PlayerLawEnforcementStore& lawEnforcementStore,
     PlayerStreetCrimeStore& streetCrimeStore,

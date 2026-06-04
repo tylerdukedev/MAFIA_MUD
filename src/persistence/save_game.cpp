@@ -107,6 +107,7 @@ bool buildSaveSnapshot(
     const PlayerOperationsStore& playerOperationsStore,
     const WorldEventStore& worldEventStore,
     const CharacterAgentStore& characterAgentStore,
+    const PropertyStore& propertyStore,
     const PlayerOrganizationStore& organizationStore,
     const PlayerLawEnforcementStore& lawEnforcementStore,
     const PlayerStreetCrimeStore& streetCrimeStore,
@@ -140,6 +141,7 @@ bool buildSaveSnapshot(
         outSnapshot.activeCatalogIndices[index] = playerOperationsStore.activeCatalogIndices[index];
     }
     outSnapshot.characterAgentStore = characterAgentStore;
+    outSnapshot.propertyStore = propertyStore;
     outSnapshot.organizationStore = organizationStore;
     outSnapshot.lawEnforcementStore = lawEnforcementStore;
     outSnapshot.streetCrimeStore = streetCrimeStore;
@@ -197,6 +199,7 @@ bool applySaveSnapshot(
     PlayerOperationsStore& playerOperationsStore,
     WorldEventStore& worldEventStore,
     CharacterAgentStore& characterAgentStore,
+    PropertyStore& propertyStore,
     PlayerOrganizationStore& organizationStore,
     PlayerLawEnforcementStore& lawEnforcementStore,
     PlayerStreetCrimeStore& streetCrimeStore,
@@ -267,6 +270,7 @@ bool applySaveSnapshot(
     }
     worldEventStore = snapshot.worldEventStore;
     characterAgentStore = snapshot.characterAgentStore;
+    propertyStore = snapshot.propertyStore;
     organizationStore = snapshot.organizationStore;
     lawEnforcementStore = snapshot.lawEnforcementStore;
     streetCrimeStore = snapshot.streetCrimeStore;

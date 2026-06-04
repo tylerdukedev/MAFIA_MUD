@@ -19,6 +19,8 @@
 #include "character/profile_builder.h"
 #include "character/character_social_network.h"
 #include "sim/world_event_store.h"
+#include "game/property_generator.h"
+#include "game/npc_spatial_init.h"
 #if defined(CAPITALVICE_DEV_CONSOLE)
 #include "dev/dev_console.h"
 #endif
@@ -303,6 +305,8 @@ void Application::startNewSimulation() {
     WorldGenerator worldGenerator;
     worldGenerator.generate(worldConfig, chunkStore, worldSeed);
     rollupBoroughVitality(worldConfig, chunkStore, boroughVitalityStore);
+    generateProperties(propertyStore, chunkStore, worldSeed);
+    initializeNpcSpatialState(characterAgentStore, propertyStore, chunkStore, worldSeed);
     const SimWorldBindings simBindings{
         &chunkStore,
         &boroughVitalityStore,
@@ -366,6 +370,7 @@ bool Application::saveCurrentGame() {
             playerOperationsStore,
             worldEventStore,
             characterAgentStore,
+            propertyStore,
             playerOrganizationStore,
             playerLawEnforcementStore,
             playerStreetCrimeStore,
@@ -416,6 +421,7 @@ bool Application::loadSavedGame() {
             playerOperationsStore,
             worldEventStore,
             characterAgentStore,
+            propertyStore,
             playerOrganizationStore,
             playerLawEnforcementStore,
             playerStreetCrimeStore,

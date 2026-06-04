@@ -32,6 +32,16 @@ enum class AgentPersonalityTrait : uint8_t {
     Ruthless = 4,
 };
 
+enum class AgentActivity : uint8_t {
+    Idle = 0,
+    AtHome = 1,
+    AtWork = 2,
+    Traveling = 3,
+    InBuilding = 4,
+    Abroad = 5,
+    Incarcerated = 6,
+};
+
 struct AgentDefinition {
     const char* id;
     const char* displayName;
@@ -55,6 +65,16 @@ struct CharacterAgentState {
     AgentMotive generatedMotive = AgentMotive::Loyalty;
     AgentPersonalityTrait generatedTrait = AgentPersonalityTrait::Pragmatic;
     uint16_t relationEventFlags = 0;
+    int32_t currentTileX = -1;
+    int32_t currentTileY = -1;
+    int32_t destinationTileX = -1;
+    int32_t destinationTileY = -1;
+    AgentActivity currentActivity = AgentActivity::Idle;
+    int32_t homePropertyIndex = -1;
+    int32_t workplaceBusinessIndex = -1;
+    int32_t cashCents = 0;
+    uint64_t activityStartTick = 0;
+    bool isVisibleOnMap = false;
 };
 
 struct CharacterAgentStore {
@@ -73,5 +93,9 @@ bool tryGetAgentDisplayLabels(
     int32_t agentIndex,
     const char*& outDisplayName,
     const char*& outRoleLabel);
+void setAgentPosition(CharacterAgentState& state, int32_t tileX, int32_t tileY);
+void setAgentActivity(CharacterAgentState& state, AgentActivity activity, uint64_t tickCount);
+bool isAgentVisibleOnMap(const CharacterAgentState& state);
+void updateAgentMapVisibility(CharacterAgentState& state);
 
 } // namespace Core

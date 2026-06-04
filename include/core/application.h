@@ -21,6 +21,7 @@
 #include "game/player_law_intel.h"
 #include "game/player_work_schedule.h"
 #include "game/legal_counsel.h"
+#include "game/property_store.h"
 #include "persistence/save_gameplay_stores.h"
 #include "ui/game_modal_state.h"
 #include "sim/character_agent.h"
@@ -66,6 +67,7 @@ private:
     PlayerCriminalJusticeStore playerCriminalJusticeStore{};
     SaveGameplayStores gameplayStores{};
     CharacterAgentStore characterAgentStore{};
+    PropertyStore propertyStore{};
     CityControlStore cityControlStore{};
     GamePanelVisibility panelVisibility{};
     SimEventQueue simEventQueue{};
