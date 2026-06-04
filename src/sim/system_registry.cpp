@@ -37,7 +37,8 @@ void SystemRegistry::initialize(
     PlayerWorldState* worldState,
     PlayerHealthStore* playerHealthStore,
     PopulationHealthStore* populationHealthStore,
-    PlayerInformationFeedStore* informationFeedStore) {
+    PlayerInformationFeedStore* informationFeedStore,
+    PropertyStore* propertyStore) {
     systemCount = 0;
     bindingsValid = isSimWorldBindingsValid(bindings);
     streetCrimeSystem.bind(bindings, crimeStore, lawStore, justiceStore);
@@ -57,7 +58,7 @@ void SystemRegistry::initialize(
         playerHealthStore,
         populationHealthStore,
         agentStore);
-    npcAutonomySystem.bind(bindings, calendarStore, nullptr);
+    npcAutonomySystem.bind(bindings, calendarStore, propertyStore);
     if (bindings.worldSeed != nullptr) {
         npcAutonomySystem.setWorldSeed(*bindings.worldSeed);
     }

@@ -340,7 +340,8 @@ void Application::startNewSimulation() {
         &playerWorldState,
         &gameplayStores.playerHealthStore,
         &gameplayStores.populationHealthStore,
-        &gameplayStores.informationFeedStore);
+        &gameplayStores.informationFeedStore,
+        &propertyStore);
     requestDefaultGameDockLayout();
     panelVisibility = GamePanelVisibility{};
     mapCamera = MapCamera{};
@@ -470,7 +471,8 @@ bool Application::loadSavedGame() {
         &playerWorldState,
         &gameplayStores.playerHealthStore,
         &gameplayStores.populationHealthStore,
-        &gameplayStores.informationFeedStore);
+        &gameplayStores.informationFeedStore,
+        &propertyStore);
     playerWorldState = gameplayStores.worldState;
     panelVisibility = GamePanelVisibility{};
     playerProfile = buildPlayerProfile(characterDraft);

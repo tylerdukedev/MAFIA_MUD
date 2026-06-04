@@ -1,5 +1,7 @@
 #include "game/npc_decision.h"
+#include "game/property_store.h"
 #include "sim/character_agent.h"
+#include "world/business_node_table.h"
 #include "world/chunk_store.h"
 #include "world/world_config.h"
 
@@ -62,31 +64,63 @@ bool shouldGoOutDuringOffHours(const CharacterAgentState& agent, uint64_t worldS
     return roll < 20;
 }
 
-void updateNpcTravel(CharacterAgentState& agent, int32_t ticksElapsed) {
+bool tryGetPropertyTile(const PropertyStore& propertyStore, int32_t propertyIndex, int32_t& outTileX, int32_t& outTileY) {
+    const PropertyRecord* property = getPropertyRecord(propertyStore, propertyIndex);
+    if (property == nullptr || property->tileX < 0 || property->tileY < 0) {
+        return false;
+    }
+    outTileX = property->tileX;
+    outTileY = property->tileY;
+    return true;
+}
+
+void beginAgentTravel(CharacterAgentState& agent, int32_t destTileX, int32_t destTileY, uint64_t tickCount) {
+    agent.destinationTileX = destTileX;
+    agent.destinationTileY = destTileY;
+    setAgentActivity(agent, AgentActivity::Traveling, tickCount);
+}
+
+AgentActivity resolveArrivalActivity(
+    const CharacterAgentState& agent,
+    const PropertyStore* propertyStore) {
+    if (propertyStore != nullptr && agent.homePropertyIndex >= 0) {
+        int32_t homeTileX = -1;
+        int32_t homeTileY = -1;
+        if (tryGetPropertyTile(*propertyStore, agent.homePropertyIndex, homeTileX, homeTileY)
+            && agent.currentTileX == homeTileX
+            && agent.currentTileY == homeTileY) {
+            return AgentActivity::AtHome;
+        }
+    }
+    if (agent.workplaceBusinessIndex >= 0) {
+        const BusinessNodeDefinition* workplace = getBusinessNodeDefinition(agent.workplaceBusinessIndex);
+        if (workplace != nullptr
+            && agent.currentTileX == workplace->tileX
+            && agent.currentTileY == workplace->tileY) {
+            return AgentActivity::AtWork;
+        }
+    }
+    return AgentActivity::Idle;
+}
+
+void updateNpcTravel(CharacterAgentState& agent, const PropertyStore* propertyStore, uint64_t tickCount) {
     if (agent.currentActivity != AgentActivity::Traveling) {
         return;
     }
     if (agent.destinationTileX < 0 || agent.destinationTileY < 0) {
-        // No destination, become idle
-        setAgentActivity(agent, AgentActivity::Idle, 0);
+        setAgentActivity(agent, AgentActivity::Idle, tickCount);
         return;
     }
-
     const int32_t dx = agent.destinationTileX - agent.currentTileX;
     const int32_t dy = agent.destinationTileY - agent.currentTileY;
-
     if (dx == 0 && dy == 0) {
-        // Arrived at destination
-        agent.currentActivity = AgentActivity::Idle;
         agent.destinationTileX = -1;
         agent.destinationTileY = -1;
+        setAgentActivity(agent, resolveArrivalActivity(agent, propertyStore), tickCount);
         return;
     }
-
-    // Move toward destination
     const int32_t stepX = (dx > 0) ? 1 : (dx < 0) ? -1 : 0;
     const int32_t stepY = (dy > 0) ? 1 : (dy < 0) ? -1 : 0;
-
     agent.currentTileX += stepX;
     agent.currentTileY += stepY;
 }
@@ -112,8 +146,7 @@ void tickNpcDecisions(
             continue;
         }
 
-        // Update travel progress
-        updateNpcTravel(agent, ticksSinceLastDecision);
+        updateNpcTravel(agent, context.propertyStore, context.tickCount);
 
         // Decision making (throttled to avoid CPU overhead)
         const uint64_t decisionSeed = context.worldSeed ^ agentIndex ^ (context.tickCount / NPC_DECISION_INTERVAL_TICKS);
@@ -127,14 +160,20 @@ void tickNpcDecisions(
         // Priority 1: Work schedule
         if (shouldLeaveForWork(agent, *calendar)) {
             if (agent.workplaceBusinessIndex >= 0) {
-                // TODO: Get workplace location from business table
-                // For now, NPCs stay at home without assigned workplaces
+                const BusinessNodeDefinition* workplace = getBusinessNodeDefinition(agent.workplaceBusinessIndex);
+                if (workplace != nullptr) {
+                    beginAgentTravel(agent, workplace->tileX, workplace->tileY, context.tickCount);
+                }
             }
         } else if (shouldReturnHome(agent, *calendar)) {
-            // Return to home
-            if (agent.homePropertyIndex >= 0) {
-                setAgentActivity(agent, AgentActivity::Traveling, context.tickCount);
-                // destination will be set from property lookup in next phase
+            if (context.propertyStore != nullptr && agent.homePropertyIndex >= 0) {
+                int32_t homeTileX = -1;
+                int32_t homeTileY = -1;
+                if (tryGetPropertyTile(*context.propertyStore, agent.homePropertyIndex, homeTileX, homeTileY)) {
+                    beginAgentTravel(agent, homeTileX, homeTileY, context.tickCount);
+                } else {
+                    setAgentActivity(agent, AgentActivity::Idle, context.tickCount);
+                }
             } else {
                 setAgentActivity(agent, AgentActivity::Idle, context.tickCount);
             }

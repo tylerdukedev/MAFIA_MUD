@@ -497,6 +497,11 @@ add_executable(npc_decision_test
     src/game/agent_relation_events.cpp
     src/game/npc_decision.cpp
     src/game/game_calendar.cpp
+    src/game/property_store.cpp
+    src/world/business_node_table.cpp
+    src/world/chunk_store.cpp
+    src/world/world_config.cpp
+    src/world/region_table.cpp
 )
 target_include_directories(npc_decision_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(npc_decision_test PRIVATE Catch2::Catch2WithMain)

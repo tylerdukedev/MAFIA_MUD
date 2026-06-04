@@ -21,6 +21,8 @@
 
 namespace Core {
 
+struct PropertyStore;
+
 class SystemRegistry {
 public:
     SystemRegistry();
@@ -35,7 +37,8 @@ public:
         PlayerWorldState* worldState,
         PlayerHealthStore* playerHealthStore,
         PopulationHealthStore* populationHealthStore,
-        PlayerInformationFeedStore* informationFeedStore);
+        PlayerInformationFeedStore* informationFeedStore,
+        PropertyStore* propertyStore);
     void runTick(uint64_t tickCount);
     int32_t getSystemCount() const;
     const ISimSystem* getSystem(int32_t index) const;

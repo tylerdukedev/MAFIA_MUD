@@ -152,7 +152,7 @@ bool buildSaveSnapshot(
     outSnapshot.criminalJusticeStore = criminalJusticeStore;
     outSnapshot.criminalRecordStore = criminalRecordStore;
     outSnapshot.policeContactStore = policeContactStore;
-    outSnapshot.workExperienceMonths = playerOperationsStore.workExperienceMonths;
+    outSnapshot.workExperienceMonths = workExperienceMonths;
     for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
         outSnapshot.jobReapplyAvailableTickByBusiness[businessIndex] =
             playerOperationsStore.jobReapplyAvailableTickByBusiness[businessIndex];
@@ -549,6 +549,7 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     if (header.version < 15U) {
         resetCriminalRecordStore(outSnapshot.criminalRecordStore);
         resetPoliceContactStore(outSnapshot.policeContactStore);
+        resetPropertyStore(outSnapshot.propertyStore);
     }
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead
