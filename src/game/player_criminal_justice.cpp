@@ -1,4 +1,7 @@
 #include "game/player_criminal_justice.h"
+#include "game/criminal_record.h"
+#include "game/jail_events.h"
+#include "game/police_contacts.h"
 #include "game/legal_counsel.h"
 #include "game/game_calendar.h"
 #include "game/travel_modes.h"
@@ -236,7 +239,11 @@ void beginPlayerArrest(
     PlayerLawEnforcementStore& lawStore,
     CrimeLegalTier legalTier,
     uint64_t tickCount,
-    const char* arrestLabel) {
+    const char* arrestLabel,
+    uint64_t worldSeed,
+    uint8_t regionId,
+    CriminalRecordStore* criminalRecord,
+    PoliceContactStore* policeContacts) {
     if (isPlayerFullyIncarcerated(justiceStore)) {
         return;
     }
@@ -253,6 +260,35 @@ void beginPlayerArrest(
         std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", arrestLabel);
     } else {
         std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Arrested — warrant sweep");
+    }
+
+    // Generate arresting officer and record charge if stores are available
+    const int32_t contactCount = (policeContacts != nullptr) ? policeContacts->activeCount : justiceStore.arrestCount;
+    char officerName[32]{};
+    char precinctName[36]{};
+    char badgeNumber[8]{};
+    generateOfficerName(officerName, sizeof(officerName), worldSeed, tickCount, contactCount);
+    generatePrecinctName(precinctName, sizeof(precinctName), regionId);
+    generateBadgeNumber(badgeNumber, sizeof(badgeNumber), worldSeed, contactCount);
+    const PoliceRank rank = (legalTier >= CrimeLegalTier::Organization) ? PoliceRank::Detective : PoliceRank::Officer;
+    const int32_t corruptibility = computeOfficerCorruptibility(rank, worldSeed, contactCount);
+
+    if (policeContacts != nullptr) {
+        int32_t contactIndex = findPoliceContactByName(*policeContacts, officerName);
+        if (contactIndex < 0) {
+            contactIndex = generatePoliceOfficer(*policeContacts, officerName, precinctName, rank, corruptibility, tickCount);
+            if (contactIndex >= 0) {
+                std::strncpy(policeContacts->contacts[contactIndex].badgeNumber, badgeNumber, sizeof(badgeNumber));
+            }
+        } else {
+            recordPoliceEncounter(*policeContacts, contactIndex, tickCount);
+        }
+    }
+
+    if (criminalRecord != nullptr) {
+        const char* jurisdiction = jurisdictionLabelFromRegionId(regionId);
+        const ChargeType chargeType = chargeTypeFromLegalTier(legalTier, worldSeed, tickCount);
+        addCriminalCharge(*criminalRecord, chargeType, legalTier, tickCount, officerName, jurisdiction);
     }
 }
 
@@ -353,7 +389,8 @@ void resolvePlayerCourt(
     const PlayerLegalCounselStore& legalCounselStore,
     CharacterAgentStore& agentStore,
     uint64_t worldSeed,
-    uint64_t tickCount) {
+    uint64_t tickCount,
+    CriminalRecordStore* criminalRecord) {
     clearPlayerCourtModalPending(justiceStore);
 
     // If a witness is on record, check whether a known contact turns state's evidence.
@@ -397,6 +434,19 @@ void resolvePlayerCourt(
         }
     }
     refreshInvestigationTier(lawStore);
+
+    // Resolve the pending criminal charge in the record
+    ChargeOutcome chargeOutcome = ChargeOutcome::Dismissed;
+    if (outcome == CourtOutcome::Prison) {
+        chargeOutcome = ChargeOutcome::GuiltyVerdict;
+    } else if (outcome == CourtOutcome::Probation) {
+        chargeOutcome = ChargeOutcome::PleaBargain;
+    } else if (outcome == CourtOutcome::Acquitted) {
+        chargeOutcome = ChargeOutcome::Acquitted;
+    }
+    if (criminalRecord != nullptr) {
+        resolveLatestCharge(*criminalRecord, chargeOutcome, tickCount);
+    }
 }
 
 void releasePlayerFromCustody(PlayerCriminalJusticeStore& justiceStore, PlayerLawEnforcementStore& lawStore) {
@@ -447,6 +497,37 @@ bool tryRollPlayerArrest(
     return true;
 }
 
+void applyJailEvent(
+    const JailEvent& event,
+    PlayerCriminalJusticeStore& justiceStore,
+    PlayerLawEnforcementStore& lawStore,
+    PlayerWallet& wallet,
+    CharacterAgentStore& agentStore,
+    PlayerInformationFeedStore* informationFeedStore,
+    uint64_t tickCount) {
+    (void)justiceStore;
+    (void)agentStore;
+    if (event.heatDelta != 0) {
+        lawStore.personalHeat = std::clamp(lawStore.personalHeat + event.heatDelta, PLAYER_HEAT_MIN, PLAYER_HEAT_MAX);
+    }
+    if (event.evidenceDelta != 0) {
+        lawStore.evidenceScore = std::clamp(lawStore.evidenceScore + event.evidenceDelta, 0, PLAYER_HEAT_MAX);
+    }
+    if (event.cashDelta < 0 && wallet.cashCents > 0) {
+        const int64_t loss = -event.cashDelta;
+        wallet.cashCents = (wallet.cashCents > loss) ? wallet.cashCents - loss : 0;
+    }
+    if (informationFeedStore != nullptr) {
+        pushInformationFeedItem(
+            *informationFeedStore,
+            InformationChannel::Rumor,
+            jailEventTypeToString(event.type),
+            event.description,
+            tickCount,
+            false);
+    }
+}
+
 void tickPlayerCriminalJustice(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerLawEnforcementStore& lawStore,
@@ -454,8 +535,8 @@ void tickPlayerCriminalJustice(
     CityControlStore& cityControlStore,
     CharacterAgentStore& agentStore,
     uint64_t worldSeed,
-    uint64_t tickCount) {
-    (void)wallet;
+    uint64_t tickCount,
+    PlayerInformationFeedStore* informationFeedStore) {
     const CustodyPhase phase = getPlayerCustodyPhase(justiceStore);
     if (phase == CustodyPhase::OnProbation) {
         if (justiceStore.probationTicksRemaining > 0) {
@@ -517,8 +598,15 @@ void tickPlayerCriminalJustice(
             justiceStore.phaseTicksRemaining = JUSTICE_COURT_DELAY_AFTER_BOND_TICKS;
         } else {
             justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::InJail);
-            justiceStore.phaseTicksRemaining = JUSTICE_JAIL_HOLD_TICKS;
-            std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Held without bond");
+            const uint32_t delayRoll = Utils::hashSeedMix(worldSeed, static_cast<int32_t>(tickCount), 0x44454C59) % static_cast<uint32_t>(JUSTICE_PRETRIAL_DELAY_VARIANCE_TICKS + 1);
+            justiceStore.phaseTicksRemaining = JUSTICE_JAIL_HOLD_TICKS + static_cast<int32_t>(delayRoll);
+            std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Held without bond — awaiting trial");
+        }
+    }
+    if (phase == CustodyPhase::InJail && justiceStore.phaseTicksRemaining > 0) {
+        JailEvent jailEvent{};
+        if (tryFireJailEvent(jailEvent, justiceStore.custodyStartedTick, worldSeed, tickCount)) {
+            applyJailEvent(jailEvent, justiceStore, lawStore, wallet, agentStore, informationFeedStore, tickCount);
         }
     }
     if (phase == CustodyPhase::InJail && justiceStore.phaseTicksRemaining <= 0) {

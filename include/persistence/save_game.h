@@ -2,6 +2,8 @@
 
 #include "character/character_draft.h"
 #include "core/sim_clock.h"
+#include "game/criminal_record.h"
+#include "game/police_contacts.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
@@ -59,6 +61,8 @@ struct SaveGameSnapshot {
     PlayerCriminalJusticeStore criminalJusticeStore{};
     int32_t workExperienceMonths = 0;
     uint64_t jobReapplyAvailableTickByBusiness[MAX_BUSINESS_NODE_COUNT]{};
+    CriminalRecordStore criminalRecordStore{};
+    PoliceContactStore policeContactStore{};
     SaveGameplayStores gameplayStores{};
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
@@ -92,6 +96,8 @@ bool buildSaveSnapshot(
     const PlayerLawEnforcementStore& lawEnforcementStore,
     const PlayerStreetCrimeStore& streetCrimeStore,
     const PlayerCriminalJusticeStore& criminalJusticeStore,
+    const CriminalRecordStore& criminalRecordStore,
+    const PoliceContactStore& policeContactStore,
     const SaveGameplayStores& gameplayStores,
     int32_t workExperienceMonths);
 bool applySaveSnapshot(
@@ -111,6 +117,8 @@ bool applySaveSnapshot(
     PlayerLawEnforcementStore& lawEnforcementStore,
     PlayerStreetCrimeStore& streetCrimeStore,
     PlayerCriminalJusticeStore& criminalJusticeStore,
+    CriminalRecordStore& criminalRecordStore,
+    PoliceContactStore& policeContactStore,
     SaveGameplayStores& gameplayStores,
     int32_t& workExperienceMonths);
 bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot);

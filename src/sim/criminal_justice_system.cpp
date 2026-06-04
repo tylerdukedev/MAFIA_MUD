@@ -5,10 +5,12 @@ namespace Core {
 void CriminalJusticeSystem::bind(
     const SimWorldBindings& inputBindings,
     PlayerCriminalJusticeStore* inputJusticeStore,
-    PlayerLawEnforcementStore* inputLawStore) {
+    PlayerLawEnforcementStore* inputLawStore,
+    PlayerInformationFeedStore* inputInformationFeedStore) {
     bindings = inputBindings;
     justiceStore = inputJusticeStore;
     lawStore = inputLawStore;
+    informationFeedStore = inputInformationFeedStore;
 }
 
 const char* CriminalJusticeSystem::getName() const {
@@ -29,7 +31,8 @@ void CriminalJusticeSystem::onTick(uint64_t tickCount) {
         *bindings.cityControlStore,
         *bindings.characterAgentStore,
         worldSeed,
-        tickCount);
+        tickCount,
+        informationFeedStore);
     tickAgentCriminalJustice(*justiceStore, *bindings.characterAgentStore, *lawStore, worldSeed, tickCount);
 }
 

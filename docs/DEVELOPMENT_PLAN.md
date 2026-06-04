@@ -129,6 +129,27 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
+## Phase 7 — Criminal Justice Expansion ✅
+
+**Goal**: Persistent rap sheet, named arresting officers, and a realistic arraignment modal.
+
+| Deliverable | Status |
+|-------------|--------|
+| `CriminalRecordStore` — `CriminalCharge`, `ChargeType`, `ChargeOutcome`, statute labels | ✅ |
+| `PoliceContactStore` — `PoliceContactState`, `PoliceRank`, procedural officer generation | ✅ |
+| `beginPlayerArrest` — generates officer, records charge, wires into both stores | ✅ |
+| `resolvePlayerCourt` — resolves latest pending charge on court outcome | ✅ |
+| BondHearing modal — full arraignment layout: charges, statute, officer, prior record | ✅ |
+| `jail_events.h/.cpp` — Fight/Intel/Ally/Shakedown/Message events fire during custody → info feed | ✅ |
+| Randomized pretrial detention (held-without-bond varies by `JUSTICE_PRETRIAL_DELAY_VARIANCE_TICKS`) | ✅ |
+| Save format v15 — persists `CriminalRecordStore` + `PoliceContactStore` + `PropertyStore` | ✅ |
+| NPC autonomy skeleton — `NpcAutonomySystem`, `tickNpcDecisions`, map markers | ✅ |
+| Property system — `PropertyStore`, `PropertyGenerator`, NPC home assignment | ✅ |
+
+**Done when**: Player arrested → specific charge generated with named officer and jurisdiction → BondHearing shows full arraignment → court resolves charge into record → all tests green.
+
+---
+
 ## Architecture Reference
 
 ```

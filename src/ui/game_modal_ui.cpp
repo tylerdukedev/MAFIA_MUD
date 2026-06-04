@@ -4,6 +4,8 @@
 #include "game/player_employment.h"
 #include "game/job_catalog.h"
 #include "game/crime_legal_tier.h"
+#include "game/criminal_record.h"
+#include "game/police_contacts.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_wallet.h"
@@ -196,6 +198,8 @@ void renderGameModalOverlay(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    CriminalRecordStore& criminalRecordStore,
+    PoliceContactStore& policeContactStore,
     PlayerLegalCounselStore& legalCounselStore,
     PlayerHealthStore& playerHealthStore,
     PlayerLawIntelStore& lawIntelStore,
@@ -437,15 +441,61 @@ void renderGameModalOverlay(
             }
         }
     } else if (modal.kind == GameModalKind::BondHearing) {
-        ImGui::Text("Bond hearing");
+        const CriminalRecordStore& record = criminalRecordStore;
+        const CriminalCharge* latestCharge = getLatestPendingCharge(record);
+
+        // Header — jurisdiction
+        if (latestCharge != nullptr && latestCharge->jurisdictionLabel[0] != '\0') {
+            ImGui::TextDisabled("%s", latestCharge->jurisdictionLabel);
+        } else {
+            ImGui::TextDisabled("Criminal Court of the City of New York");
+        }
         ImGui::Separator();
-        ImGui::TextWrapped("%s", playerCriminalJusticeStore.lastCustodyLabel);
+        ImGui::Text("ARRAIGNMENT — THE PEOPLE vs. DEFENDANT");
+        ImGui::Spacing();
+
+        // Charge block
+        if (latestCharge != nullptr) {
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "COUNT 1: %s", chargeTypeToString(latestCharge->chargeType));
+            ImGui::TextDisabled("  Statute: %s", chargeTypeToStatuteLabel(latestCharge->chargeType));
+            if (latestCharge->officerName[0] != '\0') {
+                // Find rank from police contacts for display
+                const int32_t contactIdx = findPoliceContactByName(policeContactStore, latestCharge->officerName);
+                const char* rankLabel = "Officer";
+                if (contactIdx >= 0) {
+                    const PoliceContactState* officer = getPoliceContact(policeContactStore, contactIdx);
+                    if (officer != nullptr) {
+                        rankLabel = policeRankToString(officer->rank);
+                    }
+                }
+                ImGui::TextDisabled("  Arresting: %s %s", rankLabel, latestCharge->officerName);
+            }
+        } else {
+            ImGui::TextWrapped("%s", playerCriminalJusticeStore.lastCustodyLabel);
+        }
+
+        // Prior record summary
+        ImGui::Spacing();
+        const int32_t priorArrests = playerCriminalJusticeStore.arrestCount - 1;
+        if (priorArrests > 0 || record.convictionCount > 0) {
+            ImGui::TextDisabled("Prior record: %d arrest(s), %d conviction(s), %d prior felony(ies)",
+                priorArrests,
+                record.convictionCount,
+                record.priorFelonyCount);
+        } else {
+            ImGui::TextDisabled("Prior record: None");
+        }
+
+        // Bond info
+        ImGui::Separator();
         ImGui::Text("Status: %s", custodyPhaseToString(getPlayerCustodyPhase(playerCriminalJusticeStore)));
         char bondBuffer[32];
         formatCashCents(bondBuffer, sizeof(bondBuffer), playerCriminalJusticeStore.bondCents);
-        ImGui::Text("Bond amount: %s", bondBuffer);
-        ImGui::TextDisabled("While you are inside, rivals may move on your territory.");
-        if (ImGui::Button("Post bond", ImVec2(160.0f, 0.0f))) {
+        ImGui::Text("Bail set: %s cash or bond", bondBuffer);
+        ImGui::TextDisabled("Rivals may move on your territory while you are inside.");
+        ImGui::Spacing();
+
+        if (ImGui::Button("Post bail", ImVec2(160.0f, 0.0f))) {
             if (tryPayPlayerBond(
                     playerCriminalJusticeStore,
                     playerWallet,
@@ -458,11 +508,11 @@ void renderGameModalOverlay(
                 setModalStatus(modal, playerCriminalJusticeStore.lastCustodyLabel);
                 closeModal(modal, simClock);
             } else {
-                setModalStatus(modal, "Not enough cash for bond.");
+                setModalStatus(modal, "Not enough cash for bail.");
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Stay inside", ImVec2(160.0f, 0.0f))) {
+        if (ImGui::Button("Remain in custody", ImVec2(160.0f, 0.0f))) {
             commitPlayerCustodyDetention(playerCriminalJusticeStore, tickCount);
             setModalStatus(modal, playerCriminalJusticeStore.lastCustodyLabel);
             closeModal(modal, simClock);

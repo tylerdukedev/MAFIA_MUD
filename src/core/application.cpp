@@ -21,6 +21,8 @@
 #include "sim/world_event_store.h"
 #include "game/property_generator.h"
 #include "game/npc_spatial_init.h"
+#include "game/criminal_record.h"
+#include "game/police_contacts.h"
 #if defined(CAPITALVICE_DEV_CONSOLE)
 #include "dev/dev_console.h"
 #endif
@@ -238,6 +240,8 @@ void Application::renderFrame() {
             playerStreetCrimeStore,
             playerLawEnforcementStore,
             playerCriminalJusticeStore,
+            playerCriminalRecordStore,
+            playerPoliceContactStore,
             gameplayStores,
             characterAgentStore,
             worldEventStore,
@@ -293,6 +297,8 @@ void Application::startNewSimulation() {
     resetPlayerStreetCrimeStore(playerStreetCrimeStore);
     resetPlayerLawEnforcementStore(playerLawEnforcementStore);
     resetPlayerCriminalJusticeStore(playerCriminalJusticeStore);
+    resetCriminalRecordStore(playerCriminalRecordStore);
+    resetPoliceContactStore(playerPoliceContactStore);
     resetSaveGameplayStores(gameplayStores);
     playerWorldState = gameplayStores.worldState;
     resetGameModalState(gameModalState);
@@ -333,7 +339,8 @@ void Application::startNewSimulation() {
         &gameplayStores.workScheduleStore,
         &playerWorldState,
         &gameplayStores.playerHealthStore,
-        &gameplayStores.populationHealthStore);
+        &gameplayStores.populationHealthStore,
+        &gameplayStores.informationFeedStore);
     requestDefaultGameDockLayout();
     panelVisibility = GamePanelVisibility{};
     mapCamera = MapCamera{};
@@ -375,6 +382,8 @@ bool Application::saveCurrentGame() {
             playerLawEnforcementStore,
             playerStreetCrimeStore,
             playerCriminalJusticeStore,
+            playerCriminalRecordStore,
+            playerPoliceContactStore,
             gameplayStores,
             playerOperationsStore.workExperienceMonths)) {
         setSaveLoadStatusMessage("Save failed: could not capture world state.");
@@ -426,6 +435,8 @@ bool Application::loadSavedGame() {
             playerLawEnforcementStore,
             playerStreetCrimeStore,
             playerCriminalJusticeStore,
+            playerCriminalRecordStore,
+            playerPoliceContactStore,
             gameplayStores,
             playerOperationsStore.workExperienceMonths)) {
         setSaveLoadStatusMessage("Load failed: could not restore world state.");
@@ -458,7 +469,8 @@ bool Application::loadSavedGame() {
         &gameplayStores.workScheduleStore,
         &playerWorldState,
         &gameplayStores.playerHealthStore,
-        &gameplayStores.populationHealthStore);
+        &gameplayStores.populationHealthStore,
+        &gameplayStores.informationFeedStore);
     playerWorldState = gameplayStores.worldState;
     panelVisibility = GamePanelVisibility{};
     playerProfile = buildPlayerProfile(characterDraft);

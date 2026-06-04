@@ -11,6 +11,7 @@
 #include "character/character_social_network.h"
 #include "sim/character_agent.h"
 #include "sim/world_event_store.h"
+#include "game/property_store.h"
 #include "character/profile_builder.h"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdio>
@@ -60,6 +61,9 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     sourceOperations.headquartersKind = HeadquartersKind::RentedRoom;
     sourceOperations.headquartersEstablishedTick = 100ULL;
     sourceOperations.lastMonthlyLedgerTick = 900ULL;
+    constexpr int32_t REAPPLY_BUSINESS_INDEX = 5;
+    constexpr uint64_t REAPPLY_TICK = 7777ULL;
+    sourceOperations.jobReapplyAvailableTickByBusiness[REAPPLY_BUSINESS_INDEX] = REAPPLY_TICK;
     CharacterAgentStore sourceAgents{};
     initializeCharacterAgentStore(sourceAgents);
     sourceDraft.hasFamilyInCountry = true;
@@ -79,10 +83,13 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         sourceOperations,
         WorldEventStore{},
         sourceAgents,
+        PropertyStore{},
         PlayerOrganizationStore{},
         PlayerLawEnforcementStore{},
         PlayerStreetCrimeStore{},
         PlayerCriminalJusticeStore{},
+        CriminalRecordStore{},
+        PoliceContactStore{},
         SaveGameplayStores{},
         0));
     REQUIRE(saveGameToFile(TEST_SAVE_PATH, snapshot));
@@ -97,11 +104,14 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     CityControlStore loadedCities{};
     PlayerOperationsStore loadedOperations{};
     CharacterAgentStore loadedAgents{};
+    PropertyStore loadedPropertyStore{};
     WorldEventStore loadedWorldEvents{};
     PlayerOrganizationStore loadedOrganization{};
     PlayerLawEnforcementStore loadedLaw{};
     PlayerStreetCrimeStore loadedStreetCrime{};
     PlayerCriminalJusticeStore loadedJustice{};
+    CriminalRecordStore loadedCriminalRecord{};
+    PoliceContactStore loadedPoliceContacts{};
     uint64_t loadedSeed = 0;
     REQUIRE(applySaveSnapshot(
         loadedSnapshot,
@@ -115,10 +125,13 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         loadedOperations,
         loadedWorldEvents,
         loadedAgents,
+        loadedPropertyStore,
         loadedOrganization,
         loadedLaw,
         loadedStreetCrime,
         loadedJustice,
+        loadedCriminalRecord,
+        loadedPoliceContacts,
         SaveGameplayStores{},
         loadedOperations.workExperienceMonths));
     const WorldCoord sampleCoord{200, 180};
@@ -141,6 +154,7 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     REQUIRE(loadedOperations.headquartersKind == HeadquartersKind::RentedRoom);
     REQUIRE(loadedOperations.headquartersEstablishedTick == sourceOperations.headquartersEstablishedTick);
     REQUIRE(loadedOperations.lastMonthlyLedgerTick == sourceOperations.lastMonthlyLedgerTick);
+    REQUIRE(loadedOperations.jobReapplyAvailableTickByBusiness[REAPPLY_BUSINESS_INDEX] == REAPPLY_TICK);
     REQUIRE(getCharacterAgentState(loadedAgents, 0) != nullptr);
     removeTestSaveFile();
 }

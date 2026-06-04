@@ -9,9 +9,11 @@
 #include "sim/street_crime_system.h"
 #include "sim/world_event_system.h"
 #include "sim/calendar_system.h"
+#include "sim/npc_autonomy_system.h"
 #include "sim/isim_system.h"
 #include "game/game_calendar.h"
 #include "game/player_health.h"
+#include "game/player_information_feed.h"
 #include "game/player_work_schedule.h"
 #include "game/player_world_state.h"
 #include "sim/sim_world_bindings.h"
@@ -32,7 +34,8 @@ public:
         PlayerWorkScheduleStore* workScheduleStore,
         PlayerWorldState* worldState,
         PlayerHealthStore* playerHealthStore,
-        PopulationHealthStore* populationHealthStore);
+        PopulationHealthStore* populationHealthStore,
+        PlayerInformationFeedStore* informationFeedStore);
     void runTick(uint64_t tickCount);
     int32_t getSystemCount() const;
     const ISimSystem* getSystem(int32_t index) const;
@@ -49,7 +52,8 @@ private:
     EconomySystem economySystem;
     BoroughVitalitySystem boroughVitalitySystem;
     CalendarSystem calendarSystem;
-    ISimSystem* systems[13];
+    NpcAutonomySystem npcAutonomySystem;
+    ISimSystem* systems[14];
     int32_t systemCount;
     bool bindingsValid = false;
 };

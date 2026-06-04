@@ -21,7 +21,7 @@ uint64_t DebugSystem::getProcessedTickCount() const {
 
 SystemRegistry::SystemRegistry()
     : systemCount(0) {
-    for (int32_t index = 0; index < 13; ++index) {
+    for (int32_t index = 0; index < 14; ++index) {
         systems[index] = nullptr;
     }
 }
@@ -36,7 +36,8 @@ void SystemRegistry::initialize(
     PlayerWorkScheduleStore* workScheduleStore,
     PlayerWorldState* worldState,
     PlayerHealthStore* playerHealthStore,
-    PopulationHealthStore* populationHealthStore) {
+    PopulationHealthStore* populationHealthStore,
+    PlayerInformationFeedStore* informationFeedStore) {
     systemCount = 0;
     bindingsValid = isSimWorldBindingsValid(bindings);
     streetCrimeSystem.bind(bindings, crimeStore, lawStore, justiceStore);
@@ -44,7 +45,7 @@ void SystemRegistry::initialize(
     cityControlSystem.bind(bindings, justiceStore);
     worldEventSystem.bind(bindings);
     policeSystem.bind(bindings, lawStore);
-    criminalJusticeSystem.bind(bindings, justiceStore, lawStore);
+    criminalJusticeSystem.bind(bindings, justiceStore, lawStore, informationFeedStore);
     economySystem.bind(bindings);
     boroughVitalitySystem.bind(bindings);
     calendarSystem.bind(
@@ -56,6 +57,10 @@ void SystemRegistry::initialize(
         playerHealthStore,
         populationHealthStore,
         agentStore);
+    npcAutonomySystem.bind(bindings, calendarStore, nullptr);
+    if (bindings.worldSeed != nullptr) {
+        npcAutonomySystem.setWorldSeed(*bindings.worldSeed);
+    }
     systems[systemCount++] = &calendarSystem;
     systems[systemCount++] = &criminalJusticeSystem;
     systems[systemCount++] = &policeSystem;
@@ -65,6 +70,7 @@ void SystemRegistry::initialize(
     systems[systemCount++] = &boroughVitalitySystem;
     systems[systemCount++] = &worldEventSystem;
     systems[systemCount++] = &economySystem;
+    systems[systemCount++] = &npcAutonomySystem;
     systems[systemCount++] = &debugSystem;
 }
 

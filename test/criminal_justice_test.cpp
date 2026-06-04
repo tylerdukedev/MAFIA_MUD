@@ -2,6 +2,8 @@
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_wallet.h"
+#include "game/jail_events.h"
+#include "game/player_information_feed.h"
 #include "sim/character_agent.h"
 #include "world/city_control.h"
 #include "world/chunk_store.h"
@@ -36,6 +38,48 @@ TEST_CASE("Incarcerated player cannot attempt organization-tier street crime gat
     justiceStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::InPrison);
     REQUIRE(isPlayerFullyIncarcerated(justiceStore));
     REQUIRE_FALSE(canAttemptCrimeLegalTier(justiceStore, CrimeLegalTier::Street));
+}
+
+TEST_CASE("Jail event fires only on interval ticks", "[jail_events]") {
+    JailEvent outEvent{};
+    const uint64_t inputCustodyStart = 100ULL;
+    const uint64_t inputWorldSeed = 4242ULL;
+    const uint64_t inputOffIntervalTick = 7ULL;
+    const bool firedOffInterval = tryFireJailEvent(outEvent, inputCustodyStart, inputWorldSeed, inputOffIntervalTick);
+    REQUIRE_FALSE(firedOffInterval);
+}
+
+TEST_CASE("Jail event produces a labeled event with description", "[jail_events]") {
+    JailEvent outEvent{};
+    const uint64_t inputCustodyStart = 50ULL;
+    const uint64_t inputWorldSeed = 99ULL;
+    bool didFire = false;
+    for (uint64_t tick = 0ULL; tick < 2000ULL; tick += JAIL_EVENT_INTERVAL_TICKS) {
+        if (tryFireJailEvent(outEvent, inputCustodyStart, inputWorldSeed, tick)) {
+            didFire = true;
+            break;
+        }
+    }
+    REQUIRE(didFire);
+    REQUIRE(outEvent.description[0] != '\0');
+    const char* label = jailEventTypeToString(outEvent.type);
+    REQUIRE(label != nullptr);
+}
+
+TEST_CASE("Held-without-bond player accumulates jail events in info feed", "[jail_events]") {
+    PlayerCriminalJusticeStore justiceStore{};
+    PlayerLawEnforcementStore lawStore{};
+    PlayerWallet wallet{};
+    wallet.cashCents = 100000;
+    CityControlStore cities{};
+    CharacterAgentStore agents{};
+    initializeCharacterAgentStore(agents);
+    PlayerInformationFeedStore infoFeed{};
+    beginPlayerArrest(justiceStore, lawStore, CrimeLegalTier::Street, 0ULL, "Test arrest");
+    for (uint64_t tick = 1ULL; tick < 400ULL; ++tick) {
+        tickPlayerCriminalJustice(justiceStore, lawStore, wallet, cities, agents, 333ULL, tick, &infoFeed);
+    }
+    REQUIRE(infoFeed.itemCount > 0);
 }
 
 TEST_CASE("Rival can seize player city while player is in prison", "[criminal_justice]") {

@@ -77,6 +77,10 @@ set(AGENT_RELATIONSHIP_SOURCES
 
 set(PLAYER_CRIMINAL_JUSTICE_SOURCES
     src/game/player_criminal_justice.cpp
+    src/game/criminal_record.cpp
+    src/game/police_contacts.cpp
+    src/game/jail_events.cpp
+    src/game/player_information_feed.cpp
     src/game/crime_legal_tier.cpp
     src/game/legal_counsel.cpp
     src/game/player_world_state.cpp
@@ -116,6 +120,11 @@ set(CAPITAL_VICE_SOURCES
     src/game/property_store.cpp
     src/game/property_generator.cpp
     src/game/npc_spatial_init.cpp
+    src/game/npc_decision.cpp
+    src/game/criminal_record.cpp
+    src/game/police_contacts.cpp
+    src/game/jail_events.cpp
+    src/sim/npc_autonomy_system.cpp
     src/sim/sim_event_queue.cpp
     src/sim/character_agent_store.cpp
     src/game/player_wallet.cpp
@@ -148,6 +157,7 @@ set(CAPITAL_VICE_SOURCES
     src/game/player_information_feed.cpp
     src/persistence/save_gameplay_stores.cpp
     src/ui/player_map_marker.cpp
+    src/ui/npc_map_marker.cpp
     src/ui/map_notification_layer.cpp
     src/ui/game_modal_state.cpp
     src/ui/game_modal_ui.cpp
@@ -258,7 +268,6 @@ add_executable(save_game_test
     src/persistence/save_gameplay_stores.cpp
     src/game/action_reason_catalog.cpp
     src/game/player_narrative_archive.cpp
-    src/game/player_information_feed.cpp
     src/game/covert_action_executor.cpp
     src/persistence/playthrough_archive.cpp
     src/game/player_work_schedule.cpp
@@ -283,6 +292,7 @@ add_executable(save_game_test
     src/character/character_name_pools.cpp
     src/sim/world_event_store.cpp
     src/core/sim_clock.cpp
+    src/game/property_store.cpp
 )
 target_include_directories(save_game_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(save_game_test PRIVATE Catch2::Catch2WithMain)
@@ -466,6 +476,31 @@ add_executable(character_agent_spatial_test
 target_include_directories(character_agent_spatial_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(character_agent_spatial_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(character_agent_spatial_test)
+
+add_executable(npc_visibility_test
+    test/npc_visibility_test.cpp
+    src/sim/character_agent_store.cpp
+    src/game/agent_relation_events.cpp
+    src/game/property_store.cpp
+    src/game/npc_spatial_init.cpp
+    src/world/chunk_store.cpp
+    src/world/world_config.cpp
+    src/world/region_table.cpp
+)
+target_include_directories(npc_visibility_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(npc_visibility_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(npc_visibility_test)
+
+add_executable(npc_decision_test
+    test/npc_decision_test.cpp
+    src/sim/character_agent_store.cpp
+    src/game/agent_relation_events.cpp
+    src/game/npc_decision.cpp
+    src/game/game_calendar.cpp
+)
+target_include_directories(npc_decision_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(npc_decision_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(npc_decision_test)
 
 add_executable(profile_builder_test
     test/profile_builder_test.cpp

@@ -2,7 +2,9 @@
 
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
+#include "game/criminal_record.h"
 #include "game/game_calendar.h"
+#include "game/police_contacts.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_health.h"
 #include "game/player_law_enforcement.h"
@@ -58,6 +60,8 @@ void renderGameModalOverlay(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    CriminalRecordStore& criminalRecordStore,
+    PoliceContactStore& policeContactStore,
     PlayerLegalCounselStore& legalCounselStore,
     PlayerHealthStore& playerHealthStore,
     PlayerLawIntelStore& lawIntelStore,

@@ -1,4 +1,6 @@
 #pragma once
+#include "game/criminal_record.h"
+#include "game/police_contacts.h"
 
 #include "character/character_draft.h"
 #include "character/player_profile.h"
@@ -80,6 +82,8 @@ void renderGameUi(
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    CriminalRecordStore& criminalRecordStore,
+    PoliceContactStore& policeContactStore,
     SaveGameplayStores& gameplayStores,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,

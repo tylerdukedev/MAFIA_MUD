@@ -1,6 +1,8 @@
 #pragma once
 
 #include "game/crime_legal_tier.h"
+#include "game/criminal_record.h"
+#include "game/player_information_feed.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
 #include "game/player_wallet.h"
@@ -35,6 +37,7 @@ enum class CourtOutcome : uint8_t {
 
 constexpr int32_t JUSTICE_ARREST_BOOKING_TICKS = 30;
 constexpr int32_t JUSTICE_JAIL_HOLD_TICKS = 35;
+constexpr int32_t JUSTICE_PRETRIAL_DELAY_VARIANCE_TICKS = 45;
 constexpr int32_t JUSTICE_PRETRIAL_PAROLE_EVIDENCE_THRESHOLD = 24;
 constexpr int32_t JUSTICE_SKIP_COURT_WARRANT_COUNT = 1;
 constexpr int32_t JUSTICE_SKIP_COURT_HEAT_PENALTY = 14;
@@ -97,7 +100,11 @@ void beginPlayerArrest(
     PlayerLawEnforcementStore& lawStore,
     CrimeLegalTier legalTier,
     uint64_t tickCount,
-    const char* arrestLabel);
+    const char* arrestLabel,
+    uint64_t worldSeed = 0,
+    uint8_t regionId = 1,
+    CriminalRecordStore* criminalRecord = nullptr,
+    PoliceContactStore* policeContacts = nullptr);
 bool tryPayPlayerBond(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerWallet& wallet,
@@ -123,7 +130,8 @@ void resolvePlayerCourt(
     const PlayerLegalCounselStore& legalCounselStore,
     CharacterAgentStore& agentStore,
     uint64_t worldSeed,
-    uint64_t tickCount);
+    uint64_t tickCount,
+    CriminalRecordStore* criminalRecord = nullptr);
 void releasePlayerFromCustody(PlayerCriminalJusticeStore& justiceStore, PlayerLawEnforcementStore& lawStore);
 void markPlayerCourtModalPending(PlayerCriminalJusticeStore& justiceStore);
 void clearPlayerCourtModalPending(PlayerCriminalJusticeStore& justiceStore);
@@ -142,7 +150,8 @@ void tickPlayerCriminalJustice(
     CityControlStore& cityControlStore,
     CharacterAgentStore& agentStore,
     uint64_t worldSeed,
-    uint64_t tickCount);
+    uint64_t tickCount,
+    PlayerInformationFeedStore* informationFeedStore = nullptr);
 void tickAgentCriminalJustice(
     PlayerCriminalJusticeStore& justiceStore,
     CharacterAgentStore& agentStore,

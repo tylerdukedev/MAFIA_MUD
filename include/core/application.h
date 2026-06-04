@@ -9,6 +9,8 @@
 #include "ui/context_help.h"
 #include "ui/map_camera.h"
 #include "ui/viewport_state.h"
+#include "game/criminal_record.h"
+#include "game/police_contacts.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_operations.h"
@@ -65,6 +67,8 @@ private:
     PlayerStreetCrimeStore playerStreetCrimeStore{};
     PlayerLawEnforcementStore playerLawEnforcementStore{};
     PlayerCriminalJusticeStore playerCriminalJusticeStore{};
+    CriminalRecordStore playerCriminalRecordStore{};
+    PoliceContactStore playerPoliceContactStore{};
     SaveGameplayStores gameplayStores{};
     CharacterAgentStore characterAgentStore{};
     PropertyStore propertyStore{};

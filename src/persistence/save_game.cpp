@@ -1,5 +1,7 @@
 #include "persistence/save_game.h"
 #include "persistence/save_gameplay_stores.h"
+#include "game/criminal_record.h"
+#include "game/police_contacts.h"
 #include "game/player_information_feed.h"
 #include "game/player_narrative_archive.h"
 #include "game/player_criminal_justice.h"
@@ -18,7 +20,7 @@ namespace Core {
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
 constexpr uint32_t SAVE_VERSION_MIN = 10U;
-constexpr uint32_t SAVE_VERSION = 14U;
+constexpr uint32_t SAVE_VERSION = 15U;
 
 struct SaveGameHeader {
     char magic[4];
@@ -112,6 +114,8 @@ bool buildSaveSnapshot(
     const PlayerLawEnforcementStore& lawEnforcementStore,
     const PlayerStreetCrimeStore& streetCrimeStore,
     const PlayerCriminalJusticeStore& criminalJusticeStore,
+    const CriminalRecordStore& criminalRecordStore,
+    const PoliceContactStore& policeContactStore,
     const SaveGameplayStores& gameplayStores,
     int32_t workExperienceMonths) {
     (void)boroughVitalityStore;
@@ -146,6 +150,8 @@ bool buildSaveSnapshot(
     outSnapshot.lawEnforcementStore = lawEnforcementStore;
     outSnapshot.streetCrimeStore = streetCrimeStore;
     outSnapshot.criminalJusticeStore = criminalJusticeStore;
+    outSnapshot.criminalRecordStore = criminalRecordStore;
+    outSnapshot.policeContactStore = policeContactStore;
     outSnapshot.workExperienceMonths = playerOperationsStore.workExperienceMonths;
     for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
         outSnapshot.jobReapplyAvailableTickByBusiness[businessIndex] =
@@ -204,6 +210,8 @@ bool applySaveSnapshot(
     PlayerLawEnforcementStore& lawEnforcementStore,
     PlayerStreetCrimeStore& streetCrimeStore,
     PlayerCriminalJusticeStore& criminalJusticeStore,
+    CriminalRecordStore& criminalRecordStore,
+    PoliceContactStore& policeContactStore,
     SaveGameplayStores& gameplayStores,
     int32_t& workExperienceMonths) {
     if (static_cast<int32_t>(snapshot.regionIds.size()) != SAVE_GAME_TILE_COUNT
@@ -268,6 +276,10 @@ bool applySaveSnapshot(
     for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
         playerOperationsStore.activeCatalogIndices[index] = snapshot.activeCatalogIndices[index];
     }
+    for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
+        playerOperationsStore.jobReapplyAvailableTickByBusiness[businessIndex] =
+            snapshot.jobReapplyAvailableTickByBusiness[businessIndex];
+    }
     worldEventStore = snapshot.worldEventStore;
     characterAgentStore = snapshot.characterAgentStore;
     propertyStore = snapshot.propertyStore;
@@ -275,6 +287,8 @@ bool applySaveSnapshot(
     lawEnforcementStore = snapshot.lawEnforcementStore;
     streetCrimeStore = snapshot.streetCrimeStore;
     criminalJusticeStore = snapshot.criminalJusticeStore;
+    criminalRecordStore = snapshot.criminalRecordStore;
+    policeContactStore = snapshot.policeContactStore;
     workExperienceMonths = snapshot.workExperienceMonths;
     gameplayStores = snapshot.gameplayStores;
     return true;
@@ -359,11 +373,15 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
         snapshot.jobReapplyAvailableTickByBusiness,
         sizeof(snapshot.jobReapplyAvailableTickByBusiness));
     const bool gameplayWritten = writeAllBytes(fileHandle, &snapshot.gameplayStores, sizeof(snapshot.gameplayStores));
+    const bool criminalRecordWritten = writeAllBytes(fileHandle, &snapshot.criminalRecordStore, sizeof(snapshot.criminalRecordStore));
+    const bool policeContactsWritten = writeAllBytes(fileHandle, &snapshot.policeContactStore, sizeof(snapshot.policeContactStore));
+    const bool propertyWritten = writeAllBytes(fileHandle, &snapshot.propertyStore, sizeof(snapshot.propertyStore));
     const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
         && economicWeightsWritten && populationsWritten && crimePressuresWritten && lawPressuresWritten
         && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten && cityOwnersWritten
         && catalogWritten && agentsWritten && agentCountWritten && organizationWritten && lawWritten && streetCrimeWritten
-        && justiceWritten && workExperienceWritten && jobReapplyWritten && gameplayWritten;
+        && justiceWritten && workExperienceWritten && jobReapplyWritten && gameplayWritten
+        && criminalRecordWritten && policeContactsWritten && propertyWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -478,7 +496,22 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     }
     bool workExperienceRead = true;
     bool gameplayRead = true;
-    if (header.version >= 14U) {
+    if (header.version >= 15U) {
+        workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
+        const bool jobReapplyRead = readAllBytes(
+            fileHandle,
+            outSnapshot.jobReapplyAvailableTickByBusiness,
+            sizeof(outSnapshot.jobReapplyAvailableTickByBusiness));
+        gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, sizeof(outSnapshot.gameplayStores));
+        const bool criminalRecordRead = readAllBytes(fileHandle, &outSnapshot.criminalRecordStore, sizeof(outSnapshot.criminalRecordStore));
+        const bool policeContactsRead = readAllBytes(fileHandle, &outSnapshot.policeContactStore, sizeof(outSnapshot.policeContactStore));
+        const bool propertyRead = readAllBytes(fileHandle, &outSnapshot.propertyStore, sizeof(outSnapshot.propertyStore));
+        if (!criminalRecordRead) { resetCriminalRecordStore(outSnapshot.criminalRecordStore); }
+        if (!policeContactsRead) { resetPoliceContactStore(outSnapshot.policeContactStore); }
+        if (!propertyRead) { resetPropertyStore(outSnapshot.propertyStore); }
+        gameplayRead = gameplayRead && criminalRecordRead && policeContactsRead && propertyRead;
+        workExperienceRead = workExperienceRead && jobReapplyRead;
+    } else if (header.version >= 14U) {
         workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
         const bool jobReapplyRead = readAllBytes(
             fileHandle,
@@ -486,6 +519,8 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
             sizeof(outSnapshot.jobReapplyAvailableTickByBusiness));
         gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, sizeof(outSnapshot.gameplayStores));
         workExperienceRead = workExperienceRead && jobReapplyRead;
+        resetCriminalRecordStore(outSnapshot.criminalRecordStore);
+        resetPoliceContactStore(outSnapshot.policeContactStore);
     } else if (header.version >= 13U) {
         workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
         gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, sizeof(outSnapshot.gameplayStores));
@@ -510,6 +545,10 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
         for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
             outSnapshot.jobReapplyAvailableTickByBusiness[businessIndex] = 0ULL;
         }
+    }
+    if (header.version < 15U) {
+        resetCriminalRecordStore(outSnapshot.criminalRecordStore);
+        resetPoliceContactStore(outSnapshot.policeContactStore);
     }
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead

@@ -2,6 +2,7 @@
 
 #include "character/player_profile.h"
 #include "game/player_wallet.h"
+#include "game/police_contacts.h"
 
 namespace Core {
 struct PlayerOrganizationStore;

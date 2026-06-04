@@ -28,6 +28,7 @@
 #include "ui/map_status_hud.h"
 #include "ui/map_notification_layer.h"
 #include "ui/player_map_marker.h"
+#include "ui/npc_map_marker.h"
 #include "ui/dock_panel_helpers.h"
 #include "ui/map_ui_requests.h"
 #include "game/player_career.h"
@@ -1123,6 +1124,7 @@ void renderMapViewportPanel(
     const PlayerHealthStore& playerHealthStore,
     const GameCalendarStore& calendarStore,
     const PlayerWorldState& playerWorldState,
+    const CharacterAgentStore& characterAgentStore,
     uint64_t tickCount,
     MapHudInteraction& mapHudInteraction,
     PlayerInformationFeedStore& informationFeedStore,
@@ -1270,6 +1272,12 @@ void renderMapViewportPanel(
                 canvasPos,
                 canvasSize,
                 viewportPickState);
+            renderNpcMapMarkers(
+                drawList,
+                mapCamera,
+                characterAgentStore,
+                canvasPos,
+                canvasSize);
         }
         drawList->PopClipRect();
         renderMapTileCoordReadout(
@@ -1366,6 +1374,8 @@ void renderGameUi(
     PlayerStreetCrimeStore& playerStreetCrimeStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    CriminalRecordStore& criminalRecordStore,
+    PoliceContactStore& policeContactStore,
     SaveGameplayStores& gameplayStores,
     CharacterAgentStore& characterAgentStore,
     const WorldEventStore& worldEventStore,
@@ -1478,6 +1488,7 @@ void renderGameUi(
         gameplayStores.playerHealthStore,
         gameplayStores.calendarStore,
         playerWorldState,
+        characterAgentStore,
         tickCount,
         mapHudInteraction,
         gameplayStores.informationFeedStore,
@@ -1505,6 +1516,8 @@ void renderGameUi(
         playerOrganizationStore,
         playerLawEnforcementStore,
         playerCriminalJusticeStore,
+        criminalRecordStore,
+        policeContactStore,
         gameplayStores.legalCounselStore,
         gameplayStores.playerHealthStore,
         gameplayStores.lawIntelStore,
