@@ -1,6 +1,7 @@
 #include "game/npc_spatial_init.h"
 #include "game/property_store.h"
 #include "sim/character_agent.h"
+#include "world/business_node_table.h"
 #include "world/chunk_store.h"
 
 namespace Core {
@@ -63,6 +64,51 @@ bool tryAssignNpcHome(
     return true;
 }
 
+void tryAssignNpcWorkplace(
+    CharacterAgentState& agentState,
+    const PropertyStore& propertyStore,
+    int32_t agentIndex,
+    uint64_t worldSeed) {
+    if (agentState.homePropertyIndex < 0) {
+        return;
+    }
+    const PropertyRecord* homeProperty = getPropertyRecord(propertyStore, agentState.homePropertyIndex);
+    if (homeProperty == nullptr) {
+        return;
+    }
+    const int32_t businessCount = getBusinessNodeCount();
+    int32_t matchCount = 0;
+    for (int32_t businessIndex = 0; businessIndex < businessCount; ++businessIndex) {
+        const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
+        if (business == nullptr || business->kind != BusinessNodeKind::Employer) {
+            continue;
+        }
+        if (getBusinessNodeRegionId(businessIndex) != static_cast<RegionId>(homeProperty->regionId)) {
+            continue;
+        }
+        matchCount += 1;
+    }
+    if (matchCount <= 0) {
+        return;
+    }
+    const uint32_t pickIndex = static_cast<uint32_t>((worldSeed ^ static_cast<uint64_t>(agentIndex) * 0x5742ULL) % static_cast<uint32_t>(matchCount));
+    int32_t seenMatches = 0;
+    for (int32_t businessIndex = 0; businessIndex < businessCount; ++businessIndex) {
+        const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
+        if (business == nullptr || business->kind != BusinessNodeKind::Employer) {
+            continue;
+        }
+        if (getBusinessNodeRegionId(businessIndex) != static_cast<RegionId>(homeProperty->regionId)) {
+            continue;
+        }
+        if (seenMatches == static_cast<int32_t>(pickIndex)) {
+            agentState.workplaceBusinessIndex = businessIndex;
+            return;
+        }
+        seenMatches += 1;
+    }
+}
+
 void initializeNpcSpatialState(
     CharacterAgentStore& agentStore,
     PropertyStore& propertyStore,
@@ -87,6 +133,7 @@ void initializeNpcSpatialState(
         }
 
         tryAssignNpcHome(state, propertyStore, agentIndex, preferredKind);
+        tryAssignNpcWorkplace(state, propertyStore, agentIndex, worldSeed);
 
         // NPCs start at home (not visible on map initially)
         // They will become visible when they start traveling/working in future phases

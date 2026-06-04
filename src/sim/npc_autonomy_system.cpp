@@ -17,9 +17,10 @@ void NpcAutonomySystem::bind(
     const SimWorldBindings& simBindings,
     GameCalendarStore* inputCalendarStore,
     PropertyStore* inputPropertyStore) {
-    bindings = &simBindings;
+    bindings = simBindings;
     calendarStore = inputCalendarStore;
     propertyStore = inputPropertyStore;
+    ticksSinceLastDecision = 0;
 }
 
 const char* NpcAutonomySystem::getName() const {
@@ -37,7 +38,7 @@ void NpcAutonomySystem::onTick(uint64_t tickCount) {
     ticksSinceLastDecision = 0;
     lastProcessedTick = tickCount;
 
-    if (bindings == nullptr || bindings->characterAgentStore == nullptr) {
+    if (bindings.characterAgentStore == nullptr) {
         return;
     }
 
@@ -48,7 +49,7 @@ void NpcAutonomySystem::onTick(uint64_t tickCount) {
     context.propertyStore = propertyStore;
 
     tickNpcDecisions(
-        *bindings->characterAgentStore,
+        *bindings.characterAgentStore,
         context,
         decisionIntervalTicks);
 }

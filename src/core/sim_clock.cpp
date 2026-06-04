@@ -24,7 +24,7 @@ void SimClock::update(double deltaSeconds) {
         return;
     }
     accumulatorSeconds += deltaSeconds * speedMultiplier;
-    while (accumulatorSeconds >= tickIntervalSeconds) {
+    while (accumulatorSeconds >= tickIntervalSeconds && ticksThisFrame < MAX_SIM_TICKS_PER_FRAME) {
         accumulatorSeconds -= tickIntervalSeconds;
         advanceTick();
     }

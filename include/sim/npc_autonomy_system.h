@@ -1,11 +1,11 @@
 #pragma once
 
 #include "sim/isim_system.h"
+#include "sim/sim_world_bindings.h"
 #include <cstdint>
 
 namespace Core {
 
-struct SimWorldBindings;
 struct GameCalendarStore;
 struct PropertyStore;
 
@@ -25,7 +25,7 @@ private:
     int32_t decisionIntervalTicks = 50;
     int32_t ticksSinceLastDecision = 0;
     uint64_t lastProcessedTick = 0;
-    const SimWorldBindings* bindings = nullptr;
+    SimWorldBindings bindings{};
     GameCalendarStore* calendarStore = nullptr;
     PropertyStore* propertyStore = nullptr;
 };

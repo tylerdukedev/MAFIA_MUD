@@ -483,6 +483,7 @@ add_executable(npc_visibility_test
     src/game/agent_relation_events.cpp
     src/game/property_store.cpp
     src/game/npc_spatial_init.cpp
+    src/world/business_node_table.cpp
     src/world/chunk_store.cpp
     src/world/world_config.cpp
     src/world/region_table.cpp

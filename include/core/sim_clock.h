@@ -4,6 +4,8 @@
 
 namespace Core {
 
+constexpr int32_t MAX_SIM_TICKS_PER_FRAME = 32;
+
 class SimClock {
 public:
     explicit SimClock(double tickRateHz = 20.0);
