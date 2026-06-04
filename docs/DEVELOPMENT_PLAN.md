@@ -137,7 +137,7 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 |-------------|--------|
 | `CriminalRecordStore` — `CriminalCharge`, `ChargeType`, `ChargeOutcome`, statute labels | ✅ |
 | `PoliceContactStore` — `PoliceContactState`, `PoliceRank`, procedural officer generation | ✅ |
-| `beginPlayerArrest` — generates officer, records charge, wires into both stores | ✅ |
+| `beginPlayerArrest` — generates officer, records charge, wires into both stores (UI + sim arrest paths) | ✅ |
 | `resolvePlayerCourt` — resolves latest pending charge on court outcome | ✅ |
 | BondHearing modal — full arraignment layout: charges, statute, officer, prior record | ✅ |
 | `jail_events.h/.cpp` — Fight/Intel/Ally/Shakedown/Message events fire during custody → info feed | ✅ |

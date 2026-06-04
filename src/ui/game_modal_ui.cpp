@@ -171,10 +171,6 @@ void tickCriminalJusticeModals(
         beginBondHearingModal(modal, simClock);
         return;
     }
-    if (phase == CustodyPhase::InJail) {
-        beginBondHearingModal(modal, simClock);
-        return;
-    }
     if (phase == CustodyPhase::AwaitingCourt && isPlayerCourtModalPending(justiceStore)) {
         beginCourtHearingModal(modal, simClock);
     }
@@ -508,7 +504,9 @@ void renderGameModalOverlay(
                 setModalStatus(modal, playerCriminalJusticeStore.lastCustodyLabel);
                 closeModal(modal, simClock);
             } else {
-                setModalStatus(modal, "Not enough cash for bail.");
+                commitPlayerCustodyDetention(playerCriminalJusticeStore, tickCount);
+                setModalStatus(modal, "Insufficient funds — held in custody until court.");
+                closeModal(modal, simClock);
             }
         }
         ImGui::SameLine();
@@ -601,7 +599,14 @@ void renderGameModalOverlay(
             const CustodyPhase custodyPhase = getPlayerCustodyPhase(playerCriminalJusticeStore);
             if (custodyPhase == CustodyPhase::OnBail) {
                 if (ImGui::Button("Attend court", ImVec2(200.0f, 0.0f))) {
-                    resolvePlayerCourt(playerCriminalJusticeStore, playerLawEnforcementStore, legalCounselStore, characterAgentStore, worldSeed, tickCount);
+                    resolvePlayerCourt(
+                        playerCriminalJusticeStore,
+                        playerLawEnforcementStore,
+                        legalCounselStore,
+                        characterAgentStore,
+                        worldSeed,
+                        tickCount,
+                        &criminalRecordStore);
                     const CourtOutcome outcome = static_cast<CourtOutcome>(playerCriminalJusticeStore.lastCourtOutcome);
                     char outcomeBuffer[96];
                     std::snprintf(
@@ -620,7 +625,14 @@ void renderGameModalOverlay(
                     modal.hasFlowResult = true;
                 }
             } else if (ImGui::Button("Enter courtroom", ImVec2(200.0f, 0.0f))) {
-                resolvePlayerCourt(playerCriminalJusticeStore, playerLawEnforcementStore, legalCounselStore, characterAgentStore, worldSeed, tickCount);
+                resolvePlayerCourt(
+                    playerCriminalJusticeStore,
+                    playerLawEnforcementStore,
+                    legalCounselStore,
+                    characterAgentStore,
+                    worldSeed,
+                    tickCount,
+                    &criminalRecordStore);
                 const CourtOutcome outcome = static_cast<CourtOutcome>(playerCriminalJusticeStore.lastCourtOutcome);
                 char outcomeBuffer[96];
                 std::snprintf(

@@ -328,7 +328,10 @@ void Application::startNewSimulation() {
         &playerCriminalJusticeStore,
         &playerStreetCrimeStore,
         &characterAgentStore,
-        &worldEventStore};
+        &worldEventStore,
+        &playerCriminalRecordStore,
+        &playerPoliceContactStore,
+        &playerWorldState};
     systemRegistry.initialize(
         simBindings,
         &characterAgentStore,
@@ -459,7 +462,10 @@ bool Application::loadSavedGame() {
         &playerCriminalJusticeStore,
         &playerStreetCrimeStore,
         &characterAgentStore,
-        &worldEventStore};
+        &worldEventStore,
+        &playerCriminalRecordStore,
+        &playerPoliceContactStore,
+        &playerWorldState};
     systemRegistry.initialize(
         simBindings,
         &characterAgentStore,

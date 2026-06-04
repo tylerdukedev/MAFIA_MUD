@@ -142,7 +142,10 @@ bool tryRollPlayerArrest(
     CrimeLegalTier legalTier,
     uint64_t worldSeed,
     uint64_t tickCount,
-    int32_t extraChancePercent);
+    int32_t extraChancePercent,
+    CriminalRecordStore* criminalRecord = nullptr,
+    PoliceContactStore* policeContacts = nullptr,
+    uint8_t regionId = 1);
 void tickPlayerCriminalJustice(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerLawEnforcementStore& lawStore,
@@ -151,7 +154,10 @@ void tickPlayerCriminalJustice(
     CharacterAgentStore& agentStore,
     uint64_t worldSeed,
     uint64_t tickCount,
-    PlayerInformationFeedStore* informationFeedStore = nullptr);
+    PlayerInformationFeedStore* informationFeedStore = nullptr,
+    CriminalRecordStore* criminalRecord = nullptr,
+    PoliceContactStore* policeContacts = nullptr,
+    uint8_t regionId = 1);
 void tickAgentCriminalJustice(
     PlayerCriminalJusticeStore& justiceStore,
     CharacterAgentStore& agentStore,

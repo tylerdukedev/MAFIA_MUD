@@ -183,7 +183,10 @@ bool tryCommitStreetCrime(
     const PlayerProfile& profile,
     int32_t crimeIndex,
     uint64_t tickCount,
-    uint64_t worldSeed) {
+    uint64_t worldSeed,
+    CriminalRecordStore* criminalRecord,
+    PoliceContactStore* policeContacts,
+    uint8_t regionId) {
     const StreetCrimeDefinition* crime = getStreetCrimeDefinition(crimeIndex);
     if (crime == nullptr) {
         return false;
@@ -208,7 +211,16 @@ bool tryCommitStreetCrime(
     addPlayerHeat(lawStore, crime->heatOnFailure);
     tryIssueWarrantIfThresholdMet(lawStore);
     if (hasActivePoliceWarrant(lawStore) || lawStore.personalHeat >= POLICE_HEAT_WARRANT_THRESHOLD) {
-        tryRollPlayerArrest(justiceStore, lawStore, crime->legalTier, worldSeed, tickCount, JUSTICE_ARREST_POST_CRIME_CHANCE_PERCENT);
+        tryRollPlayerArrest(
+            justiceStore,
+            lawStore,
+            crime->legalTier,
+            worldSeed,
+            tickCount,
+            JUSTICE_ARREST_POST_CRIME_CHANCE_PERCENT,
+            criminalRecord,
+            policeContacts,
+            regionId);
     }
     if (agentStore.states[BEAT_COP_AGENT_SLOT_INDEX].isActive) {
         adjustAgentOpinion(agentStore, BEAT_COP_AGENT_SLOT_INDEX, -2);

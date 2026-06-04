@@ -24,6 +24,7 @@ void CriminalJusticeSystem::onTick(uint64_t tickCount) {
         return;
     }
     const uint64_t worldSeed = *bindings.worldSeed;
+    const uint8_t regionId = bindings.playerWorldState != nullptr ? bindings.playerWorldState->currentRegionId : static_cast<uint8_t>(1);
     tickPlayerCriminalJustice(
         *justiceStore,
         *lawStore,
@@ -32,7 +33,10 @@ void CriminalJusticeSystem::onTick(uint64_t tickCount) {
         *bindings.characterAgentStore,
         worldSeed,
         tickCount,
-        informationFeedStore);
+        informationFeedStore,
+        bindings.playerCriminalRecordStore,
+        bindings.playerPoliceContactStore,
+        regionId);
     tickAgentCriminalJustice(*justiceStore, *bindings.characterAgentStore, *lawStore, worldSeed, tickCount);
 }
 

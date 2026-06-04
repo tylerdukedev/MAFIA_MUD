@@ -1,3 +1,5 @@
+#include "game/criminal_record.h"
+#include "game/police_contacts.h"
 #include "character/character_social_network.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
@@ -12,6 +14,39 @@
 #include <catch2/catch_test_macros.hpp>
 
 using namespace Core;
+
+TEST_CASE("Sim-path arrest records charge and officer contact", "[criminal_justice]") {
+    PlayerCriminalJusticeStore justiceStore{};
+    PlayerLawEnforcementStore lawStore{};
+    CriminalRecordStore recordStore{};
+    PoliceContactStore contactStore{};
+    resetCriminalRecordStore(recordStore);
+    resetPoliceContactStore(contactStore);
+    lawStore.personalHeat = POLICE_HEAT_WARRANT_THRESHOLD;
+    lawStore.activeWarrantCount = 1;
+    const bool arrested = tryRollPlayerArrest(
+        justiceStore,
+        lawStore,
+        CrimeLegalTier::Street,
+        555ULL,
+        100ULL,
+        100,
+        &recordStore,
+        &contactStore,
+        static_cast<uint8_t>(RegionId::Manhattan));
+    REQUIRE(arrested);
+    REQUIRE(recordStore.chargeCount == 1);
+    REQUIRE(contactStore.activeCount >= 1);
+}
+
+TEST_CASE("Remain in custody leaves player in jail without reopening arraignment", "[criminal_justice]") {
+    PlayerCriminalJusticeStore justiceStore{};
+    PlayerLawEnforcementStore lawStore{};
+    beginPlayerArrest(justiceStore, lawStore, CrimeLegalTier::Street, 5ULL, "Booking test");
+    commitPlayerCustodyDetention(justiceStore, 6ULL);
+    REQUIRE(getPlayerCustodyPhase(justiceStore) == CustodyPhase::InJail);
+    REQUIRE(justiceStore.phaseTicksRemaining == JUSTICE_JAIL_HOLD_TICKS);
+}
 
 TEST_CASE("Bond payment moves player to awaiting court", "[criminal_justice]") {
     PlayerCriminalJusticeStore justiceStore{};

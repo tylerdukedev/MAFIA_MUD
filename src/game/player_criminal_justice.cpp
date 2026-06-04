@@ -479,7 +479,10 @@ bool tryRollPlayerArrest(
     CrimeLegalTier legalTier,
     uint64_t worldSeed,
     uint64_t tickCount,
-    int32_t extraChancePercent) {
+    int32_t extraChancePercent,
+    CriminalRecordStore* criminalRecord,
+    PoliceContactStore* policeContacts,
+    uint8_t regionId) {
     if (isPlayerFullyIncarcerated(justiceStore)) {
         return false;
     }
@@ -493,7 +496,16 @@ bool tryRollPlayerArrest(
     if (static_cast<int32_t>(roll) >= chance) {
         return false;
     }
-    beginPlayerArrest(justiceStore, lawStore, legalTier, tickCount, "Picked up on suspicion");
+    beginPlayerArrest(
+        justiceStore,
+        lawStore,
+        legalTier,
+        tickCount,
+        "Picked up on suspicion",
+        worldSeed,
+        regionId,
+        criminalRecord,
+        policeContacts);
     return true;
 }
 
@@ -536,7 +548,10 @@ void tickPlayerCriminalJustice(
     CharacterAgentStore& agentStore,
     uint64_t worldSeed,
     uint64_t tickCount,
-    PlayerInformationFeedStore* informationFeedStore) {
+    PlayerInformationFeedStore* informationFeedStore,
+    CriminalRecordStore* criminalRecord,
+    PoliceContactStore* policeContacts,
+    uint8_t regionId) {
     const CustodyPhase phase = getPlayerCustodyPhase(justiceStore);
     if (phase == CustodyPhase::OnProbation) {
         if (justiceStore.probationTicksRemaining > 0) {
@@ -586,7 +601,7 @@ void tickPlayerCriminalJustice(
         }
         justiceStore.lastArrestRollTick = tickCount;
         const CrimeLegalTier tier = lawStore.evidenceScore >= 28 ? CrimeLegalTier::Organization : CrimeLegalTier::Street;
-        tryRollPlayerArrest(justiceStore, lawStore, tier, worldSeed, tickCount, 0);
+        tryRollPlayerArrest(justiceStore, lawStore, tier, worldSeed, tickCount, 0, criminalRecord, policeContacts, regionId);
         return;
     }
     if (justiceStore.phaseTicksRemaining > 0) {
@@ -621,7 +636,7 @@ void tickPlayerCriminalJustice(
         && justiceStore.phaseTicksRemaining <= 0
         && justiceStore.isBondPosted == 0) {
         const PlayerLegalCounselStore defaultCounsel{};
-        resolvePlayerCourt(justiceStore, lawStore, defaultCounsel, agentStore, worldSeed, tickCount);
+        resolvePlayerCourt(justiceStore, lawStore, defaultCounsel, agentStore, worldSeed, tickCount, criminalRecord);
     }
     if (getPlayerCustodyPhase(justiceStore) == CustodyPhase::InPrison) {
         if (justiceStore.phaseTicksRemaining > 0) {

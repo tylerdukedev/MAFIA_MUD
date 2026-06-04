@@ -3,8 +3,10 @@
 #include "character/character_social_network.h"
 #include "character/player_profile.h"
 #include "game/crime_legal_tier.h"
+#include "game/criminal_record.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
+#include "game/police_contacts.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
@@ -89,7 +91,10 @@ bool tryCommitStreetCrime(
     const PlayerProfile& profile,
     int32_t crimeIndex,
     uint64_t tickCount,
-    uint64_t worldSeed);
+    uint64_t worldSeed,
+    CriminalRecordStore* criminalRecord = nullptr,
+    PoliceContactStore* policeContacts = nullptr,
+    uint8_t regionId = 1);
 const char* streetCrimeLockReasonToString(StreetCrimeLockReason reason);
 const char* streetCrimeTierToString(StreetCrimeTier tier);
 

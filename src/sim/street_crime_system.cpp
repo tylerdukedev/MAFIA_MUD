@@ -25,6 +25,7 @@ void StreetCrimeSystem::processCommitStreetCrimeEvent(const SimEvent& event, uin
         || bindings.worldSeed == nullptr) {
         return;
     }
+    const uint8_t regionId = bindings.playerWorldState != nullptr ? bindings.playerWorldState->currentRegionId : static_cast<uint8_t>(1);
     tryCommitStreetCrime(
         *bindings.playerOperationsStore,
         *crimeStore,
@@ -36,7 +37,10 @@ void StreetCrimeSystem::processCommitStreetCrimeEvent(const SimEvent& event, uin
         *bindings.playerProfile,
         event.catalogIndex,
         tickCount,
-        *bindings.worldSeed);
+        *bindings.worldSeed,
+        bindings.playerCriminalRecordStore,
+        bindings.playerPoliceContactStore,
+        regionId);
 }
 
 void StreetCrimeSystem::onTick(uint64_t tickCount) {
