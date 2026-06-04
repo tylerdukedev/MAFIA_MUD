@@ -10,8 +10,51 @@
 
 namespace Core {
 
+int32_t getPlayerJobCount(const PlayerOperationsStore& store) {
+    int32_t count = 0;
+    for (int i = 0; i < 2; ++i) {
+        if (store.employedBusinessIndices[i] >= 0) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool hasFullTimeJob(const PlayerOperationsStore& store) {
+    for (int i = 0; i < 2; ++i) {
+        if (store.employedBusinessIndices[i] >= 0) {
+            const BusinessNodeDefinition* business = getBusinessNodeDefinition(store.employedBusinessIndices[i]);
+            if (business != nullptr && business->scheduleType == JobScheduleType::FullTime) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool canAcceptJob(const PlayerOperationsStore& store, JobScheduleType scheduleType) {
+    const int32_t currentJobCount = getPlayerJobCount(store);
+    if (currentJobCount >= 2) {
+        return false;
+    }
+    if (scheduleType == JobScheduleType::FullTime && hasFullTimeJob(store)) {
+        return false;
+    }
+    return true;
+}
+
+int32_t getJobSlotForNewHire(const PlayerOperationsStore& store, JobScheduleType scheduleType) {
+    if (store.employedBusinessIndices[0] < 0) {
+        return 0;
+    }
+    if (store.employedBusinessIndices[1] < 0) {
+        return 1;
+    }
+    return -1;
+}
+
 bool isPlayerEmployed(const PlayerOperationsStore& store) {
-    return store.employedBusinessIndex >= 0;
+    return store.employedBusinessIndices[0] >= 0 || store.employedBusinessIndices[1] >= 0;
 }
 
 bool canReapplyForJob(const PlayerOperationsStore& store, int32_t businessNodeIndex, uint64_t tickCount) {
@@ -69,14 +112,14 @@ bool tryHirePlayerAtBusiness(
     CharacterAgentStore& agentStore,
     int32_t businessNodeIndex,
     int32_t interviewScore) {
-    if (isPlayerEmployed(store)) {
-        return false;
-    }
     if (interviewScore < JOB_INTERVIEW_PASS_SCORE) {
         return false;
     }
     const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessNodeIndex);
     if (business == nullptr) {
+        return false;
+    }
+    if (!canAcceptJob(store, business->scheduleType)) {
         return false;
     }
     if (getNetworkAccessScore(profile) < business->minNetworkAccess) {
@@ -86,24 +129,35 @@ bool tryHirePlayerAtBusiness(
     if (!evaluateJobEligibility(profile, store, businessNodeIndex, store.workExperienceMonths, 0ULL, lockReason)) {
         return false;
     }
-    store.employedBusinessIndex = businessNodeIndex;
+    const int32_t slot = getJobSlotForNewHire(store, business->scheduleType);
+    if (slot < 0) {
+        return false;
+    }
+    store.employedBusinessIndices[slot] = businessNodeIndex;
     if (store.workExperienceMonths < 240) {
         store.workExperienceMonths += 1;
     }
-    spawnEmployerBossContact(agentStore, businessNodeIndex);
+    if (slot == 0) {
+        spawnEmployerBossContact(agentStore, businessNodeIndex);
+    }
     return true;
 }
 
 float computeEmployedLegitIncomePerTickCents(const PlayerOperationsStore& store) {
-    if (!isPlayerEmployed(store)) {
-        return 0.0f;
+    float total = 0.0f;
+    for (int i = 0; i < 2; ++i) {
+        if (store.employedBusinessIndices[i] >= 0) {
+            const BusinessNodeDefinition* business = getBusinessNodeDefinition(store.employedBusinessIndices[i]);
+            if (business != nullptr) {
+                float monthlyCents = static_cast<float>(computeBusinessMonthlyWageCents(*business)) * static_cast<float>(JOB_MONTHLY_WAGE_MULTIPLIER);
+                if (business->scheduleType == JobScheduleType::PartTime) {
+                    monthlyCents *= 0.6f;
+                }
+                total += monthlyCents / static_cast<float>(MONTHLY_LEDGER_INTERVAL_TICKS);
+            }
+        }
     }
-    const BusinessNodeDefinition* business = getBusinessNodeDefinition(store.employedBusinessIndex);
-    if (business == nullptr) {
-        return 0.0f;
-    }
-    const float monthlyCents = static_cast<float>(computeBusinessMonthlyWageCents(*business)) * static_cast<float>(JOB_MONTHLY_WAGE_MULTIPLIER);
-    return monthlyCents / static_cast<float>(MONTHLY_LEDGER_INTERVAL_TICKS);
+    return total;
 }
 
 } // namespace Core

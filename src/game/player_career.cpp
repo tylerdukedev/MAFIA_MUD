@@ -27,7 +27,7 @@ void formatPlayerCareerTitle(
         return;
     }
     if (isPlayerEmployed(operationsStore)) {
-        const BusinessNodeDefinition* business = getBusinessNodeDefinition(operationsStore.employedBusinessIndex);
+        const BusinessNodeDefinition* business = getBusinessNodeDefinition(operationsStore.employedBusinessIndices[0]);
         if (business != nullptr) {
             std::snprintf(
                 outBuffer,

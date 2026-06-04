@@ -194,7 +194,7 @@ void renderOperationsPanel(const GameUiFrameContext& frame, GameModalState& game
         ImGui::Separator();
     } else {
         MonthlyHousingLedger ledger{};
-        buildMonthlyHousingLedger(playerOperationsStore, playerOperationsStore.employedBusinessIndex, ledger);
+        buildMonthlyHousingLedger(playerOperationsStore, playerOperationsStore.employedBusinessIndices[0], ledger);
         if (playerOperationsStore.headquartersKind == HeadquartersKind::FamilyFriendDpa) {
             ImGui::TextWrapped("Family/friend stay (DPA): no cash rent, but relationships erode slowly each month unless you pitch in.");
         } else {
@@ -268,6 +268,9 @@ void renderOperationsPanel(const GameUiFrameContext& frame, GameModalState& game
             continue;
         }
         if (!hasPlayerHeadquarters(playerOperationsStore) && operation->category != OperationCategory::Headquarters) {
+            continue;
+        }
+        if (operation->category != OperationCategory::Headquarters && isOperationCatalogActive(playerOperationsStore, catalogIndex)) {
             continue;
         }
         const OperationLockReason lockReason = evaluateOperationLock(playerOperationsStore, playerProfile, playerWallet, catalogIndex, *operation);
@@ -498,6 +501,33 @@ void renderBusinessPanel(const GameUiFrameContext& frame, GameModalState& gameMo
     ImGui::Text("Hour: %02d:00 | Week hours: %d / %d", calendarStore.hourOfDay, calendarStore.hoursWorkedThisWeek, calendarStore.scheduledHoursThisWeek);
     if (isPlayerEmployed(playerOperationsStore)) {
         ImGui::Text("Shift: %d:00-%d:00", workScheduleStore.shiftStartHour, workScheduleStore.shiftEndHour);
+        ImGui::Separator();
+        contextHelpSectionHeader("Current employment", "Your active jobs.", "employment_status", contextHelpState);
+        for (int i = 0; i < 2; ++i) {
+            if (playerOperationsStore.employedBusinessIndices[i] >= 0) {
+                const BusinessNodeDefinition* job = getBusinessNodeDefinition(playerOperationsStore.employedBusinessIndices[i]);
+                if (job != nullptr) {
+                    const char* scheduleLabel = (job->scheduleType == JobScheduleType::FullTime) ? "Full-time" : "Part-time";
+                    char wageBuffer[32];
+                    int64_t monthlyWage = computeBusinessMonthlyWageCents(*job);
+                    if (job->scheduleType == JobScheduleType::PartTime) {
+                        monthlyWage = static_cast<int64_t>(static_cast<float>(monthlyWage) * 0.6f);
+                    }
+                    formatCashCents(wageBuffer, sizeof(wageBuffer), monthlyWage);
+                    ImGui::BulletText("%s (%s) — %s/shift", job->mapLabel, scheduleLabel, wageBuffer);
+                }
+            }
+        }
+        int32_t jobCount = getPlayerJobCount(playerOperationsStore);
+        if (jobCount < 2) {
+            if (hasFullTimeJob(playerOperationsStore)) {
+                ImGui::TextDisabled("[Can accept 1 part-time job]");
+            } else if (jobCount == 0) {
+                ImGui::TextDisabled("[Can accept 2 part-time or 1 full-time job]");
+            } else {
+                ImGui::TextDisabled("[Can accept 1 more part-time job]");
+            }
+        }
     }
     ImGui::Separator();
     if (!viewportPickState.hasBusinessSelection || viewportPickState.selectedBusinessIndex < 0) {
@@ -552,13 +582,13 @@ void renderBusinessPanel(const GameUiFrameContext& frame, GameModalState& gameMo
                 if (getNetworkAccessScore(playerProfile) < business->minNetworkAccess) {
                     ImGui::BeginDisabled();
                 }
-                if (!isInRegion || isPlayerEmployed(playerOperationsStore) || !isEligible || reapplyTicksRemaining > 0ULL) {
+                if (!isInRegion || !canAcceptJob(playerOperationsStore, business->scheduleType) || !isEligible || reapplyTicksRemaining > 0ULL) {
                     ImGui::BeginDisabled();
                 }
                 if (ImGui::Button("Apply for job")) {
                     beginJobInterviewModal(gameModalState, viewportPickState.selectedBusinessIndex, simClock, worldSeed);
                 }
-                if (!isInRegion || isPlayerEmployed(playerOperationsStore) || !isEligible || reapplyTicksRemaining > 0ULL) {
+                if (!isInRegion || !canAcceptJob(playerOperationsStore, business->scheduleType) || !isEligible || reapplyTicksRemaining > 0ULL) {
                     ImGui::EndDisabled();
                 }
                 if (!isEligible && lockReason != nullptr) {
@@ -568,8 +598,17 @@ void renderBusinessPanel(const GameUiFrameContext& frame, GameModalState& gameMo
                     ImGui::EndDisabled();
                     ImGui::TextDisabled("Requires higher network access.");
                 }
-                if (isPlayerEmployed(playerOperationsStore) && playerOperationsStore.employedBusinessIndex == viewportPickState.selectedBusinessIndex) {
-                    ImGui::Text("Status: Employed here");
+                if (isPlayerEmployed(playerOperationsStore)) {
+                    bool isEmployedHere = false;
+                    for (int i = 0; i < 2; ++i) {
+                        if (playerOperationsStore.employedBusinessIndices[i] == viewportPickState.selectedBusinessIndex) {
+                            isEmployedHere = true;
+                            break;
+                        }
+                    }
+                    if (isEmployedHere) {
+                        ImGui::Text("Status: Employed here");
+                    }
                 }
                 if (playerWorldState.isAtWork) {
                     ImGui::TextDisabled("Currently on shift — limited actions.");
@@ -615,6 +654,7 @@ void renderContactsPanel(const GameUiFrameContext& frame, GameModalState& gameMo
         ImGui::Text("%s (%s)", displayName, roleLabel);
         ImGui::Text("Opinion: %d | Trust: %d | Respect: %d", state->opinionOfPlayer, state->trust, state->respect);
         ImGui::Text("Loyalty score: %d", computeAgentLoyaltyScore(*state));
+        ImGui::TextDisabled("Build relationships through covert actions, favors, and avoiding betrayal.");
         if (hasAgentRelationEvent(*state, AgentRelationEventFlags::BetrayedPlayer)) {
             ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.35f, 1.0f), "Flag: betrayed you");
         }

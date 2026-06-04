@@ -92,8 +92,12 @@ void buildMonthlyHousingLedger(
     if (employedBusinessIndex >= 0) {
         const BusinessNodeDefinition* business = getBusinessNodeDefinition(employedBusinessIndex);
         if (business != nullptr) {
-            outLedger.jobIncomeCents =
+            int64_t jobIncome =
                 computeBusinessMonthlyWageCents(*business) * static_cast<int64_t>(JOB_MONTHLY_WAGE_MULTIPLIER);
+            if (business->scheduleType == JobScheduleType::PartTime) {
+                jobIncome = static_cast<int64_t>(static_cast<float>(jobIncome) * 0.6f);
+            }
+            outLedger.jobIncomeCents = jobIncome;
         }
     }
     outLedger.totalExpenseCents = outLedger.rentCents + outLedger.utilitiesCents + outLedger.taxesAndFeesCents;

@@ -19,6 +19,7 @@ enum class GameModalKind : uint8_t {
     CourtHearing = 8,
     CovertAction = 9,
     InformationFeed = 10,
+    JobResignation = 11,
 };
 
 struct GameModalState {
@@ -45,6 +46,8 @@ struct GameModalState {
     int32_t covertReasonCount = 0;
     int32_t selectedCovertReasonIndex = -1;
     bool useCrewProxyForCovertAction = false;
+    int32_t resigningFromBusinessIndex = -1;
+    int32_t acceptingAtBusinessIndex = -1;
 };
 
 void resetGameModalState(GameModalState& state);

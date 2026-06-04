@@ -11,6 +11,10 @@ namespace Core {
 constexpr int32_t JOB_INTERVIEW_PASS_SCORE = 5;
 constexpr uint64_t JOB_REAPPLY_COOLDOWN_TICKS = 240;
 
+int32_t getPlayerJobCount(const PlayerOperationsStore& store);
+bool hasFullTimeJob(const PlayerOperationsStore& store);
+bool canAcceptJob(const PlayerOperationsStore& store, JobScheduleType scheduleType);
+int32_t getJobSlotForNewHire(const PlayerOperationsStore& store, JobScheduleType scheduleType);
 bool isPlayerEmployed(const PlayerOperationsStore& store);
 bool tryHirePlayerAtBusiness(
     PlayerOperationsStore& store,

@@ -49,18 +49,23 @@ TEST_CASE("Employed income matches monthly ledger wage and covers rented room", 
     const BusinessNodeDefinition* business = getBusinessNodeDefinition(lowestWageIndex);
     REQUIRE(business != nullptr);
     PlayerOperationsStore store{};
-    store.employedBusinessIndex = lowestWageIndex;
+    store.employedBusinessIndices[0] = lowestWageIndex;
     const float perTickIncome = computeEmployedLegitIncomePerTickCents(store);
-    const int64_t expectedMonthlyIncome =
+    int64_t expectedMonthlyIncome =
         computeBusinessMonthlyWageCents(*business) * static_cast<int64_t>(JOB_MONTHLY_WAGE_MULTIPLIER);
+    if (business->scheduleType == JobScheduleType::PartTime) {
+        expectedMonthlyIncome = static_cast<int64_t>(static_cast<float>(expectedMonthlyIncome) * 0.6f);
+    }
     const float simulatedMonthlyIncome = perTickIncome * static_cast<float>(MONTHLY_LEDGER_INTERVAL_TICKS);
     REQUIRE(static_cast<int64_t>(simulatedMonthlyIncome) == expectedMonthlyIncome);
     store.headquartersKind = HeadquartersKind::RentedRoom;
     MonthlyHousingLedger ledger{};
     buildMonthlyHousingLedger(store, lowestWageIndex, ledger);
     REQUIRE(ledger.jobIncomeCents == expectedMonthlyIncome);
-    REQUIRE(ledger.netCashDeltaCents > 0);
-    REQUIRE(ledger.jobIncomeCents > ledger.totalExpenseCents);
+    if (business->scheduleType == JobScheduleType::FullTime) {
+        REQUIRE(ledger.netCashDeltaCents > 0);
+        REQUIRE(ledger.jobIncomeCents > ledger.totalExpenseCents);
+    }
 }
 
 TEST_CASE("Job interview pass threshold separates strong and weak answers", "[game_integration][employment]") {
@@ -72,10 +77,10 @@ TEST_CASE("Job interview pass threshold separates strong and weak answers", "[ga
     REQUIRE_FALSE(tryHirePlayerAtBusiness(store, profile, agents, businessIndex, JOB_INTERVIEW_PASS_SCORE - 1));
     REQUIRE(tryHirePlayerAtBusiness(store, profile, agents, businessIndex, JOB_INTERVIEW_PASS_SCORE));
     REQUIRE(agents.states[BOSS_AGENT_SLOT_INDEX].isActive);
-    store.employedBusinessIndex = -1;
+    store.employedBusinessIndices[0] = -1;
     clearEmployerBossContact(agents);
     REQUIRE(tryHirePlayerAtBusiness(store, profile, agents, businessIndex, JOB_INTERVIEW_BEST_SCORE));
-    REQUIRE(store.employedBusinessIndex == businessIndex);
+    REQUIRE(store.employedBusinessIndices[0] == businessIndex);
 }
 
 TEST_CASE("Italian family cultural profile raises kin loyalty versus neutral defaults", "[game_integration][family]") {

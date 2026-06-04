@@ -84,6 +84,12 @@ void beginJobInterviewModal(GameModalState& modal, int32_t businessNodeIndex, Si
     modal.interviewScore = 0;
 }
 
+void beginJobResignationModal(GameModalState& modal, int32_t resigningFromBusinessIndex, int32_t acceptingAtBusinessIndex, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::JobResignation, "Leaving your current job requires notice or immediate resignation.");
+    modal.resigningFromBusinessIndex = resigningFromBusinessIndex;
+    modal.acceptingAtBusinessIndex = acceptingAtBusinessIndex;
+}
+
 void beginApartmentApplicationModal(GameModalState& modal, int32_t catalogIndex, SimClock& simClock) {
     openModal(modal, simClock, GameModalKind::ApartmentApplication, "Rental application — answer honestly or bluff.");
     modal.businessNodeIndex = catalogIndex;
@@ -592,6 +598,59 @@ void renderGameModalOverlay(
         }
         if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
             closeModal(modal, simClock);
+        }
+    } else if (modal.kind == GameModalKind::JobResignation) {
+        ImGui::Text("Job Resignation");
+        const BusinessNodeDefinition* currentJob = getBusinessNodeDefinition(modal.resigningFromBusinessIndex);
+        const BusinessNodeDefinition* newJob = getBusinessNodeDefinition(modal.acceptingAtBusinessIndex);
+        if (currentJob != nullptr) {
+            ImGui::TextDisabled("Leaving: %s", currentJob->fullName);
+        }
+        if (newJob != nullptr) {
+            ImGui::TextDisabled("Accepting: %s", newJob->fullName);
+        }
+        ImGui::Separator();
+        if (modal.hasFlowResult) {
+            ImGui::TextWrapped("%s", modal.statusMessage);
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else {
+            ImGui::TextWrapped("You must resign from your current job before accepting the new position. How do you want to handle this?");
+            ImGui::Spacing();
+            if (ImGui::Button("Give two-week notice", ImVec2(220.0f, 0.0f))) {
+                const int32_t bossSlot = BOSS_AGENT_SLOT_INDEX;
+                if (characterAgentStore.states[bossSlot].isActive) {
+                    adjustAgentOpinion(characterAgentStore, bossSlot, 8);
+                    characterAgentStore.states[bossSlot].trust = std::min(100, characterAgentStore.states[bossSlot].trust + 5);
+                }
+                for (int i = 0; i < 2; ++i) {
+                    if (playerOperationsStore.employedBusinessIndices[i] == modal.resigningFromBusinessIndex) {
+                        playerOperationsStore.employedBusinessIndices[i] = -1;
+                        break;
+                    }
+                }
+                setModalStatus(modal, "Your boss appreciates the notice. The job change is complete.");
+                modal.hasFlowResult = true;
+            }
+            ImGui::TextDisabled("Boss opinion +8, trust +5");
+            ImGui::Spacing();
+            if (ImGui::Button("Quit immediately", ImVec2(220.0f, 0.0f))) {
+                const int32_t bossSlot = BOSS_AGENT_SLOT_INDEX;
+                if (characterAgentStore.states[bossSlot].isActive) {
+                    adjustAgentOpinion(characterAgentStore, bossSlot, -12);
+                    characterAgentStore.states[bossSlot].trust = std::max(0, characterAgentStore.states[bossSlot].trust - 8);
+                }
+                for (int i = 0; i < 2; ++i) {
+                    if (playerOperationsStore.employedBusinessIndices[i] == modal.resigningFromBusinessIndex) {
+                        playerOperationsStore.employedBusinessIndices[i] = -1;
+                        break;
+                    }
+                }
+                setModalStatus(modal, "You walked out. Your boss is not happy about it.");
+                modal.hasFlowResult = true;
+            }
+            ImGui::TextDisabled("Boss opinion -12, trust -8");
         }
     }
     ImGui::End();

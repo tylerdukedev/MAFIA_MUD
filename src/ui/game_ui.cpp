@@ -704,7 +704,7 @@ void renderCharacterPanel(
             ImGui::Text("Work experience: %d months", playerOperationsStore.workExperienceMonths);
             ImGui::Text("Power tier: %s", playerPowerTierToString(playerOrganizationStore.powerTier));
             if (isPlayerEmployed(playerOperationsStore)) {
-                const BusinessNodeDefinition* employer = getBusinessNodeDefinition(playerOperationsStore.employedBusinessIndex);
+                const BusinessNodeDefinition* employer = getBusinessNodeDefinition(playerOperationsStore.employedBusinessIndices[0]);
                 if (employer != nullptr) {
                     ImGui::Text("Day job: %s", employer->fullName);
                 }

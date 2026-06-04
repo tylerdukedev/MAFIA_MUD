@@ -38,7 +38,7 @@ struct SaveGameSnapshot {
     int64_t lifetimeCrimeCents = 0;
     std::vector<uint8_t> cityOwnerIds;
     HeadquartersKind headquartersKind = HeadquartersKind::None;
-    int32_t employedBusinessIndex = -1;
+    int32_t employedBusinessIndices[2] = {-1, -1};
     int32_t activeOperationCount = 0;
     int32_t activeCatalogIndices[MAX_OPERATION_CATALOG_COUNT]{};
     int32_t familyOpinionPenalty = 0;

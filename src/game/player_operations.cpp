@@ -9,7 +9,8 @@ namespace Core {
 
 void resetPlayerOperationsStore(PlayerOperationsStore& store) {
     store.headquartersKind = HeadquartersKind::None;
-    store.employedBusinessIndex = -1;
+    store.employedBusinessIndices[0] = -1;
+    store.employedBusinessIndices[1] = -1;
     store.activeOperationCount = 0;
     store.familyOpinionPenalty = 0;
     store.headquartersEstablishedTick = 0;

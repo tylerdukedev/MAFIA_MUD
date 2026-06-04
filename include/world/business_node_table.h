@@ -23,6 +23,11 @@ enum class BusinessIndustry : uint8_t {
     Construction = 6,
 };
 
+enum class JobScheduleType : uint8_t {
+    FullTime = 0,
+    PartTime = 1,
+};
+
 enum class BusinessTraitFlags : uint16_t {
     None = 0,
     UnionShop = 1U << 0,
@@ -46,6 +51,7 @@ struct BusinessNodeDefinition {
     uint16_t traitFlags = 0;
     float wageMultiplier = 1.0f;
     uint8_t preferredBackgroundId = 0;
+    JobScheduleType scheduleType = JobScheduleType::FullTime;
 };
 
 const char* businessIndustryToLabel(BusinessIndustry industry);

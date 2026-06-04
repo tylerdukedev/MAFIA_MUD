@@ -13,7 +13,7 @@ const char* crewRecruitLockReasonToString(CrewRecruitLockReason reason) {
     case CrewRecruitLockReason::AgentInactive:
         return "Contact unavailable";
     case CrewRecruitLockReason::NotRecruitableRole:
-        return "Not a street contact";
+        return "Not a street contact (family, employer, or institutional)";
     case CrewRecruitLockReason::LowOpinion:
         return "Opinion too low";
     case CrewRecruitLockReason::LowTrust:

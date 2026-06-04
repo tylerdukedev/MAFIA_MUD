@@ -50,7 +50,7 @@ struct SaveGameHeader {
     uint8_t hasFamilyInCountry;
     uint8_t hasFriendsInCountry;
     uint8_t savePadding;
-    int32_t employedBusinessIndex;
+    int32_t employedBusinessIndices[2];
     int32_t activeOperationCount;
     int32_t familyOpinionPenalty;
     uint64_t headquartersEstablishedTick;
@@ -124,7 +124,8 @@ bool buildSaveSnapshot(
         outSnapshot.cityOwnerIds[static_cast<size_t>(landmarkIndex)] = cityControlStore.slots[landmarkIndex].ownerId;
     }
     outSnapshot.headquartersKind = playerOperationsStore.headquartersKind;
-    outSnapshot.employedBusinessIndex = playerOperationsStore.employedBusinessIndex;
+    outSnapshot.employedBusinessIndices[0] = playerOperationsStore.employedBusinessIndices[0];
+    outSnapshot.employedBusinessIndices[1] = playerOperationsStore.employedBusinessIndices[1];
     outSnapshot.activeOperationCount = playerOperationsStore.activeOperationCount;
     outSnapshot.familyOpinionPenalty = playerOperationsStore.familyOpinionPenalty;
     outSnapshot.headquartersEstablishedTick = playerOperationsStore.headquartersEstablishedTick;
@@ -249,7 +250,8 @@ bool applySaveSnapshot(
         }
     }
     playerOperationsStore.headquartersKind = snapshot.headquartersKind;
-    playerOperationsStore.employedBusinessIndex = snapshot.employedBusinessIndex;
+    playerOperationsStore.employedBusinessIndices[0] = snapshot.employedBusinessIndices[0];
+    playerOperationsStore.employedBusinessIndices[1] = snapshot.employedBusinessIndices[1];
     playerOperationsStore.activeOperationCount = snapshot.activeOperationCount;
     playerOperationsStore.familyOpinionPenalty = snapshot.familyOpinionPenalty;
     playerOperationsStore.headquartersEstablishedTick = snapshot.headquartersEstablishedTick;
@@ -311,7 +313,8 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     header.hasFamilyInCountry = snapshot.characterDraft.hasFamilyInCountry ? 1U : 0U;
     header.hasFriendsInCountry = snapshot.characterDraft.hasFriendsInCountry ? 1U : 0U;
     header.savePadding = 0U;
-    header.employedBusinessIndex = snapshot.employedBusinessIndex;
+    header.employedBusinessIndices[0] = snapshot.employedBusinessIndices[0];
+    header.employedBusinessIndices[1] = snapshot.employedBusinessIndices[1];
     header.activeOperationCount = snapshot.activeOperationCount;
     header.familyOpinionPenalty = snapshot.familyOpinionPenalty;
     header.headquartersEstablishedTick = snapshot.headquartersEstablishedTick;
@@ -399,7 +402,8 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     outSnapshot.characterDraft.hasFamilyInCountry = header.hasFamilyInCountry != 0U;
     outSnapshot.characterDraft.hasFriendsInCountry = header.hasFriendsInCountry != 0U;
     outSnapshot.headquartersKind = static_cast<HeadquartersKind>(header.headquartersKind);
-    outSnapshot.employedBusinessIndex = header.employedBusinessIndex;
+    outSnapshot.employedBusinessIndices[0] = header.employedBusinessIndices[0];
+    outSnapshot.employedBusinessIndices[1] = header.employedBusinessIndices[1];
     outSnapshot.activeOperationCount = header.activeOperationCount;
     outSnapshot.familyOpinionPenalty = header.familyOpinionPenalty;
     outSnapshot.headquartersEstablishedTick = header.headquartersEstablishedTick;

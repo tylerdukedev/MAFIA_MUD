@@ -206,7 +206,7 @@ void logProfileDump(DevConsoleLog& log, const CharacterDraft& draft, const Playe
 
 void logOperationsFields(DevConsoleLog& log, const PlayerOperationsStore& store) {
     char buffer[DEV_CONSOLE_LOG_LINE_SIZE];
-    std::snprintf(buffer, sizeof(buffer), "HQ kind: %d active ops: %d employed business: %d", static_cast<int>(store.headquartersKind), store.activeOperationCount, store.employedBusinessIndex);
+    std::snprintf(buffer, sizeof(buffer), "HQ kind: %d active ops: %d employed business: [%d, %d]", static_cast<int>(store.headquartersKind), store.activeOperationCount, store.employedBusinessIndices[0], store.employedBusinessIndices[1]);
     devConsoleLogAppend(log, buffer);
     std::snprintf(buffer, sizeof(buffer), "HQ tick: %llu monthly ledger tick: %llu family upkeep tick: %llu", static_cast<unsigned long long>(store.headquartersEstablishedTick), static_cast<unsigned long long>(store.lastMonthlyLedgerTick), static_cast<unsigned long long>(store.lastFamilyUpkeepTick));
     devConsoleLogAppend(log, buffer);

@@ -218,11 +218,6 @@ void Application::renderFrame() {
     if (frontendUiEvents.requestedStartSimulation && !isWorldReady) {
         startNewSimulation();
     }
-#if defined(CAPITALVICE_DEV_CONSOLE)
-    if (ImGui::IsKeyPressed(ImGuiKey_F12)) {
-        devConsoleToggleVisibility(devConsoleState);
-    }
-#endif
     if (frontendScreen == FrontendScreen::CharacterCreation || frontendScreen == FrontendScreen::CharacterFinalize) {
         playerProfile = buildPlayerProfile(characterDraft);
     }
@@ -272,6 +267,9 @@ void Application::renderFrame() {
     devGameplaySnapshot.gameplayStores = isWorldReady ? &gameplayStores : nullptr;
     devGameplaySnapshot.tickCount = simClock.getTickCount();
     devGameplaySnapshot.isWorldReady = isWorldReady;
+    if (ImGui::IsKeyPressed(ImGuiKey_F12, false)) {
+        devConsoleToggleVisibility(devConsoleState);
+    }
     devConsoleRender(devConsoleState, devConsoleLog, characterDraft, playerProfile, &devGameplaySnapshot);
 #endif
     ImGui::Render();

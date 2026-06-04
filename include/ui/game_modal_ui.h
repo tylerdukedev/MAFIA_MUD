@@ -24,6 +24,7 @@
 namespace Core {
 
 void beginJobInterviewModal(GameModalState& modal, int32_t businessNodeIndex, SimClock& simClock, uint64_t worldSeed);
+void beginJobResignationModal(GameModalState& modal, int32_t resigningFromBusinessIndex, int32_t acceptingAtBusinessIndex, SimClock& simClock);
 void beginApartmentApplicationModal(GameModalState& modal, int32_t catalogIndex, SimClock& simClock);
 void beginWorkDayCommuteModal(GameModalState& modal, bool isLateForWork, SimClock& simClock);
 void beginCrewRecruitmentModal(GameModalState& modal, int32_t agentIndex, SimClock& simClock);

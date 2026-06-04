@@ -80,7 +80,7 @@ void tickPlayerWorkSchedule(
     }
     int32_t commutePromptHour = scheduleStore.shiftStartHour;
     if (isPlayerEmployed(operationsStore)) {
-        const BusinessNodeDefinition* employer = getBusinessNodeDefinition(operationsStore.employedBusinessIndex);
+        const BusinessNodeDefinition* employer = getBusinessNodeDefinition(operationsStore.employedBusinessIndices[0]);
         if (employer != nullptr) {
             const int32_t travelLeadHours = computeTravelLeadHours(
                 chunkStore,

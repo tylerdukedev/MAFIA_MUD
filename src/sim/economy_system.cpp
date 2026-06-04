@@ -83,7 +83,7 @@ void EconomySystem::applyMonthlyLivingCosts(uint64_t tickCount) {
     if (bindings.playerOperationsStore == nullptr || bindings.playerWallet == nullptr || bindings.characterAgentStore == nullptr) {
         return;
     }
-    const int32_t employedIndex = bindings.playerOperationsStore->employedBusinessIndex;
+    const int32_t employedIndex = bindings.playerOperationsStore->employedBusinessIndices[0];
     applyMonthlyLivingLedger(
         *bindings.playerOperationsStore,
         *bindings.playerWallet,
