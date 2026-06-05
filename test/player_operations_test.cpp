@@ -1,8 +1,12 @@
 #include "game/player_operations.h"
+#include "game/landlord_contact.h"
 #include "character/player_profile.h"
 #include "character/profile_builder.h"
 #include "character/character_draft.h"
+#include "character/character_social_network.h"
+#include "sim/character_agent.h"
 #include <catch2/catch_test_macros.hpp>
+#include <cstring>
 
 using namespace Core;
 
@@ -32,4 +36,17 @@ TEST_CASE("PlayerOperations establishes rented room headquarters", "[player_oper
     PlayerProfile profile{};
     REQUIRE(tryEstablishOperation(store, wallet, profile, 0, 1ULL));
     REQUIRE(store.headquartersKind == HeadquartersKind::RentedRoom);
+}
+
+TEST_CASE("Rented room UI path activates landlord contact", "[player_operations]") {
+    CharacterAgentStore agentStore{};
+    initializeCharacterAgentStore(agentStore);
+    REQUIRE_FALSE(agentStore.states[FIRST_COMMUNITY_AGENT_SLOT_INDEX].isActive);
+    spawnLandlordContact(agentStore);
+    REQUIRE(agentStore.states[FIRST_COMMUNITY_AGENT_SLOT_INDEX].isActive);
+    const char* displayName = nullptr;
+    const char* roleLabel = nullptr;
+    REQUIRE(tryGetAgentDisplayLabels(agentStore, FIRST_COMMUNITY_AGENT_SLOT_INDEX, displayName, roleLabel));
+    REQUIRE(displayName != nullptr);
+    REQUIRE(std::strcmp(displayName, "Morris Schwartz") == 0);
 }

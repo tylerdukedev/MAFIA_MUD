@@ -431,6 +431,7 @@ add_executable(player_operations_test
     test/player_operations_test.cpp
     src/game/player_operations.cpp
     src/game/operation_catalog.cpp
+    src/game/landlord_contact.cpp
     ${AGENT_RELATIONSHIP_SOURCES}
     src/world/landmark_table.cpp
     src/game/player_wallet.cpp

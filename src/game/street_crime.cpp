@@ -127,6 +127,9 @@ StreetCrimeLockReason evaluateStreetCrimeLock(
     int32_t crimeIndex,
     const StreetCrimeDefinition& crime,
     uint64_t tickCount) {
+    if (crimeIndex < 0 || crimeIndex >= MAX_STREET_CRIME_COUNT) {
+        return StreetCrimeLockReason::InsufficientStreetPath;
+    }
     if (isPlayerFullyIncarcerated(justiceStore)) {
         return StreetCrimeLockReason::Incarcerated;
     }

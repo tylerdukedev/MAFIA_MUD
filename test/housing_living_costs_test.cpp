@@ -6,6 +6,14 @@
 
 using namespace Core;
 
+TEST_CASE("Monthly ledger runs after HQ established at tick zero", "[housing_living_costs]") {
+    PlayerOperationsStore store{};
+    store.headquartersKind = HeadquartersKind::RentedRoom;
+    store.headquartersEstablishedTick = 0ULL;
+    const uint64_t inputTickCount = static_cast<uint64_t>(MONTHLY_LEDGER_INTERVAL_TICKS);
+    REQUIRE(shouldRunMonthlyLedger(store, inputTickCount));
+}
+
 TEST_CASE("Monthly rented room ledger includes rent and city fees", "[housing_living_costs]") {
     PlayerOperationsStore store{};
     store.headquartersKind = HeadquartersKind::RentedRoom;

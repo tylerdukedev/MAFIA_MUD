@@ -108,9 +108,6 @@ bool shouldRunMonthlyLedger(const PlayerOperationsStore& store, uint64_t tickCou
     if (!hasPlayerHeadquarters(store)) {
         return false;
     }
-    if (store.headquartersEstablishedTick == 0ULL) {
-        return false;
-    }
     if (tickCount < store.headquartersEstablishedTick + static_cast<uint64_t>(MONTHLY_LEDGER_INTERVAL_TICKS)) {
         return false;
     }
