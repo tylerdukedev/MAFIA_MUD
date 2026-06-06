@@ -1160,9 +1160,16 @@ void renderMapViewportPanel(
                 && (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)
                 || ImGui::IsMouseDragging(ImGuiMouseButton_Right)
                 || ImGui::IsMouseDragging(ImGuiMouseButton_Left));
+            float hoveredWorldX = 0.0f;
+            float hoveredWorldY = 0.0f;
+            WorldCoord hoveredTileCoord{};
+            bool hasHoveredTileCoord = false;
             if (isPanning) {
                 mapCamera.panPixels(io.MouseDelta.x, io.MouseDelta.y);
             } else {
+                mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, hoveredWorldX, hoveredWorldY);
+                hoveredTileCoord = mapCamera.worldToTile(hoveredWorldX, hoveredWorldY);
+                hasHoveredTileCoord = true;
                 viewportPickState.hasLandmarkHover = false;
                 viewportPickState.hoveredLandmarkIndex = -1;
                 viewportPickState.hasBusinessHover = false;
@@ -1229,28 +1236,20 @@ void renderMapViewportPanel(
                             viewportPickState.selectedBusinessIndex = -1;
                             updateViewportPickFromWorldCoord(viewportPickState, worldConfig, landmarkCoord, true);
                         }
-                        if (!contextHelpState.isInspectMode && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                            mapHudInteraction.requestOpenTileContextMenu = true;
-                            mapHudInteraction.contextMenuTileX = landmark->tileX;
-                            mapHudInteraction.contextMenuTileY = landmark->tileY;
-                        }
                     }
                 } else if (businessIndex < 0) {
-                    float worldX = 0.0f;
-                    float worldY = 0.0f;
-                    mapCamera.screenToWorld(io.MousePos.x, io.MousePos.y, canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y, worldX, worldY);
-                    const WorldCoord coord = mapCamera.worldToTile(worldX, worldY);
-                    updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, false);
+                    updateViewportPickFromWorldCoord(viewportPickState, worldConfig, hoveredTileCoord, false);
                     if (!contextHelpState.isInspectMode && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                         viewportPickState.hasLandmarkSelection = false;
                         viewportPickState.selectedLandmarkIndex = -1;
-                        updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
+                        updateViewportPickFromWorldCoord(viewportPickState, worldConfig, hoveredTileCoord, true);
                     }
-                    if (!contextHelpState.isInspectMode && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                        mapHudInteraction.requestOpenTileContextMenu = true;
-                        mapHudInteraction.contextMenuTileX = coord.x;
-                        mapHudInteraction.contextMenuTileY = coord.y;
-                    }
+                }
+                if (hasHoveredTileCoord && !contextHelpState.isInspectMode && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                    mapHudInteraction.contextMenuTileX = hoveredTileCoord.x;
+                    mapHudInteraction.contextMenuTileY = hoveredTileCoord.y;
+                    mapHudInteraction.requestOpenTileContextMenu = true;
+                    ImGui::OpenPopup("TileContextMenu");
                 }
             }
         } else {
@@ -1319,7 +1318,10 @@ void renderMapViewportPanel(
             mapHudInteraction.requestOpenTileContextMenu = false;
         }
         if (ImGui::BeginPopup("TileContextMenu")) {
-            ImGui::Text("Tile (%d, %d)", mapHudInteraction.contextMenuTileX, mapHudInteraction.contextMenuTileY);
+            char tileLabel[64];
+            std::snprintf(tileLabel, sizeof(tileLabel), "Tile (%d, %d)", mapHudInteraction.contextMenuTileX, mapHudInteraction.contextMenuTileY);
+            ImGui::TextUnformatted(tileLabel);
+            ImGui::TextDisabled("Double-click target confirmed above.");
             if (ImGui::BeginMenu("Travel")) {
                 const int32_t fromX = playerWorldState.currentTileX;
                 const int32_t fromY = playerWorldState.currentTileY;
@@ -1340,11 +1342,15 @@ void renderMapViewportPanel(
                         const RegionId targetRegion = chunkStore.getRegionAt(targetCoord);
                         const bool travelStarted = tryExecuteTravelPlan(plan, playerWorldState, targetRegion, tickCount, playerWallet, chunkStore, worldConfig);
                         if (travelStarted) {
-                            std::printf("Travel started: mode=%s target=(%d,%d) ticks=%d\n", modeDef->displayName, toX, toY, plan.estimatedTicks);
+                            char toast[96];
+                            std::snprintf(toast, sizeof(toast), "Travel started: %s -> (%d,%d)", modeDef->displayName, toX, toY);
+                            pushMapTopToast(g_mapNotificationLayer, MapToastKind::System, toast);
                             viewportPickState.hasSelection = true;
                             viewportPickState.selectedCoord = targetCoord;
                         } else {
-                            std::printf("Travel failed: mode=%s target=(%d,%d) ticks=%d\n", modeDef->displayName, toX, toY, plan.estimatedTicks);
+                            char toast[96];
+                            std::snprintf(toast, sizeof(toast), "Travel failed: %s -> (%d,%d)", modeDef->displayName, toX, toY);
+                            pushMapTopToast(g_mapNotificationLayer, MapToastKind::System, toast);
                         }
                     }
                 }
