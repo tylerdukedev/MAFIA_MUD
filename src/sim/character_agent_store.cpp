@@ -147,6 +147,100 @@ bool isAgentVisibleOnMap(const CharacterAgentState& state) {
     return state.isVisibleOnMap;
 }
 
+const char* agentArchetypeToLabel(AgentArchetype archetype) {
+    switch (archetype) {
+        case AgentArchetype::Laborer: return "Laborer";
+        case AgentArchetype::Dockworker: return "Dockworker";
+        case AgentArchetype::Shopkeeper: return "Shopkeeper";
+        case AgentArchetype::Clerk: return "Clerk";
+        case AgentArchetype::Bartender: return "Bartender";
+        case AgentArchetype::Cabbie: return "Cabbie";
+        case AgentArchetype::Landlord: return "Landlord";
+        case AgentArchetype::UnionMan: return "Union Man";
+        case AgentArchetype::Priest: return "Priest";
+        case AgentArchetype::Doctor: return "Doctor";
+        case AgentArchetype::Patrolman: return "Patrolman";
+        case AgentArchetype::Detective: return "Detective";
+        case AgentArchetype::Politician: return "Politician";
+        case AgentArchetype::Socialite: return "Socialite";
+        case AgentArchetype::NumbersRunner: return "Numbers Runner";
+        case AgentArchetype::Bootlegger: return "Bootlegger";
+        case AgentArchetype::Enforcer: return "Enforcer";
+        case AgentArchetype::Fence: return "Fence";
+        case AgentArchetype::Loanshark: return "Loanshark";
+        case AgentArchetype::Racketeer: return "Racketeer";
+        case AgentArchetype::Vagrant: return "Vagrant";
+        case AgentArchetype::Civilian:
+        default: return "Civilian";
+    }
+}
+
+const char* agentMotiveToLabel(AgentMotive motive) {
+    switch (motive) {
+        case AgentMotive::Survival: return "Survival";
+        case AgentMotive::Wealth: return "Wealth";
+        case AgentMotive::Status: return "Status";
+        case AgentMotive::Loyalty: return "Loyalty";
+        case AgentMotive::Revenge: return "Revenge";
+        default: return "Unknown";
+    }
+}
+
+const char* agentObjectiveToLabel(AgentObjective objective) {
+    switch (objective) {
+        case AgentObjective::EarnWage: return "Earn a wage";
+        case AgentObjective::RestAtHome: return "Rest at home";
+        case AgentObjective::Socialize: return "Socialize";
+        case AgentObjective::SeekIncome: return "Scrape up cash";
+        case AgentObjective::RunRacket: return "Run a racket";
+        case AgentObjective::LayLow: return "Lay low";
+        case AgentObjective::Patrol: return "Patrol the beat";
+        case AgentObjective::SeekCare: return "Seek medical care";
+        case AgentObjective::Settle:
+        default: return "Settle in";
+    }
+}
+
+const char* agentTraitToLabel(AgentPersonalityTrait trait) {
+    switch (trait) {
+        case AgentPersonalityTrait::Pragmatic: return "Pragmatic";
+        case AgentPersonalityTrait::Proud: return "Proud";
+        case AgentPersonalityTrait::Paranoid: return "Paranoid";
+        case AgentPersonalityTrait::Charitable: return "Charitable";
+        case AgentPersonalityTrait::Ruthless: return "Ruthless";
+        default: return "Unknown";
+    }
+}
+
+const char* agentEmotionToLabel(AgentEmotion emotion) {
+    switch (emotion) {
+        case AgentEmotion::Calm: return "Calm";
+        case AgentEmotion::Anxious: return "Anxious";
+        case AgentEmotion::Angry: return "Angry";
+        case AgentEmotion::Grateful: return "Grateful";
+        case AgentEmotion::Suspicious: return "Suspicious";
+        default: return "Unknown";
+    }
+}
+
+bool isCriminalArchetype(AgentArchetype archetype) {
+    switch (archetype) {
+        case AgentArchetype::NumbersRunner:
+        case AgentArchetype::Bootlegger:
+        case AgentArchetype::Enforcer:
+        case AgentArchetype::Fence:
+        case AgentArchetype::Loanshark:
+        case AgentArchetype::Racketeer:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool isLawEnforcementArchetype(AgentArchetype archetype) {
+    return archetype == AgentArchetype::Patrolman || archetype == AgentArchetype::Detective;
+}
+
 void updateAgentMapVisibility(CharacterAgentState& state) {
     switch (state.currentActivity) {
         case AgentActivity::Idle:

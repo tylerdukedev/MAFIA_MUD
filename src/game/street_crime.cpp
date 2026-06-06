@@ -1,5 +1,8 @@
 #include "game/street_crime.h"
+#include "game/crime_scene_generator.h"
 #include "game/economy_constants.h"
+#include "game/evidence_system.h"
+#include "game/investigation_case_store.h"
 #include "game/player_law_enforcement.h"
 #include "game/agent_relation_events.h"
 #include "character/character_social_network.h"
@@ -14,17 +17,17 @@ namespace Core {
 namespace {
 
 constexpr StreetCrimeDefinition STREET_CRIME_DEFINITIONS[] = {
-    {"panhandle", "Panhandle", "Ask strangers for spare change. No HQ needed.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 25, 1, 1, 78, 8, 35, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
-    {"wash_windows", "Squeegee Work", "Clean windshields at a light for tips.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 30, 1, 1, 75, 12, 45, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
-    {"sell_scrap", "Sell Scrap", "Hawk loose goods or scrap metal.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 40, 2, 2, 70, 20, 65, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
-    {"pickpocket", "Pickpocket", "Quick lift on a crowded corner. Solo work.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 35, 2, 1, 72, 18, 55, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
-    {"shoplift", "Shoplift", "Snatch goods from an open storefront.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 45, 3, 2, 68, 28, 85, 0.05f, 0.0f, 0, 0, PLAYER_HEAT_MAX, true},
-    {"shake_vendor", "Shake Down Vendor", "Lean on a pushcart for a few dollars.", StreetCrimeTier::Solo, CrimeLegalTier::Street, 55, 5, 3, 62, 45, 140, 0.12f, 0.0f, 0, 0, 90, false},
-    {"alley_mugging", "Alley Mugging", "One lookout, one muscle — split the take.", StreetCrimeTier::Crew, CrimeLegalTier::Street, 80, 8, 5, 55, 95, 240, 0.20f, 0.0f, 35, 1, 85, false},
-    {"warehouse_pinch", "Warehouse Pinch", "Slip a crate with a trusted runner.", StreetCrimeTier::Crew, CrimeLegalTier::Organization, 100, 10, 6, 50, 140, 320, 0.28f, 0.08f, 45, 1, 80, false},
-    {"numbers_drop", "Numbers Drop", "Run slips for a crew book on commission.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 120, 12, 8, 45, 220, 480, 0.35f, 0.15f, 50, 2, 75, false},
-    {"protection_cut", "Protection Cut", "Collect weekly from shops you cover.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 140, 14, 9, 40, 320, 720, 0.42f, 0.22f, 58, 2, 70, false},
-    {"import_skim", "Import Skim", "Divert a shipment with inside help.", StreetCrimeTier::Organization, CrimeLegalTier::Financial, 160, 18, 12, 38, 450, 1100, 0.50f, 0.30f, 65, 2, 65, false},
+    {"panhandle", "Panhandle", "Ask strangers for spare change. No HQ needed.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 25, 1, 1, 78, 8, 35, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, 72, true},
+    {"wash_windows", "Squeegee Work", "Clean windshields at a light for tips.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 30, 1, 1, 75, 12, 45, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, 68, true},
+    {"sell_scrap", "Sell Scrap", "Hawk loose goods or scrap metal.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 40, 2, 2, 70, 20, 65, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, 64, true},
+    {"pickpocket", "Pickpocket", "Quick lift on a crowded corner. Solo work.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 35, 2, 1, 72, 18, 55, 0.0f, 0.0f, 0, 0, PLAYER_HEAT_MAX, 58, true},
+    {"shoplift", "Shoplift", "Snatch goods from an open storefront.", StreetCrimeTier::Solo, CrimeLegalTier::PettyStreet, 45, 3, 2, 68, 28, 85, 0.05f, 0.0f, 0, 0, PLAYER_HEAT_MAX, 52, true},
+    {"shake_vendor", "Shake Down Vendor", "Lean on a pushcart for a few dollars.", StreetCrimeTier::Solo, CrimeLegalTier::Street, 55, 5, 3, 62, 45, 140, 0.12f, 0.0f, 0, 0, 90, 46, false},
+    {"alley_mugging", "Alley Mugging", "One lookout, one muscle — split the take.", StreetCrimeTier::Crew, CrimeLegalTier::Street, 80, 8, 5, 55, 95, 240, 0.20f, 0.0f, 35, 1, 85, 40, false},
+    {"warehouse_pinch", "Warehouse Pinch", "Slip a crate with a trusted runner.", StreetCrimeTier::Crew, CrimeLegalTier::Organization, 100, 10, 6, 50, 140, 320, 0.28f, 0.08f, 45, 1, 80, 34, false},
+    {"numbers_drop", "Numbers Drop", "Run slips for a crew book on commission.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 120, 12, 8, 45, 220, 480, 0.35f, 0.15f, 50, 2, 75, 28, false},
+    {"protection_cut", "Protection Cut", "Collect weekly from shops you cover.", StreetCrimeTier::Organization, CrimeLegalTier::Organization, 140, 14, 9, 40, 320, 720, 0.42f, 0.22f, 58, 2, 70, 24, false},
+    {"import_skim", "Import Skim", "Divert a shipment with inside help.", StreetCrimeTier::Organization, CrimeLegalTier::Financial, 160, 18, 12, 38, 450, 1100, 0.50f, 0.30f, 65, 2, 65, 18, false},
 };
 
 constexpr int32_t STREET_CRIME_DEFINITION_COUNT = static_cast<int32_t>(sizeof(STREET_CRIME_DEFINITIONS) / sizeof(STREET_CRIME_DEFINITIONS[0]));
@@ -189,7 +192,9 @@ bool tryCommitStreetCrime(
     uint64_t worldSeed,
     CriminalRecordStore* criminalRecord,
     PoliceContactStore* policeContacts,
-    uint8_t regionId) {
+    uint8_t regionId,
+    InvestigationCaseStore* investigationCases,
+    EvidenceSystemStore* evidenceStore) {
     const StreetCrimeDefinition* crime = getStreetCrimeDefinition(crimeIndex);
     if (crime == nullptr) {
         return false;
@@ -204,10 +209,17 @@ bool tryCommitStreetCrime(
     const uint32_t roll = Utils::hashSeedMix(worldSeed, static_cast<int32_t>(tickCount), crimeIndex + 0x535563) % 100U;
     const bool isSuccess = static_cast<int32_t>(roll) < successChance;
     rollStreetCrimeWitness(lawStore, organizationStore, profile, wallet, worldSeed, tickCount, crimeIndex, isSuccess);
+    if (investigationCases != nullptr) {
+        dispatchPoliceOnCrime(*investigationCases, crime->legalTier, tickCount, crime->displayName);
+    }
     if (isSuccess) {
         const int64_t payoutCents = rollPayoutCents(*crime, worldSeed, crimeIndex, tickCount);
         creditCrimeCash(wallet, payoutCents);
         addPlayerHeat(lawStore, crime->heatOnSuccess);
+        if (investigationCases != nullptr && evidenceStore != nullptr) {
+            tryGenerateCrimeSceneEvidence(*evidenceStore, *investigationCases, *crime, crimeIndex, worldSeed, tickCount);
+            syncLawEnforcementEvidenceRollup(lawStore, *investigationCases, *evidenceStore);
+        }
         tryIssueWarrantIfThresholdMet(lawStore);
         return true;
     }

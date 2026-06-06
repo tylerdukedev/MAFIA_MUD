@@ -10,6 +10,7 @@
 #include "sim/world_event_system.h"
 #include "sim/calendar_system.h"
 #include "sim/npc_autonomy_system.h"
+#include "core/sim_clock.h"
 #include "sim/isim_system.h"
 #include "game/game_calendar.h"
 #include "game/player_health.h"
@@ -22,6 +23,8 @@
 namespace Core {
 
 struct PropertyStore;
+struct BankLoanStore;
+struct PropertyListingStore;
 
 class SystemRegistry {
 public:
@@ -38,8 +41,11 @@ public:
         PlayerHealthStore* playerHealthStore,
         PopulationHealthStore* populationHealthStore,
         PlayerInformationFeedStore* informationFeedStore,
-        PropertyStore* propertyStore);
+        PropertyStore* propertyStore,
+        BankLoanStore* bankLoanStore = nullptr,
+        PropertyListingStore* propertyListingStore = nullptr);
     void runTick(uint64_t tickCount);
+    void updateFrame(double deltaSeconds, const SimClock& simClock);
     int32_t getSystemCount() const;
     const ISimSystem* getSystem(int32_t index) const;
     const BoroughVitalitySystem* getBoroughVitalitySystem() const;

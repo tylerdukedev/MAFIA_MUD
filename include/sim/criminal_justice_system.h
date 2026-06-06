@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/sim_clock.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_information_feed.h"
 #include "game/player_law_enforcement.h"
@@ -17,6 +18,7 @@ public:
         PlayerInformationFeedStore* inputInformationFeedStore);
     const char* getName() const override;
     void onTick(uint64_t tickCount) override;
+    void updateFrame(double deltaSeconds, const SimClock& simClock);
 
 private:
     SimWorldBindings bindings{};

@@ -1,7 +1,13 @@
 #include "persistence/save_game.h"
 #include "persistence/save_gameplay_stores.h"
+#include "game/bank_loan.h"
 #include "game/criminal_record.h"
+#include "game/evidence_system.h"
+#include "game/investigation_case_store.h"
 #include "game/police_contacts.h"
+#include "game/property_listing_store.h"
+#include "game/shared_travel_state.h"
+#include "game/travel_modes.h"
 #include "game/player_information_feed.h"
 #include "game/player_narrative_archive.h"
 #include "game/player_criminal_justice.h"
@@ -20,7 +26,8 @@ namespace Core {
 namespace {
 constexpr char SAVE_MAGIC[4] = {'C', 'V', 'S', 'V'};
 constexpr uint32_t SAVE_VERSION_MIN = 10U;
-constexpr uint32_t SAVE_VERSION = 15U;
+constexpr uint32_t SAVE_VERSION = 17U;
+constexpr int32_t LEGACY_AGENT_SLOT_COUNT = 32;
 
 struct SaveGameHeader {
     char magic[4];
@@ -82,6 +89,189 @@ bool readAllBytes(FILE* fileHandle, void* data, size_t byteCount) {
     const size_t readCount = std::fread(data, 1, byteCount, fileHandle);
     return readCount == byteCount;
 }
+
+struct CharacterAgentStateV15 {
+    int32_t opinionOfPlayer = 0;
+    int32_t trust = 50;
+    int32_t fear = 10;
+    int32_t respect = 40;
+    AgentEmotion currentEmotion = AgentEmotion::Calm;
+    bool isActive = false;
+    bool hasGeneratedIdentity = false;
+    char generatedDisplayName[32]{};
+    char generatedRoleLabel[24]{};
+    AgentMotive generatedMotive = AgentMotive::Loyalty;
+    AgentPersonalityTrait generatedTrait = AgentPersonalityTrait::Pragmatic;
+    uint16_t relationEventFlags = 0;
+    int32_t currentTileX = -1;
+    int32_t currentTileY = -1;
+    int32_t destinationTileX = -1;
+    int32_t destinationTileY = -1;
+    AgentActivity currentActivity = AgentActivity::Idle;
+    int32_t homePropertyIndex = -1;
+    int32_t workplaceBusinessIndex = -1;
+    int32_t cashCents = 0;
+    uint64_t activityStartTick = 0;
+    bool isVisibleOnMap = false;
+};
+
+void defaultInitializeAgentTravelFields(CharacterAgentState& state) {
+    state.mobilityAsset = MobilityAsset::None;
+    state.travelPathTileCount = 0;
+    state.travelStartTick = 0;
+    state.travelCompleteTick = 0;
+    state.travelMode = TravelMode::Walk;
+    state.travelDestTileX = -1;
+    state.travelDestTileY = -1;
+    for (int32_t pathIndex = 0; pathIndex < NPC_MAX_TRAVEL_PATH_TILES; ++pathIndex) {
+        state.travelPathTileX[pathIndex] = 0;
+        state.travelPathTileY[pathIndex] = 0;
+    }
+}
+
+void copyAgentStateFromV15(const CharacterAgentStateV15& legacyState, CharacterAgentState& outState) {
+    outState.opinionOfPlayer = legacyState.opinionOfPlayer;
+    outState.trust = legacyState.trust;
+    outState.fear = legacyState.fear;
+    outState.respect = legacyState.respect;
+    outState.currentEmotion = legacyState.currentEmotion;
+    outState.isActive = legacyState.isActive;
+    outState.hasGeneratedIdentity = legacyState.hasGeneratedIdentity;
+    std::memcpy(outState.generatedDisplayName, legacyState.generatedDisplayName, sizeof(outState.generatedDisplayName));
+    std::memcpy(outState.generatedRoleLabel, legacyState.generatedRoleLabel, sizeof(outState.generatedRoleLabel));
+    outState.generatedMotive = legacyState.generatedMotive;
+    outState.generatedTrait = legacyState.generatedTrait;
+    outState.relationEventFlags = legacyState.relationEventFlags;
+    outState.currentTileX = legacyState.currentTileX;
+    outState.currentTileY = legacyState.currentTileY;
+    outState.destinationTileX = legacyState.destinationTileX;
+    outState.destinationTileY = legacyState.destinationTileY;
+    outState.currentActivity = legacyState.currentActivity;
+    outState.homePropertyIndex = legacyState.homePropertyIndex;
+    outState.workplaceBusinessIndex = legacyState.workplaceBusinessIndex;
+    outState.cashCents = legacyState.cashCents;
+    outState.activityStartTick = legacyState.activityStartTick;
+    outState.isVisibleOnMap = legacyState.isVisibleOnMap;
+    defaultInitializeAgentTravelFields(outState);
+}
+
+// Layout of CharacterAgentState as written by save versions 16. v17 appended
+// life-sim fields (archetype, objective, wage/crime ticks, home region, wanted
+// level) and grew the agent capacity, so older blocks must be read explicitly.
+struct CharacterAgentStateV16 {
+    int32_t opinionOfPlayer = 0;
+    int32_t trust = 50;
+    int32_t fear = 10;
+    int32_t respect = 40;
+    AgentEmotion currentEmotion = AgentEmotion::Calm;
+    bool isActive = false;
+    bool hasGeneratedIdentity = false;
+    char generatedDisplayName[32]{};
+    char generatedRoleLabel[24]{};
+    AgentMotive generatedMotive = AgentMotive::Loyalty;
+    AgentPersonalityTrait generatedTrait = AgentPersonalityTrait::Pragmatic;
+    uint16_t relationEventFlags = 0;
+    int32_t currentTileX = -1;
+    int32_t currentTileY = -1;
+    int32_t destinationTileX = -1;
+    int32_t destinationTileY = -1;
+    MobilityAsset mobilityAsset = MobilityAsset::None;
+    int32_t travelPathTileCount = 0;
+    int32_t travelPathTileX[NPC_MAX_TRAVEL_PATH_TILES]{};
+    int32_t travelPathTileY[NPC_MAX_TRAVEL_PATH_TILES]{};
+    uint64_t travelStartTick = 0;
+    uint64_t travelCompleteTick = 0;
+    TravelMode travelMode = TravelMode::Walk;
+    int32_t travelDestTileX = -1;
+    int32_t travelDestTileY = -1;
+    AgentActivity currentActivity = AgentActivity::Idle;
+    int32_t homePropertyIndex = -1;
+    int32_t workplaceBusinessIndex = -1;
+    int32_t cashCents = 0;
+    uint64_t activityStartTick = 0;
+    bool isVisibleOnMap = false;
+};
+
+void copyAgentStateFromV16(const CharacterAgentStateV16& legacyState, CharacterAgentState& outState) {
+    outState = CharacterAgentState{};
+    outState.opinionOfPlayer = legacyState.opinionOfPlayer;
+    outState.trust = legacyState.trust;
+    outState.fear = legacyState.fear;
+    outState.respect = legacyState.respect;
+    outState.currentEmotion = legacyState.currentEmotion;
+    outState.isActive = legacyState.isActive;
+    outState.hasGeneratedIdentity = legacyState.hasGeneratedIdentity;
+    std::memcpy(outState.generatedDisplayName, legacyState.generatedDisplayName, sizeof(outState.generatedDisplayName));
+    std::memcpy(outState.generatedRoleLabel, legacyState.generatedRoleLabel, sizeof(outState.generatedRoleLabel));
+    outState.generatedMotive = legacyState.generatedMotive;
+    outState.generatedTrait = legacyState.generatedTrait;
+    outState.relationEventFlags = legacyState.relationEventFlags;
+    outState.currentTileX = legacyState.currentTileX;
+    outState.currentTileY = legacyState.currentTileY;
+    outState.destinationTileX = legacyState.destinationTileX;
+    outState.destinationTileY = legacyState.destinationTileY;
+    outState.mobilityAsset = legacyState.mobilityAsset;
+    outState.travelPathTileCount = legacyState.travelPathTileCount;
+    std::memcpy(outState.travelPathTileX, legacyState.travelPathTileX, sizeof(outState.travelPathTileX));
+    std::memcpy(outState.travelPathTileY, legacyState.travelPathTileY, sizeof(outState.travelPathTileY));
+    outState.travelStartTick = legacyState.travelStartTick;
+    outState.travelCompleteTick = legacyState.travelCompleteTick;
+    outState.travelMode = legacyState.travelMode;
+    outState.travelDestTileX = legacyState.travelDestTileX;
+    outState.travelDestTileY = legacyState.travelDestTileY;
+    outState.currentActivity = legacyState.currentActivity;
+    outState.homePropertyIndex = legacyState.homePropertyIndex;
+    outState.workplaceBusinessIndex = legacyState.workplaceBusinessIndex;
+    outState.cashCents = legacyState.cashCents;
+    outState.activityStartTick = legacyState.activityStartTick;
+    outState.isVisibleOnMap = legacyState.isVisibleOnMap;
+}
+
+bool readCharacterAgentStoreFromFile(FILE* fileHandle, uint32_t saveVersion, CharacterAgentStore& outStore) {
+    if (fileHandle == nullptr) {
+        return false;
+    }
+    resetCharacterAgentStore(outStore);
+    if (saveVersion >= 17U) {
+        return readAllBytes(
+            fileHandle,
+            outStore.states,
+            sizeof(CharacterAgentState) * static_cast<size_t>(MAX_CHARACTER_AGENT_COUNT));
+    }
+    if (saveVersion >= 16U) {
+        CharacterAgentStateV16 legacyStates[LEGACY_AGENT_SLOT_COUNT]{};
+        if (!readAllBytes(
+                fileHandle,
+                legacyStates,
+                sizeof(CharacterAgentStateV16) * static_cast<size_t>(LEGACY_AGENT_SLOT_COUNT))) {
+            return false;
+        }
+        for (int32_t agentIndex = 0; agentIndex < LEGACY_AGENT_SLOT_COUNT; ++agentIndex) {
+            copyAgentStateFromV16(legacyStates[agentIndex], outStore.states[agentIndex]);
+        }
+        return true;
+    }
+    CharacterAgentStateV15 legacyStates[LEGACY_AGENT_SLOT_COUNT]{};
+    if (!readAllBytes(
+            fileHandle,
+            legacyStates,
+            sizeof(CharacterAgentStateV15) * static_cast<size_t>(LEGACY_AGENT_SLOT_COUNT))) {
+        return false;
+    }
+    for (int32_t agentIndex = 0; agentIndex < LEGACY_AGENT_SLOT_COUNT; ++agentIndex) {
+        copyAgentStateFromV15(legacyStates[agentIndex], outStore.states[agentIndex]);
+    }
+    return true;
+}
+
+void defaultInitializePhase8SaveFields(SaveGameSnapshot& snapshot) {
+    resetPropertyListingStore(snapshot.propertyListingStore);
+    resetBankLoanStore(snapshot.bankLoanStore);
+    resetInvestigationCaseStore(snapshot.investigationCaseStore);
+    resetEvidenceSystemStore(snapshot.evidenceSystemStore);
+    snapshot.homePropertyIndex = -1;
+    snapshot.housingTenure = HousingTenure::None;
+}
 } // namespace
 
 bool saveFileExists(const char* filePath) {
@@ -110,6 +300,10 @@ bool buildSaveSnapshot(
     const WorldEventStore& worldEventStore,
     const CharacterAgentStore& characterAgentStore,
     const PropertyStore& propertyStore,
+    const PropertyListingStore& propertyListingStore,
+    const BankLoanStore& bankLoanStore,
+    const InvestigationCaseStore& investigationCaseStore,
+    const EvidenceSystemStore& evidenceSystemStore,
     const PlayerOrganizationStore& organizationStore,
     const PlayerLawEnforcementStore& lawEnforcementStore,
     const PlayerStreetCrimeStore& streetCrimeStore,
@@ -146,6 +340,12 @@ bool buildSaveSnapshot(
     }
     outSnapshot.characterAgentStore = characterAgentStore;
     outSnapshot.propertyStore = propertyStore;
+    outSnapshot.propertyListingStore = propertyListingStore;
+    outSnapshot.bankLoanStore = bankLoanStore;
+    outSnapshot.investigationCaseStore = investigationCaseStore;
+    outSnapshot.evidenceSystemStore = evidenceSystemStore;
+    outSnapshot.homePropertyIndex = playerOperationsStore.homePropertyIndex;
+    outSnapshot.housingTenure = playerOperationsStore.housingTenure;
     outSnapshot.organizationStore = organizationStore;
     outSnapshot.lawEnforcementStore = lawEnforcementStore;
     outSnapshot.streetCrimeStore = streetCrimeStore;
@@ -206,6 +406,10 @@ bool applySaveSnapshot(
     WorldEventStore& worldEventStore,
     CharacterAgentStore& characterAgentStore,
     PropertyStore& propertyStore,
+    PropertyListingStore& propertyListingStore,
+    BankLoanStore& bankLoanStore,
+    InvestigationCaseStore& investigationCaseStore,
+    EvidenceSystemStore& evidenceSystemStore,
     PlayerOrganizationStore& organizationStore,
     PlayerLawEnforcementStore& lawEnforcementStore,
     PlayerStreetCrimeStore& streetCrimeStore,
@@ -272,6 +476,8 @@ bool applySaveSnapshot(
     playerOperationsStore.consecutiveUnpaidRentMonths = snapshot.consecutiveUnpaidRentMonths;
     playerOperationsStore.rentMultiplierBps = snapshot.rentMultiplierBps;
     playerOperationsStore.rentEventAdjustmentBps = snapshot.rentEventAdjustmentBps;
+    playerOperationsStore.homePropertyIndex = snapshot.homePropertyIndex;
+    playerOperationsStore.housingTenure = snapshot.housingTenure;
     playerOperationsStore.workExperienceMonths = snapshot.workExperienceMonths;
     for (int32_t index = 0; index < MAX_OPERATION_CATALOG_COUNT; ++index) {
         playerOperationsStore.activeCatalogIndices[index] = snapshot.activeCatalogIndices[index];
@@ -283,6 +489,10 @@ bool applySaveSnapshot(
     worldEventStore = snapshot.worldEventStore;
     characterAgentStore = snapshot.characterAgentStore;
     propertyStore = snapshot.propertyStore;
+    propertyListingStore = snapshot.propertyListingStore;
+    bankLoanStore = snapshot.bankLoanStore;
+    investigationCaseStore = snapshot.investigationCaseStore;
+    evidenceSystemStore = snapshot.evidenceSystemStore;
     organizationStore = snapshot.organizationStore;
     lawEnforcementStore = snapshot.lawEnforcementStore;
     streetCrimeStore = snapshot.streetCrimeStore;
@@ -376,12 +586,20 @@ bool saveGameToFile(const char* filePath, const SaveGameSnapshot& snapshot) {
     const bool criminalRecordWritten = writeAllBytes(fileHandle, &snapshot.criminalRecordStore, sizeof(snapshot.criminalRecordStore));
     const bool policeContactsWritten = writeAllBytes(fileHandle, &snapshot.policeContactStore, sizeof(snapshot.policeContactStore));
     const bool propertyWritten = writeAllBytes(fileHandle, &snapshot.propertyStore, sizeof(snapshot.propertyStore));
+    const bool listingWritten = writeAllBytes(fileHandle, &snapshot.propertyListingStore, sizeof(snapshot.propertyListingStore));
+    const bool loanWritten = writeAllBytes(fileHandle, &snapshot.bankLoanStore, sizeof(snapshot.bankLoanStore));
+    const bool homePropertyIndexWritten = writeAllBytes(fileHandle, &snapshot.homePropertyIndex, sizeof(snapshot.homePropertyIndex));
+    const uint8_t housingTenureId = static_cast<uint8_t>(snapshot.housingTenure);
+    const bool housingTenureWritten = writeAllBytes(fileHandle, &housingTenureId, sizeof(housingTenureId));
+    const bool investigationWritten = writeAllBytes(fileHandle, &snapshot.investigationCaseStore, sizeof(snapshot.investigationCaseStore));
+    const bool evidenceWritten = writeAllBytes(fileHandle, &snapshot.evidenceSystemStore, sizeof(snapshot.evidenceSystemStore));
     const bool didSave = headerWritten && regionsWritten && terrainsWritten && elevationsWritten && flagsWritten
         && economicWeightsWritten && populationsWritten && crimePressuresWritten && lawPressuresWritten
         && businessVitalitiesWritten && playerInfluencesWritten && oppositionInfluencesWritten && cityOwnersWritten
         && catalogWritten && agentsWritten && agentCountWritten && organizationWritten && lawWritten && streetCrimeWritten
         && justiceWritten && workExperienceWritten && jobReapplyWritten && gameplayWritten
-        && criminalRecordWritten && policeContactsWritten && propertyWritten;
+        && criminalRecordWritten && policeContactsWritten && propertyWritten && listingWritten && loanWritten
+        && homePropertyIndexWritten && housingTenureWritten && investigationWritten && evidenceWritten;
     std::fclose(fileHandle);
     return didSave;
 }
@@ -474,7 +692,7 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     const bool oppositionInfluencesRead = readAllBytes(fileHandle, outSnapshot.oppositionInfluences.data(), outSnapshot.oppositionInfluences.size());
     const bool cityOwnersRead = readAllBytes(fileHandle, outSnapshot.cityOwnerIds.data(), outSnapshot.cityOwnerIds.size());
     const bool catalogRead = readAllBytes(fileHandle, outSnapshot.activeCatalogIndices, sizeof(outSnapshot.activeCatalogIndices));
-    const bool agentsRead = readAllBytes(fileHandle, outSnapshot.characterAgentStore.states, sizeof(CharacterAgentState) * static_cast<size_t>(MAX_CHARACTER_AGENT_COUNT));
+    const bool agentsRead = readCharacterAgentStoreFromFile(fileHandle, header.version, outSnapshot.characterAgentStore);
     int32_t agentCount = 0;
     const bool agentCountRead = readAllBytes(fileHandle, &agentCount, sizeof(agentCount));
     (void)agentCount;
@@ -496,7 +714,38 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
     }
     bool workExperienceRead = true;
     bool gameplayRead = true;
-    if (header.version >= 15U) {
+    bool phase8Read = true;
+    if (header.version >= 16U) {
+        workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
+        const bool jobReapplyRead = readAllBytes(
+            fileHandle,
+            outSnapshot.jobReapplyAvailableTickByBusiness,
+            sizeof(outSnapshot.jobReapplyAvailableTickByBusiness));
+        gameplayRead = readAllBytes(fileHandle, &outSnapshot.gameplayStores, sizeof(outSnapshot.gameplayStores));
+        const bool criminalRecordRead = readAllBytes(fileHandle, &outSnapshot.criminalRecordStore, sizeof(outSnapshot.criminalRecordStore));
+        const bool policeContactsRead = readAllBytes(fileHandle, &outSnapshot.policeContactStore, sizeof(outSnapshot.policeContactStore));
+        const bool propertyRead = readAllBytes(fileHandle, &outSnapshot.propertyStore, sizeof(outSnapshot.propertyStore));
+        const bool listingRead = readAllBytes(fileHandle, &outSnapshot.propertyListingStore, sizeof(outSnapshot.propertyListingStore));
+        const bool loanRead = readAllBytes(fileHandle, &outSnapshot.bankLoanStore, sizeof(outSnapshot.bankLoanStore));
+        const bool homePropertyIndexRead = readAllBytes(fileHandle, &outSnapshot.homePropertyIndex, sizeof(outSnapshot.homePropertyIndex));
+        uint8_t housingTenureId = 0U;
+        const bool housingTenureRead = readAllBytes(fileHandle, &housingTenureId, sizeof(housingTenureId));
+        outSnapshot.housingTenure = static_cast<HousingTenure>(housingTenureId);
+        if (!criminalRecordRead) { resetCriminalRecordStore(outSnapshot.criminalRecordStore); }
+        if (!policeContactsRead) { resetPoliceContactStore(outSnapshot.policeContactStore); }
+        if (!propertyRead) { resetPropertyStore(outSnapshot.propertyStore); }
+        if (!listingRead) { resetPropertyListingStore(outSnapshot.propertyListingStore); }
+        if (!loanRead) { resetBankLoanStore(outSnapshot.bankLoanStore); }
+        if (!homePropertyIndexRead) { outSnapshot.homePropertyIndex = -1; }
+        if (!housingTenureRead) { outSnapshot.housingTenure = HousingTenure::None; }
+        const bool investigationRead = readAllBytes(fileHandle, &outSnapshot.investigationCaseStore, sizeof(outSnapshot.investigationCaseStore));
+        const bool evidenceRead = readAllBytes(fileHandle, &outSnapshot.evidenceSystemStore, sizeof(outSnapshot.evidenceSystemStore));
+        if (!investigationRead) { resetInvestigationCaseStore(outSnapshot.investigationCaseStore); }
+        if (!evidenceRead) { resetEvidenceSystemStore(outSnapshot.evidenceSystemStore); }
+        gameplayRead = gameplayRead && criminalRecordRead && policeContactsRead && propertyRead;
+        phase8Read = listingRead && loanRead && homePropertyIndexRead && housingTenureRead && investigationRead && evidenceRead;
+        workExperienceRead = workExperienceRead && jobReapplyRead;
+    } else if (header.version >= 15U) {
         workExperienceRead = readAllBytes(fileHandle, &outSnapshot.workExperienceMonths, sizeof(outSnapshot.workExperienceMonths));
         const bool jobReapplyRead = readAllBytes(
             fileHandle,
@@ -551,11 +800,14 @@ bool loadGameFromFile(const char* filePath, SaveGameSnapshot& outSnapshot) {
         resetPoliceContactStore(outSnapshot.policeContactStore);
         resetPropertyStore(outSnapshot.propertyStore);
     }
+    if (header.version < 16U) {
+        defaultInitializePhase8SaveFields(outSnapshot);
+    }
     const bool didLoad = regionsRead && terrainsRead && elevationsRead && flagsRead
         && economicWeightsRead && populationsRead && crimePressuresRead && lawPressuresRead
         && businessVitalitiesRead && playerInfluencesRead && oppositionInfluencesRead && cityOwnersRead
         && catalogRead && agentsRead && agentCountRead && organizationRead && lawRead && streetCrimeRead && justiceRead
-        && workExperienceRead && gameplayRead;
+        && workExperienceRead && gameplayRead && phase8Read;
     std::fclose(fileHandle);
     return didLoad;
 }

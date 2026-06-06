@@ -2,13 +2,14 @@
 
 #include "sim/character_agent.h"
 #include "ui/map_camera.h"
+#include "ui/map_marker_style.h"
 #include "imgui.h"
 #include <cstdint>
 
 namespace Core {
 
 constexpr float NPC_MARKER_SIZE_PIXELS = 5.0f;
-constexpr float NPC_LABEL_MIN_ZOOM = 5.5f;
+constexpr float NPC_LABEL_MIN_ZOOM = MAP_LABEL_ZOOM_THRESHOLD;
 
 // Render all visible NPCs on the map
 void renderNpcMapMarkers(

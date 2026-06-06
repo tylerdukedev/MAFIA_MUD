@@ -150,6 +150,25 @@ Procedural map, modern minimal ImGui, strict performance foundations for scale.
 
 ---
 
+## Phase 8 — Systems Expansion ✅
+
+**Goal**: NPC travel parity, unified map markers, property listings, bank loans, social actions, and expanded justice/evidence pipeline.
+
+| Deliverable | Status |
+|-------------|--------|
+| Save format v16 — listings, loans, housing tenure, agent travel/mobility, investigation/evidence stores | ✅ |
+| v15 → v16 migration — default-initialize new Phase 8 fields | ✅ |
+| Shared travel + mobility assets (Track 8A) | ✅ |
+| Map node taxonomy (Track 8B) | ✅ |
+| Property / RE / banks / dealerships (Track 8D) | ✅ |
+| Social relationship actions (Track 8C) | ✅ |
+| Investigation / evidence / custody timers (Track 8E) | ✅ |
+| Economy index (borough + year multipliers) | ✅ |
+
+**Done when**: All tracks complete per [`PHASE_8_SYSTEMS_EXPANSION_PLAN.md`](PHASE_8_SYSTEMS_EXPANSION_PLAN.md); save/load round-trips all new stores. **Complete.**
+
+---
+
 ## Architecture Reference
 
 ```

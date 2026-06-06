@@ -1,11 +1,14 @@
 #pragma once
 
 #include "character/player_profile.h"
+#include "game/crime_legal_tier.h"
 #include "game/player_wallet.h"
 #include "game/police_contacts.h"
 
 namespace Core {
 struct PlayerOrganizationStore;
+struct InvestigationCaseStore;
+struct EvidenceSystemStore;
 }
 #include <cstdint>
 
@@ -59,5 +62,14 @@ void tickPoliceEvidenceDecay(PlayerLawEnforcementStore& store, uint64_t tickCoun
 void tickPoliceWarrantReview(PlayerLawEnforcementStore& store, uint64_t tickCount);
 const char* getPoliceInvestigationLabel(int32_t investigationTier);
 bool hasActivePoliceWarrant(const PlayerLawEnforcementStore& store);
+void syncLawEnforcementEvidenceRollup(
+    PlayerLawEnforcementStore& store,
+    const InvestigationCaseStore& caseStore,
+    const EvidenceSystemStore& evidenceStore);
+void dispatchPoliceOnCrime(
+    InvestigationCaseStore& caseStore,
+    CrimeLegalTier legalTier,
+    uint64_t tickCount,
+    const char* dispatchLabel);
 
 } // namespace Core

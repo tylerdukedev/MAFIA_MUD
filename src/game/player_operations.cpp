@@ -27,6 +27,8 @@ void resetPlayerOperationsStore(PlayerOperationsStore& store) {
     for (int32_t businessIndex = 0; businessIndex < MAX_BUSINESS_NODE_COUNT; ++businessIndex) {
         store.jobReapplyAvailableTickByBusiness[businessIndex] = 0ULL;
     }
+    store.homePropertyIndex = -1;
+    store.housingTenure = HousingTenure::None;
 }
 
 void clearPlayerHeadquarters(PlayerOperationsStore& store) {
@@ -38,6 +40,8 @@ void clearPlayerHeadquarters(PlayerOperationsStore& store) {
     store.consecutiveUnpaidRentMonths = 0;
     store.rentEventAdjustmentBps = 0;
     store.rentMultiplierBps = RENT_MULTIPLIER_BPS_BASE;
+    store.homePropertyIndex = -1;
+    store.housingTenure = HousingTenure::None;
 }
 
 bool hasPlayerHeadquarters(const PlayerOperationsStore& store) {

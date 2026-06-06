@@ -5,6 +5,7 @@
 #include "game/player_work_schedule.h"
 #include "game/player_operations.h"
 #include "game/player_world_state.h"
+#include "game/property_store.h"
 #include "sim/character_agent.h"
 #include "sim/isim_system.h"
 #include "sim/sim_world_bindings.h"
@@ -21,7 +22,8 @@ public:
         PlayerOperationsStore* inputOperationsStore,
         PlayerHealthStore* inputPlayerHealthStore,
         PopulationHealthStore* inputPopulationHealthStore,
-        CharacterAgentStore* inputAgentStore);
+        CharacterAgentStore* inputAgentStore,
+        PropertyStore* inputPropertyStore);
     const char* getName() const override;
     void onTick(uint64_t tickCount) override;
 
@@ -34,6 +36,7 @@ private:
     PlayerHealthStore* playerHealthStore = nullptr;
     PopulationHealthStore* populationHealthStore = nullptr;
     CharacterAgentStore* agentStore = nullptr;
+    PropertyStore* propertyStore = nullptr;
 };
 
 } // namespace Core

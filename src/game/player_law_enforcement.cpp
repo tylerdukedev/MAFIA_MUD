@@ -1,8 +1,11 @@
 #include "game/player_law_enforcement.h"
+#include "game/evidence_system.h"
+#include "game/investigation_case_store.h"
 #include "game/player_organization.h"
 #include "game/player_operations.h"
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 namespace Core {
 
@@ -149,6 +152,39 @@ const char* getPoliceInvestigationLabel(int32_t investigationTier) {
 
 bool hasActivePoliceWarrant(const PlayerLawEnforcementStore& store) {
     return store.activeWarrantCount > 0;
+}
+
+void syncLawEnforcementEvidenceRollup(
+    PlayerLawEnforcementStore& store,
+    const InvestigationCaseStore& caseStore,
+    const EvidenceSystemStore& evidenceStore) {
+    const int32_t caseCertainty = computeAggregateCaseCertainty(caseStore);
+    const int32_t evidenceTotal = computeAggregateEvidenceScore(evidenceStore, caseStore);
+    store.evidenceScore = std::clamp(std::max(caseCertainty, evidenceTotal), 0, PLAYER_HEAT_MAX);
+    refreshInvestigationTier(store);
+}
+
+void dispatchPoliceOnCrime(
+    InvestigationCaseStore& caseStore,
+    CrimeLegalTier legalTier,
+    uint64_t tickCount,
+    const char* dispatchLabel) {
+    int32_t caseIndex = findOpenInvestigationCase(caseStore, legalTier);
+    if (caseIndex < 0) {
+        caseIndex = openInvestigationCase(caseStore, legalTier, tickCount, dispatchLabel);
+    }
+    if (caseIndex < 0) {
+        return;
+    }
+    InvestigationCase& investigationCase = caseStore.cases[caseIndex];
+    investigationCase.dispatchPending = 1;
+    investigationCase.lastActivityTick = tickCount;
+    if (dispatchLabel != nullptr && investigationCase.caseLabel[0] == '\0') {
+        std::strncpy(investigationCase.caseLabel, dispatchLabel, sizeof(investigationCase.caseLabel) - 1);
+    }
+    if (caseStore.primaryCaseIndex < 0) {
+        caseStore.primaryCaseIndex = caseIndex;
+    }
 }
 
 } // namespace Core

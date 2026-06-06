@@ -20,6 +20,10 @@
 #include "game/action_reason_catalog.h"
 #include "game/legal_counsel.h"
 #include "sim/character_agent.h"
+#include "sim/agent_relationship_graph.h"
+#include "game/npc_decision.h"
+#include "game/property_store.h"
+#include "world/business_node_table.h"
 #include <algorithm>
 #include "world/city_control.h"
 #include "world/landmark_table.h"
@@ -799,6 +803,149 @@ void devConsoleExecuteCommand(
     devConsoleLogAppend(log, "Unknown command. Type help.");
 }
 
+namespace {
+
+const char* mobilityAssetLabel(MobilityAsset asset) {
+    switch (asset) {
+        case MobilityAsset::Bicycle: return "Bicycle";
+        case MobilityAsset::Vehicle: return "Vehicle";
+        default: return "On foot";
+    }
+}
+
+bool inspectorFilterMatches(const char* name, const char* role, const char* filter) {
+    if (filter == nullptr || filter[0] == '\0') {
+        return true;
+    }
+    char filterLower[64];
+    int32_t filterLen = 0;
+    for (; filter[filterLen] != '\0' && filterLen < 63; ++filterLen) {
+        filterLower[filterLen] = static_cast<char>(std::tolower(static_cast<unsigned char>(filter[filterLen])));
+    }
+    filterLower[filterLen] = '\0';
+    char haystack[96];
+    std::snprintf(haystack, sizeof(haystack), "%s %s", name != nullptr ? name : "", role != nullptr ? role : "");
+    for (int32_t i = 0; haystack[i] != '\0'; ++i) {
+        haystack[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(haystack[i])));
+    }
+    return std::strstr(haystack, filterLower) != nullptr;
+}
+
+void renderAgentDetail(const DevConsoleGameplaySnapshot& snapshot, int32_t agentIndex) {
+    if (snapshot.characterAgentStore == nullptr) {
+        ImGui::TextUnformatted("No world loaded.");
+        return;
+    }
+    const CharacterAgentStore& store = *snapshot.characterAgentStore;
+    if (agentIndex < 0 || agentIndex >= MAX_CHARACTER_AGENT_COUNT || !store.states[agentIndex].isActive) {
+        ImGui::TextUnformatted("Select a character from the list to inspect their full profile.");
+        return;
+    }
+    const CharacterAgentState& agent = store.states[agentIndex];
+    const char* name = nullptr;
+    const char* role = nullptr;
+    tryGetAgentDisplayLabels(store, agentIndex, name, role);
+    ImGui::Text("%s", name != nullptr ? name : "Unknown");
+    ImGui::TextDisabled("Slot %d  |  %s", agentIndex, role != nullptr ? role : "");
+    ImGui::Separator();
+    ImGui::Text("Archetype:  %s", agentArchetypeToLabel(agent.generatedArchetype));
+    ImGui::Text("Motive:     %s", agentMotiveToLabel(agent.generatedMotive));
+    ImGui::Text("Objective:  %s", agentObjectiveToLabel(agent.currentObjective));
+    ImGui::Text("Trait:      %s", agentTraitToLabel(agent.generatedTrait));
+    ImGui::Text("Emotion:    %s", agentEmotionToLabel(agent.currentEmotion));
+    ImGui::Text("Activity:   %s%s", getActivityDisplayLabel(agent.currentActivity), agent.isVisibleOnMap ? "  (on map)" : "");
+    ImGui::Separator();
+    ImGui::Text("Position:   (%d, %d)", agent.currentTileX, agent.currentTileY);
+    ImGui::Text("Home:       region %d, property %d", static_cast<int32_t>(agent.homeRegionId), agent.homePropertyIndex);
+    if (agent.workplaceBusinessIndex >= 0) {
+        const BusinessNodeDefinition* business = getBusinessNodeDefinition(agent.workplaceBusinessIndex);
+        ImGui::Text("Workplace:  %s", business != nullptr ? business->fullName : "(unknown)");
+    } else {
+        ImGui::TextUnformatted("Workplace:  none");
+    }
+    ImGui::Text("Cash:       $%.2f", static_cast<double>(agent.cashCents) / 100.0);
+    ImGui::Text("Mobility:   %s", mobilityAssetLabel(agent.mobilityAsset));
+    if (agent.currentActivity == AgentActivity::Incarcerated) {
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "Status:     In custody");
+    }
+    if (agent.wantedLevel > 0) {
+        ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.3f, 1.0f), "Wanted level: %d", static_cast<int32_t>(agent.wantedLevel));
+    }
+    ImGui::Separator();
+    ImGui::TextUnformatted("Disposition toward player:");
+    ImGui::Text("  opinion %d   trust %d   fear %d   respect %d", agent.opinionOfPlayer, agent.trust, agent.fear, agent.respect);
+    ImGui::Separator();
+    if (snapshot.agentRelationshipGraph != nullptr) {
+        const int32_t tieCount = getAgentTieCount(*snapshot.agentRelationshipGraph, agentIndex);
+        ImGui::Text("Relationships (%d):", tieCount);
+        for (int32_t tieIndex = 0; tieIndex < tieCount; ++tieIndex) {
+            const AgentTie* tie = getAgentTie(*snapshot.agentRelationshipGraph, agentIndex, tieIndex);
+            if (tie == nullptr || tie->targetAgentIndex < 0) {
+                continue;
+            }
+            const char* tieName = nullptr;
+            const char* tieRole = nullptr;
+            tryGetAgentDisplayLabels(store, tie->targetAgentIndex, tieName, tieRole);
+            ImGui::BulletText(
+                "%s - %s (affinity %d)",
+                tieName != nullptr ? tieName : "(unknown)",
+                agentTieKindToLabel(static_cast<AgentTieKind>(tie->kind)),
+                static_cast<int32_t>(tie->affinity));
+        }
+    }
+}
+
+void renderCharacterInspector(DevConsoleState& state, const DevConsoleGameplaySnapshot* snapshot) {
+    if (!state.isInspectorVisible) {
+        return;
+    }
+    if (snapshot == nullptr || !snapshot->isWorldReady || snapshot->characterAgentStore == nullptr) {
+        return;
+    }
+    ImGui::SetNextWindowSize(ImVec2(620.0f, 440.0f), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Character Inspector", &state.isInspectorVisible)) {
+        ImGui::End();
+        return;
+    }
+    const CharacterAgentStore& store = *snapshot->characterAgentStore;
+    int32_t activeCount = 0;
+    for (int32_t i = 0; i < MAX_CHARACTER_AGENT_COUNT; ++i) {
+        if (store.states[i].isActive) {
+            activeCount += 1;
+        }
+    }
+    ImGui::Text("Active characters: %d", activeCount);
+    ImGui::InputTextWithHint("##inspectorFilter", "filter by name or role", state.inspectorFilter, sizeof(state.inspectorFilter));
+    ImGui::Separator();
+    ImGui::BeginChild("InspectorList", ImVec2(240.0f, 0.0f), true);
+    for (int32_t i = 0; i < MAX_CHARACTER_AGENT_COUNT; ++i) {
+        if (!store.states[i].isActive) {
+            continue;
+        }
+        const char* name = nullptr;
+        const char* role = nullptr;
+        if (!tryGetAgentDisplayLabels(store, i, name, role)) {
+            continue;
+        }
+        if (!inspectorFilterMatches(name, role, state.inspectorFilter)) {
+            continue;
+        }
+        char label[128];
+        std::snprintf(label, sizeof(label), "%s  [%s]##agent%d", name != nullptr ? name : "?", role != nullptr ? role : "", i);
+        if (ImGui::Selectable(label, state.selectedAgentIndex == i)) {
+            state.selectedAgentIndex = i;
+        }
+    }
+    ImGui::EndChild();
+    ImGui::SameLine();
+    ImGui::BeginChild("InspectorDetail", ImVec2(0.0f, 0.0f), true);
+    renderAgentDetail(*snapshot, state.selectedAgentIndex);
+    ImGui::EndChild();
+    ImGui::End();
+}
+
+} // namespace
+
 void devConsoleRender(
     DevConsoleState& state,
     DevConsoleLog& log,
@@ -811,8 +958,11 @@ void devConsoleRender(
     ImGui::SetNextWindowSize(ImVec2(640.0f, 360.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(DEV_CONSOLE_WINDOW_NAME, &state.isVisible)) {
         ImGui::End();
+        renderCharacterInspector(state, gameplaySnapshot);
         return;
     }
+    ImGui::Checkbox("Character Inspector", &state.isInspectorVisible);
+    ImGui::Separator();
     const float footerHeight = ImGui::GetFrameHeightWithSpacing();
     ImGui::BeginChild("DevConsoleLog", ImVec2(0.0f, -footerHeight), true, ImGuiWindowFlags_HorizontalScrollbar);
     const int32_t startLine = log.lineCount < DEV_CONSOLE_LOG_LINE_COUNT ? 0 : log.writeIndex;
@@ -836,6 +986,7 @@ void devConsoleRender(
         state.inputBuffer[0] = '\0';
     }
     ImGui::End();
+    renderCharacterInspector(state, gameplaySnapshot);
 }
 
 } // namespace Core

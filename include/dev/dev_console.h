@@ -8,7 +8,9 @@
 #include "game/player_operations.h"
 #include "persistence/save_gameplay_stores.h"
 #include "game/player_wallet.h"
+#include "game/property_store.h"
 #include "sim/character_agent.h"
+#include "sim/agent_relationship_graph.h"
 #include "sim/world_event_store.h"
 #include "world/city_control.h"
 #include <cstddef>
@@ -22,6 +24,9 @@ struct DevConsoleState {
     bool isVisible = false;
     char inputBuffer[256]{};
     bool requestFocusInput = false;
+    bool isInspectorVisible = true;
+    int32_t selectedAgentIndex = -1;
+    char inspectorFilter[64]{};
 };
 
 constexpr int32_t DEV_CONSOLE_LOG_LINE_COUNT = 128;
@@ -41,6 +46,8 @@ struct DevConsoleGameplaySnapshot {
     PlayerLawEnforcementStore* playerLawEnforcementStore = nullptr;
     PlayerCriminalJusticeStore* playerCriminalJusticeStore = nullptr;
     CharacterAgentStore* characterAgentStore = nullptr;
+    AgentRelationshipGraph* agentRelationshipGraph = nullptr;
+    PropertyStore* propertyStore = nullptr;
     WorldEventStore* worldEventStore = nullptr;
     SaveGameplayStores* gameplayStores = nullptr;
     uint64_t tickCount = 0;

@@ -148,6 +148,11 @@ void resetPlayerCriminalJusticeStore(PlayerCriminalJusticeStore& store) {
     store.isPreTrialParoleRelease = 0;
     store.lastArrestRollTick = 0;
     store.lastCustodyLabel[0] = '\0';
+    resetCustodyTimer(store.postArrestCustodyTimer);
+    resetCustodyTimer(store.arraignmentCustodyTimer);
+    store.pendingPleaConference = 0;
+    store.pendingTrialDocket = 0;
+    store.activeInvestigationCaseIndex = -1;
     for (int32_t agentIndex = 0; agentIndex < MAX_CHARACTER_AGENT_COUNT; ++agentIndex) {
         store.agentCustody[agentIndex] = AgentCustodySlot{};
     }
@@ -290,6 +295,15 @@ void beginPlayerArrest(
         const ChargeType chargeType = chargeTypeFromLegalTier(legalTier, worldSeed, tickCount);
         addCriminalCharge(*criminalRecord, chargeType, legalTier, tickCount, officerName, jurisdiction);
     }
+    startCustodyTimer(
+        justiceStore.postArrestCustodyTimer,
+        CustodyTimerPhase::PostArrestToArraignment,
+        worldSeed,
+        tickCount,
+        justiceStore.arrestCount);
+    resetCustodyTimer(justiceStore.arraignmentCustodyTimer);
+    justiceStore.pendingPleaConference = 0;
+    justiceStore.pendingTrialDocket = 0;
 }
 
 bool shouldReleaseOnPreTrialParole(
@@ -321,6 +335,12 @@ void commitPlayerCustodyDetention(PlayerCriminalJusticeStore& justiceStore, uint
     justiceStore.phaseTicksRemaining = JUSTICE_JAIL_HOLD_TICKS;
     justiceStore.custodyStartedTick = tickCount;
     justiceStore.pendingCourtModal = 0;
+    startCustodyTimer(
+        justiceStore.arraignmentCustodyTimer,
+        CustodyTimerPhase::ArraignmentToTrial,
+        tickCount,
+        tickCount,
+        justiceStore.arrestCount + 17);
     std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Held in county jail — court soon");
 }
 
@@ -537,6 +557,27 @@ void applyJailEvent(
             event.description,
             tickCount,
             false);
+    }
+}
+
+void tickPlayerCustodyTimers(
+    PlayerCriminalJusticeStore& justiceStore,
+    double deltaSeconds,
+    bool isSimPaused,
+    uint64_t tickCount) {
+    const CustodyPhase phase = getPlayerCustodyPhase(justiceStore);
+    tickCustodyTimer(justiceStore.postArrestCustodyTimer, deltaSeconds, isSimPaused);
+    tickCustodyTimer(justiceStore.arraignmentCustodyTimer, deltaSeconds, isSimPaused);
+    if (phase == CustodyPhase::Arrested && isCustodyTimerComplete(justiceStore.postArrestCustodyTimer)) {
+        justiceStore.phaseTicksRemaining = 0;
+        resetCustodyTimer(justiceStore.postArrestCustodyTimer);
+        std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Booking complete — arraignment ready");
+    }
+    if (phase == CustodyPhase::InJail && isCustodyTimerComplete(justiceStore.arraignmentCustodyTimer)) {
+        justiceStore.pendingPleaConference = 1;
+        resetCustodyTimer(justiceStore.arraignmentCustodyTimer);
+        std::snprintf(justiceStore.lastCustodyLabel, sizeof(justiceStore.lastCustodyLabel), "%s", "Plea conference scheduled");
+        (void)tickCount;
     }
 }
 

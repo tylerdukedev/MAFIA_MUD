@@ -1,14 +1,10 @@
 #include "ui/landmark_renderer.h"
+#include "ui/map_marker_style.h"
 #include "world/landmark_table.h"
 
 namespace Core {
 
 namespace {
-
-constexpr float LANDMARK_MARKER_SIZE_PIXELS = 4.0f;
-constexpr float LANDMARK_LABEL_PADDING_X = 3.0f;
-constexpr float LANDMARK_LABEL_PADDING_Y = 1.0f;
-constexpr float LANDMARK_LABEL_OFFSET_Y = 2.0f;
 
 void getLandmarkScreenCenter(
     const MapCamera& camera,
@@ -43,18 +39,6 @@ void getLandmarkScreenCenter(
     outScreenY = (tileMinY + tileMaxY) * 0.5f;
 }
 
-void getLandmarkLabelBounds(
-    float centerX,
-    float centerY,
-    const char* labelText,
-    ImVec2& outMin,
-    ImVec2& outMax) {
-    const ImVec2 labelSize = ImGui::CalcTextSize(labelText);
-    const ImVec2 labelPos(centerX - labelSize.x * 0.5f, centerY + LANDMARK_MARKER_SIZE_PIXELS + LANDMARK_LABEL_OFFSET_Y);
-    outMin = ImVec2(labelPos.x - LANDMARK_LABEL_PADDING_X, labelPos.y - LANDMARK_LABEL_PADDING_Y);
-    outMax = ImVec2(labelPos.x + labelSize.x + LANDMARK_LABEL_PADDING_X, labelPos.y + labelSize.y + LANDMARK_LABEL_PADDING_Y);
-}
-
 bool isPointInRect(float screenX, float screenY, const ImVec2& rectMin, const ImVec2& rectMax) {
     return screenX >= rectMin.x && screenX <= rectMax.x && screenY >= rectMin.y && screenY <= rectMax.y;
 }
@@ -73,12 +57,12 @@ bool isPointOverLandmark(
     if (deltaX * deltaX + deltaY * deltaY <= hitRadiusSquared) {
         return true;
     }
-    if (pixelsPerTile < LANDMARK_LABEL_MIN_ZOOM) {
+    if (pixelsPerTile < MAP_LABEL_ZOOM_THRESHOLD) {
         return false;
     }
     ImVec2 labelMin{};
     ImVec2 labelMax{};
-    getLandmarkLabelBounds(centerX, centerY, landmark.mapLabel, labelMin, labelMax);
+    getMapMarkerLabelBounds(centerX, centerY, MAP_MARKER_DEFAULT_RADIUS_PIXELS, landmark.mapLabel, labelMin, labelMax);
     return isPointInRect(screenX, screenY, labelMin, labelMax);
 }
 
@@ -142,17 +126,10 @@ void renderLandmarkOverlays(
         }
         const bool isHovered = viewportPickState.hasLandmarkHover && viewportPickState.hoveredLandmarkIndex == landmarkIndex;
         const bool isSelected = viewportPickState.hasLandmarkSelection && viewportPickState.selectedLandmarkIndex == landmarkIndex;
-        const ImU32 markerColor = isSelected ? IM_COL32(255, 230, 120, 255)
-            : (isHovered ? IM_COL32(255, 210, 80, 255) : IM_COL32(240, 244, 252, 230));
-        drawList->AddCircleFilled(ImVec2(centerX, centerY), LANDMARK_MARKER_SIZE_PIXELS, markerColor);
-        drawList->AddCircle(ImVec2(centerX, centerY), LANDMARK_MARKER_SIZE_PIXELS + 1.0f, IM_COL32(20, 22, 28, 220), 0, 1.5f);
-        if (camera.pixelsPerTile >= LANDMARK_LABEL_MIN_ZOOM) {
-            ImVec2 labelMin{};
-            ImVec2 labelMax{};
-            getLandmarkLabelBounds(centerX, centerY, landmark->mapLabel, labelMin, labelMax);
-            const ImVec2 labelPos(labelMin.x + LANDMARK_LABEL_PADDING_X, labelMin.y + LANDMARK_LABEL_PADDING_Y);
-            drawList->AddRectFilled(labelMin, labelMax, IM_COL32(16, 18, 24, 210));
-            drawList->AddText(labelPos, IM_COL32(235, 238, 245, 245), landmark->mapLabel);
+        const ImU32 markerColor = getLocationMarkerColor(LocationCategory::Landmark, isHovered, isSelected);
+        drawMapMarkerCircle(drawList, centerX, centerY, MAP_MARKER_DEFAULT_RADIUS_PIXELS, markerColor);
+        if (camera.pixelsPerTile >= MAP_LABEL_ZOOM_THRESHOLD) {
+            drawMapMarkerLabel(drawList, centerX, centerY, MAP_MARKER_DEFAULT_RADIUS_PIXELS, landmark->mapLabel);
         }
         if (isSelected) {
             WorldCoord coord{landmark->tileX, landmark->tileY};
@@ -181,7 +158,7 @@ void renderLandmarkOverlays(
             drawList->AddRect(
                 ImVec2(tileMinX, tileMinY),
                 ImVec2(tileMaxX, tileMaxY),
-                IM_COL32(255, 210, 80, 240),
+                getLocationMarkerColor(LocationCategory::Landmark, true, true),
                 0.0f,
                 0,
                 2.0f);

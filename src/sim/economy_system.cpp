@@ -1,4 +1,5 @@
 #include "sim/economy_system.h"
+#include "game/bank_loan.h"
 #include "game/economy_constants.h"
 #include "game/housing_living_costs.h"
 #include "game/player_employment.h"
@@ -8,8 +9,15 @@
 
 namespace Core {
 
-void EconomySystem::bind(const SimWorldBindings& inputBindings) {
+void EconomySystem::bind(
+    const SimWorldBindings& inputBindings,
+    BankLoanStore* inputLoanStore,
+    GameCalendarStore* inputCalendarStore,
+    PropertyListingStore* inputListingStore) {
     bindings = inputBindings;
+    loanStore = inputLoanStore;
+    calendarStore = inputCalendarStore;
+    propertyListingStore = inputListingStore;
     hasAppliedStartingInfluence = false;
 }
 
@@ -89,7 +97,15 @@ void EconomySystem::applyMonthlyLivingCosts(uint64_t tickCount) {
         *bindings.playerWallet,
         *bindings.characterAgentStore,
         employedIndex,
-        tickCount);
+        tickCount,
+        propertyListingStore);
+}
+
+void EconomySystem::applyMonthlyLoanPayments(uint64_t tickCount) {
+    if (loanStore == nullptr || bindings.playerWallet == nullptr) {
+        return;
+    }
+    tickMonthlyLoanPayments(*loanStore, *bindings.playerWallet, tickCount);
 }
 
 void EconomySystem::onTick(uint64_t tickCount) {
@@ -98,6 +114,7 @@ void EconomySystem::onTick(uint64_t tickCount) {
     recomputeIncomeRates();
     applyAccruedIncome();
     applyMonthlyLivingCosts(tickCount);
+    applyMonthlyLoanPayments(tickCount);
     if (tickCount % static_cast<uint64_t>(ECONOMY_INCOME_APPLY_INTERVAL_TICKS) != 0ULL) {
         return;
     }

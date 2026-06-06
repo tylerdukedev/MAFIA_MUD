@@ -73,12 +73,44 @@ int32_t computeEffectiveRentMultiplierBps(const PlayerOperationsStore& store) {
 void buildMonthlyHousingLedger(
     const PlayerOperationsStore& store,
     int32_t employedBusinessIndex,
-    MonthlyHousingLedger& outLedger) {
+    MonthlyHousingLedger& outLedger,
+    const PropertyListingStore* listingStore) {
     outLedger = MonthlyHousingLedger{};
     if (!hasPlayerHeadquarters(store)) {
         return;
     }
     const int32_t rentMultiplierBps = computeEffectiveRentMultiplierBps(store);
+    if (store.homePropertyIndex >= 0 && listingStore != nullptr) {
+        const PropertyListingRecord* listing = getPropertyListingRecord(*listingStore, store.homePropertyIndex);
+        if (listing != nullptr) {
+            if (store.housingTenure == HousingTenure::Rent) {
+                outLedger.rentCents = scaleHousingCentsByRentMultiplier(listing->rentCents, rentMultiplierBps);
+            } else if (store.housingTenure == HousingTenure::Own) {
+                outLedger.taxesAndFeesCents = scaleHousingCentsByRentMultiplier(APARTMENT_CITY_TAX_CENTS, rentMultiplierBps);
+            }
+            if (listing->tier == PropertyListingTier::Apartment
+                || listing->tier == PropertyListingTier::House
+                || listing->tier == PropertyListingTier::MultiFamily) {
+                outLedger.utilitiesCents = scaleHousingCentsByRentMultiplier(
+                    APARTMENT_GAS_HEAT_CENTS + APARTMENT_WATER_CLOSET_CENTS + APARTMENT_SEWER_SCAVENGER_CENTS + APARTMENT_ELECTRIC_CENTS,
+                    rentMultiplierBps);
+            }
+            if (employedBusinessIndex >= 0) {
+                const BusinessNodeDefinition* business = getBusinessNodeDefinition(employedBusinessIndex);
+                if (business != nullptr) {
+                    int64_t jobIncome =
+                        computeBusinessMonthlyWageCents(*business) * static_cast<int64_t>(JOB_MONTHLY_WAGE_MULTIPLIER);
+                    if (business->scheduleType == JobScheduleType::PartTime) {
+                        jobIncome = static_cast<int64_t>(static_cast<float>(jobIncome) * 0.6f);
+                    }
+                    outLedger.jobIncomeCents = jobIncome;
+                }
+            }
+            outLedger.totalExpenseCents = outLedger.rentCents + outLedger.utilitiesCents + outLedger.taxesAndFeesCents;
+            outLedger.netCashDeltaCents = outLedger.jobIncomeCents - outLedger.totalExpenseCents;
+            return;
+        }
+    }
     if (store.headquartersKind == HeadquartersKind::RentedRoom) {
         outLedger.rentCents = scaleHousingCentsByRentMultiplier(RENTED_ROOM_MONTHLY_RENT_CENTS, rentMultiplierBps);
         outLedger.taxesAndFeesCents = scaleHousingCentsByRentMultiplier(RENTED_ROOM_MONTHLY_TAX_CENTS + RENTED_ROOM_MONTHLY_FEE_CENTS, rentMultiplierBps);
@@ -122,13 +154,14 @@ void applyMonthlyLivingLedger(
     PlayerWallet& wallet,
     CharacterAgentStore& agentStore,
     int32_t employedBusinessIndex,
-    uint64_t tickCount) {
+    uint64_t tickCount,
+    const PropertyListingStore* listingStore) {
     if (!shouldRunMonthlyLedger(store, tickCount)) {
         return;
     }
     store.lastMonthlyLedgerTick = tickCount;
     MonthlyHousingLedger ledger{};
-    buildMonthlyHousingLedger(store, employedBusinessIndex, ledger);
+    buildMonthlyHousingLedger(store, employedBusinessIndex, ledger, listingStore);
     if (ledger.jobIncomeCents > 0) {
         creditLegitCash(wallet, ledger.jobIncomeCents);
     }

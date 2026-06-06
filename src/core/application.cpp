@@ -5,6 +5,7 @@
 #include "ui/game_modal_ui.h"
 #include "ui/game_ui.h"
 #include "ui/dock_layout.h"
+#include "ui/map_notification_layer.h"
 #include "procgen/world_generator.h"
 #include "persistence/save_game.h"
 #include "sim/sim_world_bindings.h"
@@ -19,14 +20,16 @@
 #include "character/profile_builder.h"
 #include "character/character_social_network.h"
 #include "sim/world_event_store.h"
-#include "game/property_generator.h"
+#include "game/property_worldgen.h"
 #include "game/npc_spatial_init.h"
+#include "game/npc_population.h"
 #include "game/criminal_record.h"
 #include "game/police_contacts.h"
+#include "game/investigation_case_store.h"
+#include "game/evidence_system.h"
 #if defined(CAPITALVICE_DEV_CONSOLE)
 #include "dev/dev_console.h"
-#endif
-#include "imgui.h"
+#endif#include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
@@ -170,6 +173,7 @@ void Application::updateSimulation() {
         return;
     }
     const double deltaSeconds = ImGui::GetIO().DeltaTime;
+    systemRegistry.updateFrame(deltaSeconds, simClock);
     simClock.update(deltaSeconds);
     runSimulationTicks();
 }
@@ -236,9 +240,15 @@ void Application::renderFrame() {
             boroughVitalityStore,
             playerWallet,
             playerOperationsStore,
+            propertyListingStore,
+            propertyStore,
+            bankLoanStore,
             playerOrganizationStore,
             playerStreetCrimeStore,
+            playerSocialActionStore,
             playerLawEnforcementStore,
+            investigationCaseStore,
+            evidenceSystemStore,
             playerCriminalJusticeStore,
             playerCriminalRecordStore,
             playerPoliceContactStore,
@@ -269,6 +279,8 @@ void Application::renderFrame() {
     devGameplaySnapshot.playerLawEnforcementStore = isWorldReady ? &playerLawEnforcementStore : nullptr;
     devGameplaySnapshot.playerCriminalJusticeStore = isWorldReady ? &playerCriminalJusticeStore : nullptr;
     devGameplaySnapshot.characterAgentStore = isWorldReady ? &characterAgentStore : nullptr;
+    devGameplaySnapshot.agentRelationshipGraph = isWorldReady ? &agentRelationshipGraph : nullptr;
+    devGameplaySnapshot.propertyStore = isWorldReady ? &propertyStore : nullptr;
     devGameplaySnapshot.worldEventStore = isWorldReady ? &worldEventStore : nullptr;
     devGameplaySnapshot.gameplayStores = isWorldReady ? &gameplayStores : nullptr;
     devGameplaySnapshot.tickCount = simClock.getTickCount();
@@ -295,7 +307,10 @@ void Application::startNewSimulation() {
     resetPlayerOperationsStore(playerOperationsStore);
     resetPlayerOrganizationStore(playerOrganizationStore);
     resetPlayerStreetCrimeStore(playerStreetCrimeStore);
+    resetPlayerSocialActionStore(playerSocialActionStore);
     resetPlayerLawEnforcementStore(playerLawEnforcementStore);
+    resetInvestigationCaseStore(investigationCaseStore);
+    resetEvidenceSystemStore(evidenceSystemStore);
     resetPlayerCriminalJusticeStore(playerCriminalJusticeStore);
     resetCriminalRecordStore(playerCriminalRecordStore);
     resetPoliceContactStore(playerPoliceContactStore);
@@ -305,14 +320,28 @@ void Application::startNewSimulation() {
     resetWorldEventStore(worldEventStore);
     initializeCharacterAgentStore(characterAgentStore);
     spawnPersonalContactsFromDraft(characterDraft, characterAgentStore);
+    generateCityPopulation(characterAgentStore, worldSeed);
+    resetAgentRelationshipGraph(agentRelationshipGraph);
     clearSimEventQueue(simEventQueue);
     playerWallet = PlayerWallet{};
     playerWallet.cashCents = characterDraft.startingCashCents;
     WorldGenerator worldGenerator;
     worldGenerator.generate(worldConfig, chunkStore, worldSeed);
     rollupBoroughVitality(worldConfig, chunkStore, boroughVitalityStore);
-    generateProperties(propertyStore, chunkStore, worldSeed);
+    resetPropertyStore(propertyStore);
+    resetPropertyListingStore(propertyListingStore);
+    resetBankLoanStore(bankLoanStore);
+    generatePropertyListingsForNewGame(
+        propertyListingStore,
+        propertyStore,
+        chunkStore,
+        boroughVitalityStore,
+        gameplayStores.calendarStore,
+        worldSeed);
+    generateNpcTenements(propertyStore, chunkStore, worldSeed);
     initializeNpcSpatialState(characterAgentStore, propertyStore, chunkStore, worldSeed);
+    generateNpcRelationships(agentRelationshipGraph, characterAgentStore, propertyStore, worldSeed);
+    syncPropertyListingsToOwnership(propertyListingStore, propertyStore);
     const SimWorldBindings simBindings{
         &chunkStore,
         &boroughVitalityStore,
@@ -328,10 +357,13 @@ void Application::startNewSimulation() {
         &playerCriminalJusticeStore,
         &playerStreetCrimeStore,
         &characterAgentStore,
+        &agentRelationshipGraph,
         &worldEventStore,
         &playerCriminalRecordStore,
         &playerPoliceContactStore,
-        &playerWorldState};
+        &playerWorldState,
+        &investigationCaseStore,
+        &evidenceSystemStore};
     systemRegistry.initialize(
         simBindings,
         &characterAgentStore,
@@ -344,9 +376,11 @@ void Application::startNewSimulation() {
         &gameplayStores.playerHealthStore,
         &gameplayStores.populationHealthStore,
         &gameplayStores.informationFeedStore,
-        &propertyStore);
+        &propertyStore,
+        &bankLoanStore,
+        &propertyListingStore);
     requestDefaultGameDockLayout();
-    panelVisibility = GamePanelVisibility{};
+    resetGamePanelVisibility(panelVisibility);
     mapCamera = MapCamera{};
     const LandmarkDefinition* startCity = getLandmarkDefinition(characterDraft.startingCityLandmarkIndex);
     if (startCity != nullptr) {
@@ -382,6 +416,10 @@ bool Application::saveCurrentGame() {
             worldEventStore,
             characterAgentStore,
             propertyStore,
+            propertyListingStore,
+            bankLoanStore,
+            investigationCaseStore,
+            evidenceSystemStore,
             playerOrganizationStore,
             playerLawEnforcementStore,
             playerStreetCrimeStore,
@@ -435,6 +473,10 @@ bool Application::loadSavedGame() {
             worldEventStore,
             characterAgentStore,
             propertyStore,
+            propertyListingStore,
+            bankLoanStore,
+            investigationCaseStore,
+            evidenceSystemStore,
             playerOrganizationStore,
             playerLawEnforcementStore,
             playerStreetCrimeStore,
@@ -447,6 +489,8 @@ bool Application::loadSavedGame() {
         return false;
     }
     rollupBoroughVitality(worldConfig, chunkStore, boroughVitalityStore);
+    clearSimEventQueue(simEventQueue);
+    generateNpcRelationships(agentRelationshipGraph, characterAgentStore, propertyStore, worldSeed);
     const SimWorldBindings simBindings{
         &chunkStore,
         &boroughVitalityStore,
@@ -462,10 +506,13 @@ bool Application::loadSavedGame() {
         &playerCriminalJusticeStore,
         &playerStreetCrimeStore,
         &characterAgentStore,
+        &agentRelationshipGraph,
         &worldEventStore,
         &playerCriminalRecordStore,
         &playerPoliceContactStore,
-        &playerWorldState};
+        &playerWorldState,
+        &investigationCaseStore,
+        &evidenceSystemStore};
     systemRegistry.initialize(
         simBindings,
         &characterAgentStore,
@@ -478,9 +525,11 @@ bool Application::loadSavedGame() {
         &gameplayStores.playerHealthStore,
         &gameplayStores.populationHealthStore,
         &gameplayStores.informationFeedStore,
-        &propertyStore);
+        &propertyStore,
+        &bankLoanStore,
+        &propertyListingStore);
     playerWorldState = gameplayStores.worldState;
-    panelVisibility = GamePanelVisibility{};
+    resetGamePanelVisibility(panelVisibility);
     playerProfile = buildPlayerProfile(characterDraft);
     viewportPickState = ViewportPickState{};
     isWorldReady = true;

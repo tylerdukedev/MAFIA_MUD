@@ -11,7 +11,13 @@
 #include "character/character_social_network.h"
 #include "sim/character_agent.h"
 #include "sim/world_event_store.h"
+#include "game/bank_loan.h"
+#include "game/evidence_system.h"
+#include "game/investigation_case_store.h"
+#include "game/property_listing_store.h"
 #include "game/property_store.h"
+#include "game/shared_travel_state.h"
+#include "character/character_social_network.h"
 #include "character/profile_builder.h"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdio>
@@ -64,11 +70,63 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     constexpr int32_t REAPPLY_BUSINESS_INDEX = 5;
     constexpr uint64_t REAPPLY_TICK = 7777ULL;
     sourceOperations.jobReapplyAvailableTickByBusiness[REAPPLY_BUSINESS_INDEX] = REAPPLY_TICK;
+    sourceOperations.homePropertyIndex = 3;
+    sourceOperations.housingTenure = HousingTenure::Rent;
     CharacterAgentStore sourceAgents{};
     initializeCharacterAgentStore(sourceAgents);
+    PropertyListingStore sourceListings{};
+    const int32_t listingIndex = addPropertyListing(
+        sourceListings,
+        40,
+        50,
+        2U,
+        PropertyListingTier::Apartment,
+        static_cast<uint8_t>(PropertyListingPerks::NearTransit),
+        25000000LL,
+        180000LL,
+        2U,
+        1);
+    REQUIRE(listingIndex >= 0);
+    BankLoanStore sourceLoans{};
+    sourceLoans.loans[0].kind = LoanKind::Mortgage;
+    sourceLoans.loans[0].principalRemainingCents = 18000000LL;
+    sourceLoans.loans[0].aprBps = 650;
+    sourceLoans.loans[0].termMonthsRemaining = 240;
+    sourceLoans.loans[0].monthlyPaymentCents = 125000LL;
+    sourceLoans.loans[0].isActive = true;
+    sourceLoans.loans[0].regionId = 2U;
+    sourceLoans.activeLoanCount = 1;
+    sourceLoans.lastMonthlyPaymentTick = 800ULL;
+    InvestigationCaseStore sourceInvestigations{};
+    const int32_t caseIndex = openInvestigationCase(
+        sourceInvestigations,
+        CrimeLegalTier::Street,
+        900ULL,
+        "Test case");
+    REQUIRE(caseIndex >= 0);
+    EvidenceSystemStore sourceEvidence{};
+    REQUIRE(tryAddEvidenceToCase(
+        sourceEvidence,
+        sourceInvestigations,
+        caseIndex,
+        EvidenceKind::Witness,
+        EVIDENCE_WEIGHT_WITNESS,
+        "Witness saw suspect",
+        901ULL));
     sourceDraft.hasFamilyInCountry = true;
     sourceDraft.characterRollSeed = 4242ULL;
     spawnPersonalContactsFromDraft(sourceDraft, sourceAgents);
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].mobilityAsset = MobilityAsset::Bicycle;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelPathTileCount = 2;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelPathTileX[0] = 10;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelPathTileY[0] = 20;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelPathTileX[1] = 11;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelPathTileY[1] = 21;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelStartTick = 50ULL;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelCompleteTick = 120ULL;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelMode = TravelMode::Bicycle;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelDestTileX = 11;
+    sourceAgents.states[FAMILY_AGENT_SLOT_INDEX].travelDestTileY = 21;
     SaveGameSnapshot snapshot{};
     REQUIRE(buildSaveSnapshot(
         snapshot,
@@ -84,6 +142,10 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         WorldEventStore{},
         sourceAgents,
         PropertyStore{},
+        sourceListings,
+        sourceLoans,
+        sourceInvestigations,
+        sourceEvidence,
         PlayerOrganizationStore{},
         PlayerLawEnforcementStore{},
         PlayerStreetCrimeStore{},
@@ -105,6 +167,10 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     PlayerOperationsStore loadedOperations{};
     CharacterAgentStore loadedAgents{};
     PropertyStore loadedPropertyStore{};
+    PropertyListingStore loadedListings{};
+    BankLoanStore loadedLoans{};
+    InvestigationCaseStore loadedInvestigations{};
+    EvidenceSystemStore loadedEvidence{};
     WorldEventStore loadedWorldEvents{};
     PlayerOrganizationStore loadedOrganization{};
     PlayerLawEnforcementStore loadedLaw{};
@@ -126,6 +192,10 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
         loadedWorldEvents,
         loadedAgents,
         loadedPropertyStore,
+        loadedListings,
+        loadedLoans,
+        loadedInvestigations,
+        loadedEvidence,
         loadedOrganization,
         loadedLaw,
         loadedStreetCrime,
@@ -155,7 +225,31 @@ TEST_CASE("SaveGame round-trip preserves world state", "[persistence]") {
     REQUIRE(loadedOperations.headquartersEstablishedTick == sourceOperations.headquartersEstablishedTick);
     REQUIRE(loadedOperations.lastMonthlyLedgerTick == sourceOperations.lastMonthlyLedgerTick);
     REQUIRE(loadedOperations.jobReapplyAvailableTickByBusiness[REAPPLY_BUSINESS_INDEX] == REAPPLY_TICK);
+    REQUIRE(loadedOperations.homePropertyIndex == sourceOperations.homePropertyIndex);
+    REQUIRE(loadedOperations.housingTenure == sourceOperations.housingTenure);
     REQUIRE(getCharacterAgentState(loadedAgents, 0) != nullptr);
+    const CharacterAgentState* loadedAgent = getCharacterAgentState(loadedAgents, FAMILY_AGENT_SLOT_INDEX);
+    REQUIRE(loadedAgent != nullptr);
+    REQUIRE(loadedAgent->mobilityAsset == MobilityAsset::Bicycle);
+    REQUIRE(loadedAgent->travelPathTileCount == 2);
+    REQUIRE(loadedAgent->travelPathTileX[0] == 10);
+    REQUIRE(loadedAgent->travelPathTileY[1] == 21);
+    REQUIRE(loadedAgent->travelStartTick == 50ULL);
+    REQUIRE(loadedAgent->travelCompleteTick == 120ULL);
+    REQUIRE(loadedAgent->travelMode == TravelMode::Bicycle);
+    REQUIRE(loadedListings.listingCount == sourceListings.listingCount);
+    const PropertyListingRecord* loadedListing = getPropertyListingRecord(loadedListings, listingIndex);
+    REQUIRE(loadedListing != nullptr);
+    REQUIRE(loadedListing->tileX == 40);
+    REQUIRE(loadedListing->rentCents == 180000LL);
+    REQUIRE(loadedLoans.activeLoanCount == 1);
+    REQUIRE(loadedLoans.loans[0].principalRemainingCents == 18000000LL);
+    REQUIRE(loadedLoans.lastMonthlyPaymentTick == 800ULL);
+    REQUIRE(loadedInvestigations.activeCount == sourceInvestigations.activeCount);
+    const InvestigationCase* loadedCase = getInvestigationCase(loadedInvestigations, caseIndex);
+    REQUIRE(loadedCase != nullptr);
+    REQUIRE(loadedCase->isActive != 0U);
+    REQUIRE(computeCaseEvidenceScore(loadedEvidence, caseIndex) == computeCaseEvidenceScore(sourceEvidence, caseIndex));
     removeTestSaveFile();
 }
 

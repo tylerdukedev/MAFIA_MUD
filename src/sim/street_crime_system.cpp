@@ -7,11 +7,15 @@ void StreetCrimeSystem::bind(
     const SimWorldBindings& inputBindings,
     PlayerStreetCrimeStore* inputCrimeStore,
     PlayerLawEnforcementStore* inputLawStore,
-    PlayerCriminalJusticeStore* inputJusticeStore) {
+    PlayerCriminalJusticeStore* inputJusticeStore,
+    InvestigationCaseStore* inputCaseStore,
+    EvidenceSystemStore* inputEvidenceStore) {
     bindings = inputBindings;
     crimeStore = inputCrimeStore;
     lawStore = inputLawStore;
     justiceStore = inputJusticeStore;
+    caseStore = inputCaseStore;
+    evidenceStore = inputEvidenceStore;
 }
 
 const char* StreetCrimeSystem::getName() const {
@@ -40,7 +44,9 @@ void StreetCrimeSystem::processCommitStreetCrimeEvent(const SimEvent& event, uin
         *bindings.worldSeed,
         bindings.playerCriminalRecordStore,
         bindings.playerPoliceContactStore,
-        regionId);
+        regionId,
+        caseStore,
+        evidenceStore);
 }
 
 void StreetCrimeSystem::onTick(uint64_t tickCount) {

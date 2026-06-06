@@ -1,17 +1,10 @@
 #include "ui/business_renderer.h"
+#include "ui/map_marker_style.h"
 #include "world/business_node_table.h"
 
 namespace Core {
 
 namespace {
-
-constexpr float BUSINESS_MARKER_SIZE_PIXELS = 4.0f;
-constexpr float BUSINESS_LABEL_PADDING_X = 3.0f;
-constexpr float BUSINESS_LABEL_PADDING_Y = 1.0f;
-constexpr float BUSINESS_LABEL_OFFSET_Y = 2.0f;
-constexpr ImU32 BUSINESS_MARKER_COLOR = IM_COL32(70, 130, 255, 240);
-constexpr ImU32 BUSINESS_MARKER_OUTLINE_COLOR = IM_COL32(12, 14, 18, 255);
-constexpr ImU32 BUSINESS_MARKER_HOVER_COLOR = IM_COL32(110, 175, 255, 255);
 
 void getBusinessScreenCenter(
     const MapCamera& camera,
@@ -94,21 +87,11 @@ void renderBusinessNodesOnMap(
         getBusinessScreenCenter(camera, *business, canvasOrigin, canvasSize, centerX, centerY);
         const bool isHovered = viewportPickState.hasBusinessHover && viewportPickState.hoveredBusinessIndex == businessIndex;
         const bool isSelected = viewportPickState.hasBusinessSelection && viewportPickState.selectedBusinessIndex == businessIndex;
-        const ImU32 color = isHovered || isSelected ? BUSINESS_MARKER_HOVER_COLOR : BUSINESS_MARKER_COLOR;
-        drawList->AddCircleFilled(ImVec2(centerX, centerY), BUSINESS_MARKER_SIZE_PIXELS, color);
-        drawList->AddCircle(
-            ImVec2(centerX, centerY),
-            BUSINESS_MARKER_SIZE_PIXELS + 1.0f,
-            BUSINESS_MARKER_OUTLINE_COLOR,
-            0,
-            1.5f);
-        if (camera.pixelsPerTile >= BUSINESS_LABEL_MIN_ZOOM) {
-            const ImVec2 labelSize = ImGui::CalcTextSize(business->mapLabel);
-            const ImVec2 labelPos(centerX - labelSize.x * 0.5f, centerY + BUSINESS_MARKER_SIZE_PIXELS + BUSINESS_LABEL_OFFSET_Y);
-            const ImVec2 labelMin(labelPos.x - BUSINESS_LABEL_PADDING_X, labelPos.y - BUSINESS_LABEL_PADDING_Y);
-            const ImVec2 labelMax(labelPos.x + labelSize.x + BUSINESS_LABEL_PADDING_X, labelPos.y + labelSize.y + BUSINESS_LABEL_PADDING_Y);
-            drawList->AddRectFilled(labelMin, labelMax, IM_COL32(16, 18, 24, 210));
-            drawList->AddText(labelPos, IM_COL32(180, 210, 255, 245), business->mapLabel);
+        const LocationCategory category = getBusinessLocationCategory(*business);
+        const ImU32 color = getLocationMarkerColor(category, isHovered, isSelected);
+        drawMapMarkerCircle(drawList, centerX, centerY, MAP_MARKER_DEFAULT_RADIUS_PIXELS, color);
+        if (camera.pixelsPerTile >= MAP_LABEL_ZOOM_THRESHOLD) {
+            drawMapMarkerLabel(drawList, centerX, centerY, MAP_MARKER_DEFAULT_RADIUS_PIXELS, business->mapLabel);
         }
     }
 }

@@ -1,5 +1,6 @@
 #include "sim/calendar_system.h"
 #include "game/player_health.h"
+#include "game/shared_travel_state.h"
 
 namespace Core {
 
@@ -11,7 +12,8 @@ void CalendarSystem::bind(
     PlayerOperationsStore* inputOperationsStore,
     PlayerHealthStore* inputPlayerHealthStore,
     PopulationHealthStore* inputPopulationHealthStore,
-    CharacterAgentStore* inputAgentStore) {
+    CharacterAgentStore* inputAgentStore,
+    PropertyStore* inputPropertyStore) {
     bindings = inputBindings;
     calendarStore = inputCalendarStore;
     workScheduleStore = inputWorkScheduleStore;
@@ -20,6 +22,7 @@ void CalendarSystem::bind(
     playerHealthStore = inputPlayerHealthStore;
     populationHealthStore = inputPopulationHealthStore;
     agentStore = inputAgentStore;
+    propertyStore = inputPropertyStore;
 }
 
 const char* CalendarSystem::getName() const {
@@ -40,6 +43,9 @@ void CalendarSystem::onTick(uint64_t tickCount) {
     }
     if (worldState != nullptr) {
         tickPlayerTravel(*worldState, tickCount);
+    }
+    if (agentStore != nullptr) {
+        tickAllAgentTravel(*agentStore, tickCount, propertyStore);
     }
 }
 

@@ -5,6 +5,8 @@
 
 namespace Core {
 
+struct PanelSectionLayoutState;
+
 void renderOperationsPanel(const GameUiFrameContext& frame, GameModalState& gameModalState);
 void renderBusinessPanel(const GameUiFrameContext& frame, GameModalState& gameModalState);
 void renderContactsPanel(const GameUiFrameContext& frame, GameModalState& gameModalState);

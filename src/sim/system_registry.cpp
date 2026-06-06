@@ -38,16 +38,24 @@ void SystemRegistry::initialize(
     PlayerHealthStore* playerHealthStore,
     PopulationHealthStore* populationHealthStore,
     PlayerInformationFeedStore* informationFeedStore,
-    PropertyStore* propertyStore) {
+    PropertyStore* propertyStore,
+    BankLoanStore* bankLoanStore,
+    PropertyListingStore* propertyListingStore) {
     systemCount = 0;
     bindingsValid = isSimWorldBindingsValid(bindings);
-    streetCrimeSystem.bind(bindings, crimeStore, lawStore, justiceStore);
+    streetCrimeSystem.bind(
+        bindings,
+        crimeStore,
+        lawStore,
+        justiceStore,
+        bindings.investigationCaseStore,
+        bindings.evidenceSystemStore);
     operationSystem.bind(bindings, agentStore);
     cityControlSystem.bind(bindings, justiceStore);
     worldEventSystem.bind(bindings);
-    policeSystem.bind(bindings, lawStore);
+    policeSystem.bind(bindings, lawStore, bindings.investigationCaseStore, bindings.evidenceSystemStore);
     criminalJusticeSystem.bind(bindings, justiceStore, lawStore, informationFeedStore);
-    economySystem.bind(bindings);
+    economySystem.bind(bindings, bankLoanStore, calendarStore, propertyListingStore);
     boroughVitalitySystem.bind(bindings);
     calendarSystem.bind(
         bindings,
@@ -57,7 +65,8 @@ void SystemRegistry::initialize(
         bindings.playerOperationsStore,
         playerHealthStore,
         populationHealthStore,
-        agentStore);
+        agentStore,
+        propertyStore);
     npcAutonomySystem.bind(bindings, calendarStore, propertyStore);
     if (bindings.worldSeed != nullptr) {
         npcAutonomySystem.setWorldSeed(*bindings.worldSeed);
@@ -77,6 +86,10 @@ void SystemRegistry::initialize(
 
 const BoroughVitalitySystem* SystemRegistry::getBoroughVitalitySystem() const {
     return &boroughVitalitySystem;
+}
+
+void SystemRegistry::updateFrame(double deltaSeconds, const SimClock& simClock) {
+    criminalJusticeSystem.updateFrame(deltaSeconds, simClock);
 }
 
 void SystemRegistry::runTick(uint64_t tickCount) {

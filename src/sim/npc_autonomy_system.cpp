@@ -47,11 +47,18 @@ void NpcAutonomySystem::onTick(uint64_t tickCount) {
     context.worldSeed = worldSeed;
     context.calendarStore = calendarStore;
     context.propertyStore = propertyStore;
+    context.chunkStore = bindings.chunkStore;
+    context.worldConfig = bindings.worldConfig;
+    context.relationshipGraph = bindings.agentRelationshipGraph;
 
     tickNpcDecisions(
         *bindings.characterAgentStore,
         context,
         decisionIntervalTicks);
+
+    if (propertyStore != nullptr) {
+        tickNpcMonthlyLedger(*bindings.characterAgentStore, *propertyStore, tickCount, worldSeed);
+    }
 }
 
 } // namespace Core

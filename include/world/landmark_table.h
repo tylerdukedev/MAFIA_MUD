@@ -12,6 +12,16 @@ constexpr float LANDMARK_BOROUGH_INFLUENCE_WEIGHT = 1.5f;
 constexpr uint8_t LANDMARK_DEFAULT_HEAT_RADIUS_TILES = 1;
 constexpr uint8_t LANDMARK_DEFAULT_ECONOMIC_WEIGHT_BONUS = 200;
 
+enum class LandmarkKind : uint8_t {
+    Neighborhood = 0,
+    CommercialHub = 1,
+    Airport = 2,
+    Stadium = 3,
+    TransitHub = 4,
+    Waterfront = 5,
+    Industrial = 6,
+};
+
 struct LandmarkDefinition {
     const char* id;
     int32_t tileX;
@@ -20,6 +30,7 @@ struct LandmarkDefinition {
     const char* mapLabel;
     uint8_t heatRadiusTiles;
     uint8_t economicWeightBonus;
+    LandmarkKind kind = LandmarkKind::Neighborhood;
 };
 
 int32_t getLandmarkCount();

@@ -6,10 +6,16 @@
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
 #include "game/player_criminal_justice.h"
+#include "game/evidence_system.h"
+#include "game/investigation_case_store.h"
 #include "game/player_law_enforcement.h"
+#include "game/bank_loan.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/property_listing_store.h"
+#include "game/property_store.h"
 #include "game/player_organization.h"
+#include "game/social_action_catalog.h"
 #include "game/street_crime.h"
 #include "sim/character_agent.h"
 #include "ui/panel_visibility.h"
@@ -78,9 +84,15 @@ void renderGameUi(
     const BoroughVitalityStore& boroughVitalityStore,
     PlayerWallet& playerWallet,
     PlayerOperationsStore& playerOperationsStore,
+    PropertyListingStore& propertyListingStore,
+    PropertyStore& propertyStore,
+    BankLoanStore& bankLoanStore,
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerStreetCrimeStore& playerStreetCrimeStore,
+    PlayerSocialActionStore& playerSocialActionStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
+    InvestigationCaseStore& investigationCaseStore,
+    EvidenceSystemStore& evidenceSystemStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     CriminalRecordStore& criminalRecordStore,
     PoliceContactStore& policeContactStore,

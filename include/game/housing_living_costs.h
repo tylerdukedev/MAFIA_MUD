@@ -3,6 +3,7 @@
 #include "game/operation_types.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/property_listing_store.h"
 #include "sim/character_agent.h"
 #include <cstdint>
 
@@ -41,14 +42,16 @@ int32_t computeEffectiveRentMultiplierBps(const PlayerOperationsStore& store);
 void buildMonthlyHousingLedger(
     const PlayerOperationsStore& store,
     int32_t employedBusinessIndex,
-    MonthlyHousingLedger& outLedger);
+    MonthlyHousingLedger& outLedger,
+    const PropertyListingStore* listingStore = nullptr);
 bool shouldRunMonthlyLedger(const PlayerOperationsStore& store, uint64_t tickCount);
 void applyMonthlyLivingLedger(
     PlayerOperationsStore& store,
     PlayerWallet& wallet,
     CharacterAgentStore& agentStore,
     int32_t employedBusinessIndex,
-    uint64_t tickCount);
+    uint64_t tickCount,
+    const PropertyListingStore* listingStore = nullptr);
 int32_t getFamilyUpkeepActionCount();
 const FamilyUpkeepActionDefinition* getFamilyUpkeepActionDefinition(int32_t actionIndex);
 bool canApplyFamilyUpkeep(const PlayerOperationsStore& store, uint64_t tickCount);

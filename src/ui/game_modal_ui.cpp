@@ -7,6 +7,9 @@
 #include "game/criminal_record.h"
 #include "game/police_contacts.h"
 #include "game/player_criminal_justice.h"
+#include "game/ny_penal_codes.h"
+#include "game/plea_bargain.h"
+#include "game/trial_system.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_wallet.h"
 #include "game/player_organization.h"
@@ -126,6 +129,14 @@ void beginCourtHearingModal(GameModalState& modal, SimClock& simClock) {
     openModal(modal, simClock, GameModalKind::CourtHearing, "Court is in session — the judge will rule on your case.");
 }
 
+void beginPleaConferenceModal(GameModalState& modal, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::PleaConference, "Plea conference — the DA has an offer.");
+}
+
+void beginTrialDocketModal(GameModalState& modal, SimClock& simClock) {
+    openModal(modal, simClock, GameModalKind::TrialDocket, "Trial docket — your case is on the calendar.");
+}
+
 void beginInformationFeedModal(GameModalState& modal, int32_t feedItemIndex, SimClock& simClock) {
     openModal(modal, simClock, GameModalKind::InformationFeed, "Story update — simulation paused.");
     modal.informationFeedIndex = feedItemIndex;
@@ -166,6 +177,14 @@ void tickCriminalJusticeModals(
     if (modal.isActive) {
         return;
     }
+    if (justiceStore.pendingPleaConference != 0) {
+        beginPleaConferenceModal(modal, simClock);
+        return;
+    }
+    if (justiceStore.pendingTrialDocket != 0) {
+        beginTrialDocketModal(modal, simClock);
+        return;
+    }
     const CustodyPhase phase = getPlayerCustodyPhase(justiceStore);
     if (phase == CustodyPhase::Arrested) {
         beginBondHearingModal(modal, simClock);
@@ -194,6 +213,8 @@ void renderGameModalOverlay(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    InvestigationCaseStore& investigationCaseStore,
+    EvidenceSystemStore& evidenceSystemStore,
     CriminalRecordStore& criminalRecordStore,
     PoliceContactStore& policeContactStore,
     PlayerLegalCounselStore& legalCounselStore,
@@ -582,6 +603,104 @@ void renderGameModalOverlay(
                 }
                 modal.hasFlowResult = true;
             }
+        }
+    } else if (modal.kind == GameModalKind::PleaConference) {
+        const CrimeLegalTier tier = static_cast<CrimeLegalTier>(playerCriminalJusticeStore.pendingLegalTier);
+        const int32_t caseIndex = playerCriminalJusticeStore.activeInvestigationCaseIndex >= 0
+            ? playerCriminalJusticeStore.activeInvestigationCaseIndex
+            : (investigationCaseStore.primaryCaseIndex >= 0 ? investigationCaseStore.primaryCaseIndex : 0);
+        const PleaBargainOffer offer = computePleaBargainOffer(
+            tier,
+            investigationCaseStore,
+            evidenceSystemStore,
+            caseIndex,
+            worldSeed,
+            tickCount);
+        ImGui::Text("Plea conference");
+        ImGui::Separator();
+        ImGui::Text("Charge: %s", getNyPenalShortTitle(tier));
+        ImGui::TextDisabled("Statute: %s (%s)", getNyPenalStatuteCode(tier), getNyPenalClassification(tier));
+        ImGui::Text("Evidence score: %d", offer.evidenceScoreAtOffer);
+        ImGui::TextWrapped("Offer: %s — %s", pleaDealTierToString(offer.dealTier), offer.offerSummary);
+        if (modal.hasFlowResult) {
+            ImGui::TextWrapped("%s", modal.statusMessage);
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else {
+            if (ImGui::Button("Accept plea", ImVec2(180.0f, 0.0f))) {
+                playerCriminalJusticeStore.pendingPleaConference = 0;
+                playerCriminalJusticeStore.pendingTrialDocket = 0;
+                playerCriminalJusticeStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::AwaitingCourt);
+                playerCriminalJusticeStore.pendingCourtModal = 0;
+                if (offer.dealTier == PleaDealTier::Dismissal) {
+                    playerCriminalJusticeStore.lastCourtOutcome = static_cast<uint8_t>(CourtOutcome::Acquitted);
+                    releasePlayerFromCustody(playerCriminalJusticeStore, playerLawEnforcementStore);
+                    setModalStatus(modal, "Case dismissed on weak evidence.");
+                } else {
+                    playerCriminalJusticeStore.lastCourtOutcome = static_cast<uint8_t>(CourtOutcome::Probation);
+                    playerCriminalJusticeStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::OnProbation);
+                    playerCriminalJusticeStore.probationTicksRemaining = offer.recommendedProbationTicks > 0
+                        ? offer.recommendedProbationTicks
+                        : JUSTICE_PROBATION_TICKS;
+                    setModalStatus(modal, "Plea accepted — probation imposed.");
+                }
+                modal.hasFlowResult = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Reject — go to trial", ImVec2(200.0f, 0.0f))) {
+                playerCriminalJusticeStore.pendingPleaConference = 0;
+                playerCriminalJusticeStore.pendingTrialDocket = 1;
+                playerCriminalJusticeStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::AwaitingCourt);
+                setModalStatus(modal, "Plea rejected — trial docket posted.");
+                modal.hasFlowResult = true;
+            }
+        }
+    } else if (modal.kind == GameModalKind::TrialDocket) {
+        const CrimeLegalTier tier = static_cast<CrimeLegalTier>(playerCriminalJusticeStore.pendingLegalTier);
+        const int32_t caseIndex = playerCriminalJusticeStore.activeInvestigationCaseIndex >= 0
+            ? playerCriminalJusticeStore.activeInvestigationCaseIndex
+            : (investigationCaseStore.primaryCaseIndex >= 0 ? investigationCaseStore.primaryCaseIndex : 0);
+        const TrialDocketEntry docket = buildTrialDocket(
+            tier,
+            investigationCaseStore,
+            evidenceSystemStore,
+            caseIndex,
+            legalCounselStore);
+        ImGui::Text("Trial docket");
+        ImGui::Separator();
+        ImGui::Text("%s", docket.docketLabel);
+        ImGui::TextDisabled("Statute: %s", getNyPenalStatuteCode(tier));
+        ImGui::Text("Evidence score: %d", docket.evidenceScore);
+        ImGui::Text("Acquittal estimate: %d%%", docket.acquittalChancePercent);
+        if (modal.hasFlowResult) {
+            ImGui::TextWrapped("%s", modal.statusMessage);
+            if (ImGui::Button("Close", ImVec2(160.0f, 0.0f))) {
+                closeModal(modal, simClock);
+            }
+        } else if (ImGui::Button("Proceed to trial", ImVec2(200.0f, 0.0f))) {
+            const CourtOutcome outcome = resolveTrialOutcome(
+                docket,
+                legalCounselStore,
+                playerLawEnforcementStore,
+                worldSeed,
+                tickCount);
+            playerCriminalJusticeStore.pendingTrialDocket = 0;
+            playerCriminalJusticeStore.lastCourtOutcome = static_cast<uint8_t>(outcome);
+            if (outcome == CourtOutcome::Acquitted) {
+                releasePlayerFromCustody(playerCriminalJusticeStore, playerLawEnforcementStore);
+                setModalStatus(modal, "Not guilty — released.");
+            } else if (outcome == CourtOutcome::Probation) {
+                playerCriminalJusticeStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::OnProbation);
+                playerCriminalJusticeStore.probationTicksRemaining = JUSTICE_PROBATION_TICKS;
+                setModalStatus(modal, "Guilty — probation imposed.");
+            } else {
+                playerCriminalJusticeStore.custodyPhase = static_cast<uint8_t>(CustodyPhase::InPrison);
+                playerCriminalJusticeStore.phaseTicksRemaining = computePrisonSentenceTicks(tier);
+                setModalStatus(modal, "Guilty — sentenced to state time.");
+            }
+            resolveLatestCharge(criminalRecordStore, outcome == CourtOutcome::Acquitted ? ChargeOutcome::Acquitted : (outcome == CourtOutcome::Probation ? ChargeOutcome::PleaBargain : ChargeOutcome::GuiltyVerdict), tickCount);
+            modal.hasFlowResult = true;
         }
     } else if (modal.kind == GameModalKind::CourtHearing) {
         ImGui::Text("Court");

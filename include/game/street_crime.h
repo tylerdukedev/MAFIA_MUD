@@ -14,6 +14,11 @@
 #include <cstdint>
 
 namespace Core {
+struct EvidenceSystemStore;
+struct InvestigationCaseStore;
+}
+
+namespace Core {
 
 constexpr int32_t MAX_STREET_CRIME_COUNT = 11;
 constexpr int32_t STREET_CRIME_BROKE_CASH_THRESHOLD_CENTS = 500;
@@ -57,6 +62,7 @@ struct StreetCrimeDefinition {
     int32_t minCriminalTrust;
     int32_t minTrustedCrewContacts;
     int32_t maxHeatToAttempt;
+    int32_t executionSkillPercent;
     bool allowsWithoutHeadquarters;
 };
 
@@ -94,7 +100,9 @@ bool tryCommitStreetCrime(
     uint64_t worldSeed,
     CriminalRecordStore* criminalRecord = nullptr,
     PoliceContactStore* policeContacts = nullptr,
-    uint8_t regionId = 1);
+    uint8_t regionId = 1,
+    InvestigationCaseStore* investigationCases = nullptr,
+    EvidenceSystemStore* evidenceStore = nullptr);
 const char* streetCrimeLockReasonToString(StreetCrimeLockReason reason);
 const char* streetCrimeTierToString(StreetCrimeTier tier);
 

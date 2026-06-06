@@ -26,7 +26,7 @@ int32_t findLowestWageBusinessIndex() {
     const int32_t businessCount = getBusinessNodeCount();
     for (int32_t businessIndex = 0; businessIndex < businessCount; ++businessIndex) {
         const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
-        if (business == nullptr || isLawOfficeBusinessIndex(businessIndex)) {
+        if (business == nullptr || business->kind != BusinessNodeKind::Employer) {
             continue;
         }
         if (business->jobWageCents < lowestWage) {

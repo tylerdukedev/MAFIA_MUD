@@ -19,7 +19,7 @@ TEST_CASE("BusinessNodeTable region ids align with every business index", "[busi
         REQUIRE(business != nullptr);
         const RegionId regionId = getBusinessNodeRegionId(businessIndex);
         REQUIRE(regionId != RegionId::None);
-        if (isLawOfficeBusinessIndex(businessIndex)) {
+        if (business->kind != BusinessNodeKind::Employer) {
             REQUIRE(business->jobWageCents == 0);
         } else {
             REQUIRE(business->jobWageCents > 0);

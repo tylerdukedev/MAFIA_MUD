@@ -40,4 +40,11 @@ void CriminalJusticeSystem::onTick(uint64_t tickCount) {
     tickAgentCriminalJustice(*justiceStore, *bindings.characterAgentStore, *lawStore, worldSeed, tickCount);
 }
 
+void CriminalJusticeSystem::updateFrame(double deltaSeconds, const SimClock& simClock) {
+    if (justiceStore == nullptr) {
+        return;
+    }
+    tickPlayerCustodyTimers(*justiceStore, deltaSeconds, simClock.isPaused(), simClock.getTickCount());
+}
+
 } // namespace Core

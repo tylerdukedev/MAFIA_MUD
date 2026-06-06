@@ -1,4 +1,5 @@
 #include "ui/player_map_marker.h"
+#include "ui/map_marker_style.h"
 
 namespace Core {
 
@@ -41,20 +42,13 @@ void renderPlayerMapMarker(
     getPlayerScreenCenter(camera, displayTileX - 0.5f, displayTileY - 0.5f, canvasOrigin, canvasSize, centerX, centerY);
     const bool isHovered = viewportPickState.hasPlayerHover;
     const ImU32 fillColor = IM_COL32(characterDraft.mapMarkerColorR, characterDraft.mapMarkerColorG, characterDraft.mapMarkerColorB, isHovered ? 255 : 235);
-    const ImU32 outlineColor = IM_COL32(12, 14, 18, 255);
-    drawList->AddCircleFilled(ImVec2(centerX, centerY), PLAYER_MARKER_SIZE_PIXELS, fillColor);
-    drawList->AddCircle(ImVec2(centerX, centerY), PLAYER_MARKER_SIZE_PIXELS + 1.5f, outlineColor, 0, 2.0f);
+    drawMapMarkerCircle(drawList, centerX, centerY, PLAYER_MARKER_SIZE_PIXELS, fillColor, 2.0f);
     if (worldState.isTraveling) {
         drawList->AddCircle(ImVec2(centerX, centerY), PLAYER_MARKER_SIZE_PIXELS + 4.0f, IM_COL32(220, 220, 220, 120), 0, 1.0f);
     }
-    if (camera.pixelsPerTile >= PLAYER_LABEL_MIN_ZOOM) {
+    if (camera.pixelsPerTile >= MAP_LABEL_ZOOM_THRESHOLD) {
         const char* label = characterDraft.nameBuffer[0] != '\0' ? characterDraft.nameBuffer : "You";
-        const ImVec2 labelSize = ImGui::CalcTextSize(label);
-        const ImVec2 labelPos(centerX - labelSize.x * 0.5f, centerY + PLAYER_MARKER_SIZE_PIXELS + 3.0f);
-        const ImVec2 labelMin(labelPos.x - 3.0f, labelPos.y - 1.0f);
-        const ImVec2 labelMax(labelPos.x + labelSize.x + 3.0f, labelPos.y + labelSize.y + 1.0f);
-        drawList->AddRectFilled(labelMin, labelMax, IM_COL32(16, 18, 24, 220));
-        drawList->AddText(labelPos, IM_COL32(245, 245, 245, 255), label);
+        drawMapMarkerLabel(drawList, centerX, centerY, PLAYER_MARKER_SIZE_PIXELS, label);
     }
 }
 

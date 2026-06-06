@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game/crime_legal_tier.h"
+#include "game/custody_timer.h"
 #include "game/criminal_record.h"
 #include "game/player_information_feed.h"
 #include "game/player_law_enforcement.h"
@@ -82,6 +83,11 @@ struct PlayerCriminalJusticeStore {
     uint64_t lastRivalEncroachTick = 0;
     uint64_t lastArrestRollTick = 0;
     char lastCustodyLabel[48]{};
+    CustodyTimer postArrestCustodyTimer{};
+    CustodyTimer arraignmentCustodyTimer{};
+    uint8_t pendingPleaConference = 0;
+    uint8_t pendingTrialDocket = 0;
+    int32_t activeInvestigationCaseIndex = -1;
     AgentCustodySlot agentCustody[MAX_CHARACTER_AGENT_COUNT]{};
 };
 
@@ -146,6 +152,11 @@ bool tryRollPlayerArrest(
     CriminalRecordStore* criminalRecord = nullptr,
     PoliceContactStore* policeContacts = nullptr,
     uint8_t regionId = 1);
+void tickPlayerCustodyTimers(
+    PlayerCriminalJusticeStore& justiceStore,
+    double deltaSeconds,
+    bool isSimPaused,
+    uint64_t tickCount);
 void tickPlayerCriminalJustice(
     PlayerCriminalJusticeStore& justiceStore,
     PlayerLawEnforcementStore& lawStore,

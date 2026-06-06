@@ -3,6 +3,8 @@
 #include "character/player_profile.h"
 #include "core/sim_clock.h"
 #include "game/criminal_record.h"
+#include "game/evidence_system.h"
+#include "game/investigation_case_store.h"
 #include "game/game_calendar.h"
 #include "game/police_contacts.h"
 #include "game/player_criminal_justice.h"
@@ -34,6 +36,8 @@ void beginCrewFormalizeModal(GameModalState& modal, SimClock& simClock);
 void beginOrganizationCreationModal(GameModalState& modal, SimClock& simClock);
 void beginBondHearingModal(GameModalState& modal, SimClock& simClock);
 void beginCourtHearingModal(GameModalState& modal, SimClock& simClock);
+void beginPleaConferenceModal(GameModalState& modal, SimClock& simClock);
+void beginTrialDocketModal(GameModalState& modal, SimClock& simClock);
 void beginInformationFeedModal(GameModalState& modal, int32_t feedItemIndex, SimClock& simClock);
 void beginCovertActionModal(
     GameModalState& modal,
@@ -60,6 +64,8 @@ void renderGameModalOverlay(
     PlayerOrganizationStore& playerOrganizationStore,
     PlayerLawEnforcementStore& playerLawEnforcementStore,
     PlayerCriminalJusticeStore& playerCriminalJusticeStore,
+    InvestigationCaseStore& investigationCaseStore,
+    EvidenceSystemStore& evidenceSystemStore,
     CriminalRecordStore& criminalRecordStore,
     PoliceContactStore& policeContactStore,
     PlayerLegalCounselStore& legalCounselStore,

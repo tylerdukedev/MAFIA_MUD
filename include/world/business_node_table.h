@@ -11,6 +11,10 @@ constexpr int32_t MAX_BUSINESS_NODE_COUNT = 64;
 enum class BusinessNodeKind : uint8_t {
     Employer = 0,
     LawOffice = 1,
+    RealEstateOffice = 2,
+    Bank = 3,
+    CarDealershipNew = 4,
+    CarDealershipUsed = 5,
 };
 
 enum class BusinessIndustry : uint8_t {
@@ -59,6 +63,9 @@ const char* businessTraitsToShortLabel(uint16_t traitFlags);
 int64_t computeBusinessMonthlyWageCents(const BusinessNodeDefinition& business);
 
 bool isLawOfficeBusinessIndex(int32_t businessIndex);
+bool isRealEstateOfficeBusinessIndex(int32_t businessIndex);
+bool isBankBusinessIndex(int32_t businessIndex);
+bool isCarDealershipBusinessIndex(int32_t businessIndex);
 
 int32_t getBusinessNodeCount();
 const BusinessNodeDefinition* getBusinessNodeDefinition(int32_t businessIndex);

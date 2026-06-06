@@ -39,6 +39,26 @@ constexpr BusinessNodeDefinition BUSINESS_NODE_DEFINITIONS[] = {
     {"hunts_point_produce", 345, 128, "Hunts Point Produce Shed", "Produce", 355, 0.07f, BusinessNodeKind::Employer, BusinessIndustry::Retail, TRAIT_NIGHT | TRAIT_UNION, 1.16f, 0, JobScheduleType::FullTime},
     {"manhattan_law", 252, 232, "Mulberry Street Law Office", "Law Office", 0, 0.0f, BusinessNodeKind::LawOffice, BusinessIndustry::Office, 0, 1.0f, 0, JobScheduleType::FullTime},
     {"brooklyn_law", 286, 288, "Bushwick Defense Counsel", "Defense", 0, 0.0f, BusinessNodeKind::LawOffice, BusinessIndustry::Office, 0, 1.0f, 0, JobScheduleType::FullTime},
+    {"manhattan_re", 265, 177, "Upper East Realty", "UE Realty", 0, 0.0f, BusinessNodeKind::RealEstateOffice, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"manhattan_bank", 239, 221, "Lexington Trust Branch", "Lex Bank", 0, 0.0f, BusinessNodeKind::Bank, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"manhattan_cars_new", 227, 205, "Midtown Motors", "Mid Motors", 0, 0.0f, BusinessNodeKind::CarDealershipNew, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"manhattan_cars_used", 256, 218, "Hell's Kitchen Auto Lot", "HK Autos", 0, 0.0f, BusinessNodeKind::CarDealershipUsed, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"brooklyn_re", 264, 358, "Flatbush Realty", "Flatbush RE", 0, 0.0f, BusinessNodeKind::RealEstateOffice, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"brooklyn_bank", 219, 318, "Red Hook Savings", "RH Bank", 0, 0.0f, BusinessNodeKind::Bank, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"brooklyn_cars_new", 275, 272, "Williamsburg Auto Gallery", "WB Autos", 0, 0.0f, BusinessNodeKind::CarDealershipNew, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"brooklyn_cars_used", 248, 370, "Bensonhurst Used Cars", "Ben Used", 0, 0.0f, BusinessNodeKind::CarDealershipUsed, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"queens_re", 365, 198, "Astoria Property Group", "Astoria RE", 0, 0.0f, BusinessNodeKind::RealEstateOffice, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"queens_bank", 422, 260, "Jamaica Federal", "Jam Bank", 0, 0.0f, BusinessNodeKind::Bank, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"queens_cars_new", 404, 235, "Flushing Import Motors", "Flush New", 0, 0.0f, BusinessNodeKind::CarDealershipNew, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"queens_cars_used", 388, 228, "Queens Pre-Owned", "Q Used", 0, 0.0f, BusinessNodeKind::CarDealershipUsed, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"bronx_re", 338, 112, "Morris Park Realty", "MP Realty", 0, 0.0f, BusinessNodeKind::RealEstateOffice, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"bronx_bank", 375, 68, "East Bronx Credit Union", "EB Bank", 0, 0.0f, BusinessNodeKind::Bank, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"bronx_cars_new", 352, 82, "Bronx Avenue Motors", "Bx New", 0, 0.0f, BusinessNodeKind::CarDealershipNew, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"bronx_cars_used", 320, 105, "Yankee Used Auto", "Bx Used", 0, 0.0f, BusinessNodeKind::CarDealershipUsed, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"staten_re", 107, 385, "Mid Island Realty", "MI Realty", 0, 0.0f, BusinessNodeKind::RealEstateOffice, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"staten_bank", 92, 440, "Great Kills Trust", "GK Bank", 0, 0.0f, BusinessNodeKind::Bank, BusinessIndustry::Office, TRAIT_COVER, 1.0f, 0, JobScheduleType::FullTime},
+    {"staten_cars_new", 145, 416, "Midland Motors", "MI New", 0, 0.0f, BusinessNodeKind::CarDealershipNew, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
+    {"staten_cars_used", 88, 460, "Eltingville Auto Exchange", "Elt Used", 0, 0.0f, BusinessNodeKind::CarDealershipUsed, BusinessIndustry::Retail, TRAIT_STREET, 1.0f, 0, JobScheduleType::FullTime},
 };
 
 constexpr int32_t BUSINESS_NODE_COUNT = static_cast<int32_t>(sizeof(BUSINESS_NODE_DEFINITIONS) / sizeof(BUSINESS_NODE_DEFINITIONS[0]));
@@ -49,6 +69,11 @@ constexpr RegionId BUSINESS_NODE_REGION_IDS[] = {
     RegionId::Manhattan, RegionId::Brooklyn, RegionId::Manhattan, RegionId::Manhattan, RegionId::Queens,
     RegionId::Queens, RegionId::Queens, RegionId::Brooklyn, RegionId::Bronx,
     RegionId::StatenIsland, RegionId::Manhattan, RegionId::Bronx, RegionId::Manhattan, RegionId::Brooklyn,
+    RegionId::Manhattan, RegionId::Manhattan, RegionId::Manhattan, RegionId::Manhattan,
+    RegionId::Brooklyn, RegionId::Brooklyn, RegionId::Brooklyn, RegionId::Brooklyn,
+    RegionId::Queens, RegionId::Queens, RegionId::Queens, RegionId::Queens,
+    RegionId::Bronx, RegionId::Bronx, RegionId::Bronx, RegionId::Bronx,
+    RegionId::StatenIsland, RegionId::StatenIsland, RegionId::StatenIsland, RegionId::StatenIsland,
 };
 
 static_assert(
@@ -154,6 +179,23 @@ RegionId getBusinessNodeRegionId(int32_t businessIndex, const ChunkStore& chunkS
 bool isLawOfficeBusinessIndex(int32_t businessIndex) {
     const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
     return business != nullptr && business->kind == BusinessNodeKind::LawOffice;
+}
+
+bool isRealEstateOfficeBusinessIndex(int32_t businessIndex) {
+    const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
+    return business != nullptr && business->kind == BusinessNodeKind::RealEstateOffice;
+}
+
+bool isBankBusinessIndex(int32_t businessIndex) {
+    const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
+    return business != nullptr && business->kind == BusinessNodeKind::Bank;
+}
+
+bool isCarDealershipBusinessIndex(int32_t businessIndex) {
+    const BusinessNodeDefinition* business = getBusinessNodeDefinition(businessIndex);
+    return business != nullptr
+        && (business->kind == BusinessNodeKind::CarDealershipNew
+            || business->kind == BusinessNodeKind::CarDealershipUsed);
 }
 
 } // namespace Core

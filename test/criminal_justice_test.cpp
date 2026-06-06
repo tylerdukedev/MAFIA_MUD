@@ -1,6 +1,7 @@
 #include "game/criminal_record.h"
 #include "game/police_contacts.h"
 #include "character/character_social_network.h"
+#include "game/custody_timer.h"
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_wallet.h"
@@ -115,6 +116,25 @@ TEST_CASE("Held-without-bond player accumulates jail events in info feed", "[jai
         tickPlayerCriminalJustice(justiceStore, lawStore, wallet, cities, agents, 333ULL, tick, &infoFeed);
     }
     REQUIRE(infoFeed.itemCount > 0);
+}
+
+TEST_CASE("Custody timer advances only when simulation is unpaused", "[criminal_justice]") {
+    CustodyTimer timer{};
+    startCustodyTimer(timer, CustodyTimerPhase::PostArrestToArraignment, 42ULL, 1ULL, 7);
+    tickCustodyTimer(timer, 30.0, true);
+    REQUIRE(timer.elapsedSeconds == 0.0);
+    tickCustodyTimer(timer, 30.0, false);
+    REQUIRE(timer.elapsedSeconds == 30.0);
+    tickCustodyTimer(timer, timer.durationSeconds, false);
+    REQUIRE(isCustodyTimerComplete(timer));
+}
+
+TEST_CASE("Arrest starts post-arrest custody timer", "[criminal_justice]") {
+    PlayerCriminalJusticeStore justiceStore{};
+    PlayerLawEnforcementStore lawStore{};
+    beginPlayerArrest(justiceStore, lawStore, CrimeLegalTier::Street, 3ULL, "Timer test", 88ULL);
+    REQUIRE(justiceStore.postArrestCustodyTimer.isActive != 0);
+    REQUIRE(static_cast<CustodyTimerPhase>(justiceStore.postArrestCustodyTimer.phase) == CustodyTimerPhase::PostArrestToArraignment);
 }
 
 TEST_CASE("Rival can seize player city while player is in prison", "[criminal_justice]") {

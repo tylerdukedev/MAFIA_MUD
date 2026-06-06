@@ -7,7 +7,11 @@
 #include "game/player_criminal_justice.h"
 #include "game/player_law_enforcement.h"
 #include "game/player_organization.h"
+#include "game/bank_loan.h"
+#include "game/evidence_system.h"
+#include "game/investigation_case_store.h"
 #include "game/player_operations.h"
+#include "game/property_listing_store.h"
 #include "game/property_store.h"
 #include "world/business_node_table.h"
 #include "game/player_wallet.h"
@@ -63,6 +67,12 @@ struct SaveGameSnapshot {
     uint64_t jobReapplyAvailableTickByBusiness[MAX_BUSINESS_NODE_COUNT]{};
     CriminalRecordStore criminalRecordStore{};
     PoliceContactStore policeContactStore{};
+    PropertyListingStore propertyListingStore{};
+    BankLoanStore bankLoanStore{};
+    InvestigationCaseStore investigationCaseStore{};
+    EvidenceSystemStore evidenceSystemStore{};
+    int32_t homePropertyIndex = -1;
+    HousingTenure housingTenure = HousingTenure::None;
     SaveGameplayStores gameplayStores{};
     std::vector<uint8_t> regionIds;
     std::vector<uint8_t> terrainIds;
@@ -92,6 +102,10 @@ bool buildSaveSnapshot(
     const WorldEventStore& worldEventStore,
     const CharacterAgentStore& characterAgentStore,
     const PropertyStore& propertyStore,
+    const PropertyListingStore& propertyListingStore,
+    const BankLoanStore& bankLoanStore,
+    const InvestigationCaseStore& investigationCaseStore,
+    const EvidenceSystemStore& evidenceSystemStore,
     const PlayerOrganizationStore& organizationStore,
     const PlayerLawEnforcementStore& lawEnforcementStore,
     const PlayerStreetCrimeStore& streetCrimeStore,
@@ -113,6 +127,10 @@ bool applySaveSnapshot(
     WorldEventStore& worldEventStore,
     CharacterAgentStore& characterAgentStore,
     PropertyStore& propertyStore,
+    PropertyListingStore& propertyListingStore,
+    BankLoanStore& bankLoanStore,
+    InvestigationCaseStore& investigationCaseStore,
+    EvidenceSystemStore& evidenceSystemStore,
     PlayerOrganizationStore& organizationStore,
     PlayerLawEnforcementStore& lawEnforcementStore,
     PlayerStreetCrimeStore& streetCrimeStore,

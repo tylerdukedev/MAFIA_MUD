@@ -266,6 +266,15 @@ constexpr const char* P_BUSINESS_PANEL[] = {
 constexpr const char* P_CONTACTS_PANEL[] = {
     "Contacts show opinion (-100 to +100), trust, and respect. Trust and respect follow opinion so rivals stay low-trust.",
     "At start you get generated family/friend contacts plus beat cop, union delegate, and rival. Apartment adds Morris Schwartz; DPA makes your kin the landlord.",
+    "Each contact has tabs: Build rapport (visits, meals, gifts, favors), Pressure (kidnap or bribe), and Crew (assassinate or recruit).",
+};
+
+constexpr const char* P_SOCIAL_ACTIONS[] = {
+    "Build rapport actions spend cash and time but raise opinion, trust, and respect when prerequisites pass.",
+    "Visit and Share a meal need you in the same borough as the contact (or an unset map position). Meals and gifts cost cash.",
+    "Apologize only works when opinion is negative — it can clear an insult flag. Negotiate truce targets rivals or thawing relationships and may clear the rival flag.",
+    "Introduce contact needs higher network access. Ask for intel trades a little trust for street knowledge. Warn is blunt — small opinion hit, respect bump.",
+    "Buttons show why an action is locked: opinion, trust, borough, cash, cooldown, incarceration, or network gates.",
 };
 
 constexpr const char* P_TRAVEL_AND_SCHEDULE[] = {
@@ -473,7 +482,8 @@ constexpr HelpManualTopicEntry HELP_MANUAL_TOPICS[] = {
     {"docking", "Interface", "Docking Panels", "Layout persistence", P_DOCKING, 3},
     {"view_menu", "Interface", "View Menu", "Reset layout", P_VIEW_MENU, 1},
     {"windows_menu", "Interface", "Windows Menu", "Toggle panels", P_WINDOWS_MENU, 1},
-    {"contacts_panel", "Simulation / Characters", "Contacts Panel", "AI opinions", P_CONTACTS_PANEL, 2},
+    {"contacts_panel", "Simulation / Characters", "Contacts Panel", "AI opinions", P_CONTACTS_PANEL, 3},
+    {"social_actions", "Simulation / Characters", "Social Actions", "Build rapport tab", P_SOCIAL_ACTIONS, 5},
 
     {"save_load", "Persistence", "Save and Load", "capitalvice_save.dat v10", P_SAVE_LOAD, 2},
     {"power_tier", "Simulation / Crime", "Power Tier", "Solo, crew, organization", P_STREET_CRIME, 3},

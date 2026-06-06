@@ -8,6 +8,12 @@
 
 namespace Core {
 
+enum class HousingTenure : uint8_t {
+    None = 0,
+    Rent = 1,
+    Own = 2,
+};
+
 struct PlayerOperationsStore {
     HeadquartersKind headquartersKind = HeadquartersKind::None;
     int32_t employedBusinessIndices[2] = {-1, -1};
@@ -23,6 +29,8 @@ struct PlayerOperationsStore {
     int32_t rentEventAdjustmentBps = 0;
     int32_t workExperienceMonths = 0;
     uint64_t jobReapplyAvailableTickByBusiness[MAX_BUSINESS_NODE_COUNT]{};
+    int32_t homePropertyIndex = -1;
+    HousingTenure housingTenure = HousingTenure::None;
 };
 
 void resetPlayerOperationsStore(PlayerOperationsStore& store);

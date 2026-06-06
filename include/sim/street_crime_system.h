@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game/evidence_system.h"
+#include "game/investigation_case_store.h"
 #include "game/street_crime.h"
 #include "sim/isim_system.h"
 #include "sim/sim_world_bindings.h"
@@ -12,7 +14,9 @@ public:
         const SimWorldBindings& inputBindings,
         PlayerStreetCrimeStore* inputCrimeStore,
         PlayerLawEnforcementStore* inputLawStore,
-        PlayerCriminalJusticeStore* inputJusticeStore);
+        PlayerCriminalJusticeStore* inputJusticeStore,
+        InvestigationCaseStore* inputCaseStore = nullptr,
+        EvidenceSystemStore* inputEvidenceStore = nullptr);
     const char* getName() const override;
     void onTick(uint64_t tickCount) override;
 
@@ -22,6 +26,8 @@ private:
     PlayerStreetCrimeStore* crimeStore = nullptr;
     PlayerLawEnforcementStore* lawStore = nullptr;
     PlayerCriminalJusticeStore* justiceStore = nullptr;
+    InvestigationCaseStore* caseStore = nullptr;
+    EvidenceSystemStore* evidenceStore = nullptr;
 };
 
 } // namespace Core
