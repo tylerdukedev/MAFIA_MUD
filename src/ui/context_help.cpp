@@ -115,10 +115,15 @@ void contextHelpStatBar(const char* label, float valueNormalized, const char* to
     registerLastItem(state, label, tooltip, manualTopicId);
 }
 
-void contextHelpSectionHeader(const char* title, const char* tooltip, const char* manualTopicId, ContextHelpState& state) {
-    ImGui::Separator();
-    ImGui::TextUnformatted(title);
+bool contextHelpSectionHeader(const char* title, const char* tooltip, const char* manualTopicId, ContextHelpState& state) {
+    ImGui::PushID(title);
+    const bool open = ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%s", tooltip);
+    }
     registerLastItem(state, title, tooltip, manualTopicId);
+    ImGui::PopID();
+    return open;
 }
 
 void contextHelpPanelTag(const char* panelTitle, const char* tooltip, const char* manualTopicId, ContextHelpState& state) {

@@ -14,6 +14,7 @@
 #include "game/economy_constants.h"
 #include "game/player_operations.h"
 #include "game/player_wallet.h"
+#include "game/travel_modes.h"
 #include "ui/business_renderer.h"
 #include "ui/game_ui_panels.h"
 #include "ui/game_ui_frame_context.h"
@@ -602,7 +603,7 @@ int64_t computeClaimCostCentsForProfile(const PlayerProfile& playerProfile) {
 
 void renderCharacterPanel(
     const PlayerProfile& playerProfile,
-    const PlayerWallet& playerWallet,
+    PlayerWallet& playerWallet,
     const PlayerHealthStore& playerHealthStore,
     const PlayerCriminalJusticeStore& playerCriminalJusticeStore,
     const PlayerOrganizationStore& playerOrganizationStore,
@@ -624,64 +625,59 @@ void renderCharacterPanel(
             contextHelpState);
         char identityBuffer[96];
         buildIdentityLabel(identityBuffer, sizeof(identityBuffer), playerProfile.draft);
-        char descriptionBuffer[256];
-        buildCharacterDescription(descriptionBuffer, sizeof(descriptionBuffer), playerProfile.draft);
-        contextHelpSectionHeader(
-            "Identity",
-            "Core choices from character creation.",
-            "profile_overview",
-            contextHelpState);
-        char nameLine[48];
-        std::snprintf(nameLine, sizeof(nameLine), "Name: %s", playerProfile.draft.nameBuffer);
-        contextHelpTextLine(nameLine, "Display name shown in descriptions and reports.", "char_name", contextHelpState);
-        char ageLine[24];
-        std::snprintf(ageLine, sizeof(ageLine), "Age: %d", playerProfile.draft.age);
-        contextHelpTextLine(ageLine, "Age nudges street vs institutional opportunity paths.", "profile_builder", contextHelpState);
-        char nationalityLine[64];
-        std::snprintf(
-            nationalityLine,
-            sizeof(nationalityLine),
-            "Nationality: %.*s",
-            static_cast<int>(getNationalityName(playerProfile.draft.nationalityId).size()),
-            getNationalityName(playerProfile.draft.nationalityId).data());
-        contextHelpTextLine(nationalityLine, "Citizenship and passport context for legitimacy and language.", "profile_builder", contextHelpState);
-        char heritageLine[64];
-        std::snprintf(
-            heritageLine,
-            sizeof(heritageLine),
-            "Heritage: %.*s",
-            static_cast<int>(getHeritageName(playerProfile.draft.heritageId).size()),
-            getHeritageName(playerProfile.draft.heritageId).data());
-        contextHelpTextLine(heritageLine, "Ethnic heritage nudges network and cultural stats.", "profile_builder", contextHelpState);
-        char generationLine[64];
-        std::snprintf(
-            generationLine,
-            sizeof(generationLine),
-            "Generation: %.*s",
-            static_cast<int>(getGenerationName(playerProfile.draft.generationId).size()),
-            getGenerationName(playerProfile.draft.generationId).data());
-        contextHelpTextLine(generationLine, "Generation sets the base tradeoff for all trait axes.", "char_generation", contextHelpState);
-        char backgroundLine[64];
-        std::snprintf(
-            backgroundLine,
-            sizeof(backgroundLine),
-            "Background: %.*s",
-            static_cast<int>(getBackgroundName(playerProfile.draft.backgroundId).size()),
-            getBackgroundName(playerProfile.draft.backgroundId).data());
-        contextHelpTextLine(backgroundLine, "Starting career path before the story begins.", "profile_builder", contextHelpState);
-        char boroughLine[64];
-        std::snprintf(
-            boroughLine,
-            sizeof(boroughLine),
-            "Borough: %.*s",
-            static_cast<int>(getBoroughPreferenceName(playerProfile.draft.selectedBoroughIndex).size()),
-            getBoroughPreferenceName(playerProfile.draft.selectedBoroughIndex).data());
-        contextHelpTextLine(boroughLine, "Preferred starting borough. Gameplay territory links come later.", "profile_builder", contextHelpState);
-        const LandmarkDefinition* startingCity = getLandmarkDefinition(playerProfile.draft.startingCityLandmarkIndex);
-        if (startingCity != nullptr) {
-            char cityLine[96];
-            std::snprintf(cityLine, sizeof(cityLine), "Starting city: %s", startingCity->fullName);
-            contextHelpTextLine(cityLine, "Random landmark node in your starting borough.", "city_panel", contextHelpState);
+        if (ImGui::CollapsingHeader("Identity", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+            char nameLine[48];
+            std::snprintf(nameLine, sizeof(nameLine), "Name: %s", playerProfile.draft.nameBuffer);
+            contextHelpTextLine(nameLine, "Display name shown in descriptions and reports.", "char_name", contextHelpState);
+            char ageLine[24];
+            std::snprintf(ageLine, sizeof(ageLine), "Age: %d", playerProfile.draft.age);
+            contextHelpTextLine(ageLine, "Age nudges street vs institutional opportunity paths.", "profile_builder", contextHelpState);
+            char nationalityLine[64];
+            std::snprintf(
+                nationalityLine,
+                sizeof(nationalityLine),
+                "Nationality: %.*s",
+                static_cast<int>(getNationalityName(playerProfile.draft.nationalityId).size()),
+                getNationalityName(playerProfile.draft.nationalityId).data());
+            contextHelpTextLine(nationalityLine, "Citizenship and passport context for legitimacy and language.", "profile_builder", contextHelpState);
+            char heritageLine[64];
+            std::snprintf(
+                heritageLine,
+                sizeof(heritageLine),
+                "Heritage: %.*s",
+                static_cast<int>(getHeritageName(playerProfile.draft.heritageId).size()),
+                getHeritageName(playerProfile.draft.heritageId).data());
+            contextHelpTextLine(heritageLine, "Ethnic heritage nudges network and cultural stats.", "profile_builder", contextHelpState);
+            char generationLine[64];
+            std::snprintf(
+                generationLine,
+                sizeof(generationLine),
+                "Generation: %.*s",
+                static_cast<int>(getGenerationName(playerProfile.draft.generationId).size()),
+                getGenerationName(playerProfile.draft.generationId).data());
+            contextHelpTextLine(generationLine, "Generation sets the base tradeoff for all trait axes.", "char_generation", contextHelpState);
+            char backgroundLine[64];
+            std::snprintf(
+                backgroundLine,
+                sizeof(backgroundLine),
+                "Background: %.*s",
+                static_cast<int>(getBackgroundName(playerProfile.draft.backgroundId).size()),
+                getBackgroundName(playerProfile.draft.backgroundId).data());
+            contextHelpTextLine(backgroundLine, "Starting career path before the story begins.", "profile_builder", contextHelpState);
+            char boroughLine[64];
+            std::snprintf(
+                boroughLine,
+                sizeof(boroughLine),
+                "Borough: %.*s",
+                static_cast<int>(getBoroughPreferenceName(playerProfile.draft.selectedBoroughIndex).size()),
+                getBoroughPreferenceName(playerProfile.draft.selectedBoroughIndex).data());
+            contextHelpTextLine(boroughLine, "Preferred starting borough. Gameplay territory links come later.", "profile_builder", contextHelpState);
+            const LandmarkDefinition* startingCity = getLandmarkDefinition(playerProfile.draft.startingCityLandmarkIndex);
+            if (startingCity != nullptr) {
+                char cityLine[96];
+                std::snprintf(cityLine, sizeof(cityLine), "Starting city: %s", startingCity->fullName);
+                contextHelpTextLine(cityLine, "Random landmark node in your starting borough.", "city_panel", contextHelpState);
+            }
         }
         if (ImGui::CollapsingHeader("Health", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Status: %s", playerHealthStatusLabel(playerHealthStore));
@@ -698,7 +694,7 @@ void renderCharacterPanel(
                 }
             }
         }
-        if (ImGui::CollapsingHeader("Career", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::CollapsingHeader("Career", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
             char careerTitle[96];
             formatPlayerCareerTitle(playerProfile, playerOperationsStore, playerOrganizationStore, careerTitle, sizeof(careerTitle));
             ImGui::Text("Title: %s", careerTitle);
@@ -724,15 +720,9 @@ void renderCharacterPanel(
         char identityLine[128];
         std::snprintf(identityLine, sizeof(identityLine), "Identity label: %s", identityBuffer);
         contextHelpTextLine(identityLine, "Short identity string built from generation and heritage.", "profile_overview", contextHelpState);
-        contextHelpSectionHeader("Description", "Narrative summary from your draft.", "char_creation", contextHelpState);
-        contextHelpWrappedText(descriptionBuffer, "Character description", "Full prose summary of your character.", "char_creation", contextHelpState);
-        contextHelpSectionHeader(
-            "Foundational Traits",
-            "Trait axes are one profile layer among future systems.",
-            "trait_axes",
-            contextHelpState);
-        ImGui::TextDisabled("Hover for tooltips. Hold Ctrl and click for Manual links.");
-        if (ImGui::CollapsingHeader("Network Access", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::CollapsingHeader("Foundational Traits", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+            ImGui::TextDisabled("Hover for tooltips. Hold Ctrl and click for Manual links.");
+            if (ImGui::CollapsingHeader("Network Access", ImGuiTreeNodeFlags_DefaultOpen)) {
             contextHelpStatBar(
                 "Ethnic Network",
                 playerProfile.networkAccess.ethnicNetwork,
@@ -757,122 +747,123 @@ void renderCharacterPanel(
                 "Trade groups and supplier ties.",
                 "stat_business_assoc",
                 contextHelpState);
-            contextHelpStatBar(
-                "Import Pipeline",
-                playerProfile.networkAccess.importPipeline,
-                "Smuggling and freight routes.",
-                "stat_import_pipeline",
-                contextHelpState);
-        }
-        if (ImGui::CollapsingHeader("Legitimacy", ImGuiTreeNodeFlags_DefaultOpen)) {
-            contextHelpStatBar(
-                "Police Attention Decay",
-                playerProfile.legitimacy.policeAttentionDecay,
-                "How fast heat cools when quiet.",
-                "stat_police_decay",
-                contextHelpState);
-            contextHelpStatBar(
-                "Shell Company Ease",
-                playerProfile.legitimacy.shellCompanyEase,
-                "Speed of standing up fronts.",
-                "stat_shell_company",
-                contextHelpState);
-            contextHelpStatBar(
-                "Public Job Access",
-                playerProfile.legitimacy.publicFacingJobAccess,
-                "Respectable cover employment.",
-                "stat_public_job",
-                contextHelpState);
-            contextHelpStatBar(
-                "Mainstream Suspicion",
-                playerProfile.legitimacy.mainstreamSuspicion,
-                "Baseline scrutiny from society.",
-                "stat_mainstream_suspicion",
-                contextHelpState);
-        }
-        if (ImGui::CollapsingHeader("Loyalty Bias", ImGuiTreeNodeFlags_DefaultOpen)) {
-            contextHelpStatBar(
-                "Faction Resistance",
-                playerProfile.loyaltyBias.ethnicFactionResistance,
-                "Pushback against rival factions.",
-                "stat_faction_resist",
-                contextHelpState);
-            contextHelpStatBar(
-                "Kin Alliance",
-                playerProfile.loyaltyBias.kinAlliancePreference,
-                "Family-first loyalty tendency.",
-                "stat_kin_alliance",
-                contextHelpState);
-            contextHelpStatBar(
-                "Detection Risk",
-                playerProfile.loyaltyBias.mainstreamDetectionRisk,
-                "Risk mainstream detects organized ties.",
-                "stat_detection_risk",
-                contextHelpState);
-            contextHelpStatBar(
-                "Individualistic Loyalty",
-                playerProfile.loyaltyBias.individualisticLoyalty,
-                "Personal gain over group duty.",
-                "stat_individual_loyalty",
-                contextHelpState);
-        }
-        if (ImGui::CollapsingHeader("Cultural Competency", ImGuiTreeNodeFlags_DefaultOpen)) {
-            contextHelpStatBar(
-                "In-Group Negotiation",
-                playerProfile.culturalCompetency.inGroupNegotiation,
-                "Deals inside your heritage group.",
-                "stat_in_group_neg",
-                contextHelpState);
-            contextHelpStatBar(
-                "Out-Group Negotiation",
-                playerProfile.culturalCompetency.outGroupNegotiation,
-                "Deals with outsiders and officials.",
-                "stat_out_group_neg",
-                contextHelpState);
-            contextHelpStatBar(
-                "Cross-Ethnic Penalty",
-                playerProfile.culturalCompetency.crossEthnicPenalty,
-                "Friction working across ethnic lines.",
-                "stat_cross_ethnic",
-                contextHelpState);
-            contextHelpStatBar(
-                "Language Access",
-                playerProfile.culturalCompetency.languageAccess,
-                "Mainstream language proficiency.",
-                "stat_language",
-                contextHelpState);
-            contextHelpStatBar(
-                "Translate Bonus",
-                playerProfile.culturalCompetency.translateBonus,
-                "Edge when using intermediaries.",
-                "stat_translate",
-                contextHelpState);
-        }
-        if (ImGui::CollapsingHeader("Opportunity Paths", ImGuiTreeNodeFlags_DefaultOpen)) {
-            contextHelpStatBar(
-                "Street Crime Path",
-                playerProfile.opportunityPaths.streetCrimePath,
-                "Street-level criminal aptitude.",
-                "stat_street_crime",
-                contextHelpState);
-            contextHelpStatBar(
-                "Organizer Path",
-                playerProfile.opportunityPaths.organizerPath,
-                "Crew and neighborhood organizing.",
-                "stat_organizer",
-                contextHelpState);
-            contextHelpStatBar(
-                "Institutional Path",
-                playerProfile.opportunityPaths.institutionalPath,
-                "Unions, offices, institutional graft.",
-                "stat_institutional",
-                contextHelpState);
-            contextHelpStatBar(
-                "Corporate Path",
-                playerProfile.opportunityPaths.corporatePath,
-                "Finance and corporate infiltration.",
-                "stat_corporate",
-                contextHelpState);
+                contextHelpStatBar(
+                    "Import Pipeline",
+                    playerProfile.networkAccess.importPipeline,
+                    "Smuggling and freight routes.",
+                    "stat_import_pipeline",
+                    contextHelpState);
+            }
+            if (ImGui::CollapsingHeader("Legitimacy", ImGuiTreeNodeFlags_DefaultOpen)) {
+                contextHelpStatBar(
+                    "Police Attention Decay",
+                    playerProfile.legitimacy.policeAttentionDecay,
+                    "How fast heat cools when quiet.",
+                    "stat_police_decay",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Shell Company Ease",
+                    playerProfile.legitimacy.shellCompanyEase,
+                    "Speed of standing up fronts.",
+                    "stat_shell_company",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Public Job Access",
+                    playerProfile.legitimacy.publicFacingJobAccess,
+                    "Respectable cover employment.",
+                    "stat_public_job",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Mainstream Suspicion",
+                    playerProfile.legitimacy.mainstreamSuspicion,
+                    "Baseline scrutiny from society.",
+                    "stat_mainstream_suspicion",
+                    contextHelpState);
+            }
+            if (ImGui::CollapsingHeader("Loyalty Bias", ImGuiTreeNodeFlags_DefaultOpen)) {
+                contextHelpStatBar(
+                    "Faction Resistance",
+                    playerProfile.loyaltyBias.ethnicFactionResistance,
+                    "Pushback against rival factions.",
+                    "stat_faction_resist",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Kin Alliance",
+                    playerProfile.loyaltyBias.kinAlliancePreference,
+                    "Family-first loyalty tendency.",
+                    "stat_kin_alliance",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Detection Risk",
+                    playerProfile.loyaltyBias.mainstreamDetectionRisk,
+                    "Risk mainstream detects organized ties.",
+                    "stat_detection_risk",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Individualistic Loyalty",
+                    playerProfile.loyaltyBias.individualisticLoyalty,
+                    "Personal gain over group duty.",
+                    "stat_individual_loyalty",
+                    contextHelpState);
+            }
+            if (ImGui::CollapsingHeader("Cultural Competency", ImGuiTreeNodeFlags_DefaultOpen)) {
+                contextHelpStatBar(
+                    "In-Group Negotiation",
+                    playerProfile.culturalCompetency.inGroupNegotiation,
+                    "Deals inside your heritage group.",
+                    "stat_in_group_neg",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Out-Group Negotiation",
+                    playerProfile.culturalCompetency.outGroupNegotiation,
+                    "Deals with outsiders and officials.",
+                    "stat_out_group_neg",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Cross-Ethnic Penalty",
+                    playerProfile.culturalCompetency.crossEthnicPenalty,
+                    "Friction working across ethnic lines.",
+                    "stat_cross_ethnic",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Language Access",
+                    playerProfile.culturalCompetency.languageAccess,
+                    "Mainstream language proficiency.",
+                    "stat_language",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Translate Bonus",
+                    playerProfile.culturalCompetency.translateBonus,
+                    "Edge when using intermediaries.",
+                    "stat_translate",
+                    contextHelpState);
+            }
+            if (ImGui::CollapsingHeader("Opportunity Paths", ImGuiTreeNodeFlags_DefaultOpen)) {
+                contextHelpStatBar(
+                    "Street Crime Path",
+                    playerProfile.opportunityPaths.streetCrimePath,
+                    "Street-level criminal aptitude.",
+                    "stat_street_crime",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Organizer Path",
+                    playerProfile.opportunityPaths.organizerPath,
+                    "Crew and neighborhood organizing.",
+                    "stat_organizer",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Institutional Path",
+                    playerProfile.opportunityPaths.institutionalPath,
+                    "Unions, offices, institutional graft.",
+                    "stat_institutional",
+                    contextHelpState);
+                contextHelpStatBar(
+                    "Corporate Path",
+                    playerProfile.opportunityPaths.corporatePath,
+                    "Finance and corporate infiltration.",
+                    "stat_corporate",
+                    contextHelpState);
+            }
         }
     }
     ImGui::End();
@@ -936,7 +927,7 @@ void renderCityPanel(
     const CityControlStore& cityControlStore,
     const PlayerOperationsStore& playerOperationsStore,
     const PlayerCriminalJusticeStore& playerCriminalJusticeStore,
-    const PlayerWallet& playerWallet,
+    PlayerWallet& playerWallet,
     SimEventQueue& simEventQueue,
     const PlayerProfile& playerProfile,
     const ViewportPickState& viewportPickState,
@@ -1118,12 +1109,12 @@ void renderMapViewportPanel(
     ViewportPickState& viewportPickState,
     bool showCrimeOverlay,
     const PlayerProfile& playerProfile,
-    const PlayerWallet& playerWallet,
+    PlayerWallet& playerWallet,
     const PlayerLawEnforcementStore& playerLawEnforcementStore,
     const PlayerLawIntelStore& playerLawIntelStore,
     const PlayerHealthStore& playerHealthStore,
     const GameCalendarStore& calendarStore,
-    const PlayerWorldState& playerWorldState,
+    PlayerWorldState& playerWorldState,
     const CharacterAgentStore& characterAgentStore,
     uint64_t tickCount,
     MapHudInteraction& mapHudInteraction,
@@ -1238,6 +1229,11 @@ void renderMapViewportPanel(
                             viewportPickState.selectedBusinessIndex = -1;
                             updateViewportPickFromWorldCoord(viewportPickState, worldConfig, landmarkCoord, true);
                         }
+                        if (!contextHelpState.isInspectMode && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                            mapHudInteraction.requestOpenTileContextMenu = true;
+                            mapHudInteraction.contextMenuTileX = landmark->tileX;
+                            mapHudInteraction.contextMenuTileY = landmark->tileY;
+                        }
                     }
                 } else if (businessIndex < 0) {
                     float worldX = 0.0f;
@@ -1249,6 +1245,11 @@ void renderMapViewportPanel(
                         viewportPickState.hasLandmarkSelection = false;
                         viewportPickState.selectedLandmarkIndex = -1;
                         updateViewportPickFromWorldCoord(viewportPickState, worldConfig, coord, true);
+                    }
+                    if (!contextHelpState.isInspectMode && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                        mapHudInteraction.requestOpenTileContextMenu = true;
+                        mapHudInteraction.contextMenuTileX = coord.x;
+                        mapHudInteraction.contextMenuTileY = coord.y;
                     }
                 }
             }
@@ -1313,6 +1314,44 @@ void renderMapViewportPanel(
             canvasPos.y,
             canvasSize.x,
             canvasSize.y);
+        if (mapHudInteraction.requestOpenTileContextMenu) {
+            ImGui::OpenPopup("TileContextMenu");
+            mapHudInteraction.requestOpenTileContextMenu = false;
+        }
+        if (ImGui::BeginPopup("TileContextMenu")) {
+            ImGui::Text("Tile (%d, %d)", mapHudInteraction.contextMenuTileX, mapHudInteraction.contextMenuTileY);
+            if (ImGui::BeginMenu("Travel")) {
+                const int32_t fromX = playerWorldState.currentTileX;
+                const int32_t fromY = playerWorldState.currentTileY;
+                const int32_t toX = mapHudInteraction.contextMenuTileX;
+                const int32_t toY = mapHudInteraction.contextMenuTileY;
+                const int32_t tileDistance = std::max(1, std::abs(toX - fromX) + std::abs(toY - fromY));
+                for (int32_t modeIndex = 0; modeIndex < getTravelModeCount(); ++modeIndex) {
+                    const TravelMode mode = static_cast<TravelMode>(modeIndex);
+                    const TravelModeDefinition* modeDef = getTravelModeDefinition(mode);
+                    const int32_t travelTicks = computeTravelTicksForMode(mode, tileDistance);
+                    const int32_t travelHours = (travelTicks + CALENDAR_TICKS_PER_HOUR - 1) / CALENDAR_TICKS_PER_HOUR;
+                    char label[160];
+                    std::snprintf(label, sizeof(label), "%s  -  %dh  -  %s", modeDef->displayName, travelHours, modeDef->upfrontCostCents > 0 ? "cost" : "free");
+                    if (ImGui::MenuItem(label)) {
+                        TravelPlan plan{};
+                        buildTravelPlan(plan, mode, fromX, fromY, toX, toY, chunkStore, worldConfig);
+                        const WorldCoord targetCoord{toX, toY};
+                        const RegionId targetRegion = chunkStore.getRegionAt(targetCoord);
+                        const bool travelStarted = tryExecuteTravelPlan(plan, playerWorldState, targetRegion, tickCount, playerWallet, chunkStore, worldConfig);
+                        if (travelStarted) {
+                            std::printf("Travel started: mode=%s target=(%d,%d) ticks=%d\n", modeDef->displayName, toX, toY, plan.estimatedTicks);
+                            viewportPickState.hasSelection = true;
+                            viewportPickState.selectedCoord = targetCoord;
+                        } else {
+                            std::printf("Travel failed: mode=%s target=(%d,%d) ticks=%d\n", modeDef->displayName, toX, toY, plan.estimatedTicks);
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndPopup();
+        }
         renderMapNotificationLayer(
             notificationLayer,
             informationFeedStore,

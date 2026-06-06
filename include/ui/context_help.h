@@ -23,7 +23,7 @@ void renderContextHelpCursorOverlay(const ContextHelpState& state);
 void renderContextHelpInspectPopup(ContextHelpState& state, HelpManualState& manualState);
 void contextHelpTextLine(const char* text, const char* tooltip, const char* manualTopicId, ContextHelpState& state);
 void contextHelpStatBar(const char* label, float valueNormalized, const char* tooltip, const char* manualTopicId, ContextHelpState& state);
-void contextHelpSectionHeader(const char* title, const char* tooltip, const char* manualTopicId, ContextHelpState& state);
+bool contextHelpSectionHeader(const char* title, const char* tooltip, const char* manualTopicId, ContextHelpState& state);
 void contextHelpPanelTag(const char* panelTitle, const char* tooltip, const char* manualTopicId, ContextHelpState& state);
 void contextHelpWrappedText(const char* text, const char* title, const char* tooltip, const char* manualTopicId, ContextHelpState& state);
 

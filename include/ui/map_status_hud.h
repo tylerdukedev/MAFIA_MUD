@@ -15,8 +15,11 @@ struct MapHudInteraction {
     bool requestFocusCharacterPanel = false;
     bool requestCenterOnPlayer = false;
     bool requestFillTravelTarget = false;
+    bool requestOpenTileContextMenu = false;
     int32_t travelTargetTileX = 0;
     int32_t travelTargetTileY = 0;
+    int32_t contextMenuTileX = 0;
+    int32_t contextMenuTileY = 0;
 };
 
 void renderMapStatusHud(

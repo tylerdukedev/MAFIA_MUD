@@ -26,7 +26,6 @@
 #include "game/agent_relation_events.h"
 #include "game/social_action_catalog.h"
 #include "ui/real_estate_ui.h"
-#include "game/travel_modes.h"
 #include "game/game_calendar.h"
 #include "game/player_work_schedule.h"
 #include "game/player_employment.h"
@@ -60,38 +59,6 @@ constexpr int32_t CONTACTS_SECTION_CREW = 3;
 constexpr int32_t CONTACTS_SECTION_INLINE = 4;
 constexpr int32_t CONTACTS_SECTION_TAIL = 5;
 
-void swapInt32(int32_t& a, int32_t& b) {
-    const int32_t temp = a;
-    a = b;
-    b = temp;
-}
-
-void moveOrderEarlier(int32_t* order, int32_t count, int32_t sectionIndex) {
-    if (sectionIndex <= 0 || sectionIndex >= count) {
-        return;
-    }
-    swapInt32(order[sectionIndex], order[sectionIndex - 1]);
-}
-
-void moveOrderLater(int32_t* order, int32_t count, int32_t sectionIndex) {
-    if (sectionIndex < 0 || sectionIndex + 1 >= count) {
-        return;
-    }
-    swapInt32(order[sectionIndex], order[sectionIndex + 1]);
-}
-
-void renderReorderControls(int32_t* order, int32_t count, int32_t sectionIndex, const char* label) {
-    ImGui::PushID(label);
-    ImGui::SameLine();
-    if (ImGui::SmallButton("↑")) {
-        moveOrderEarlier(order, count, sectionIndex);
-    }
-    ImGui::SameLine();
-    if (ImGui::SmallButton("↓")) {
-        moveOrderLater(order, count, sectionIndex);
-    }
-    ImGui::PopID();
-}
 
 const char* operationLockReasonToString(OperationLockReason reason) {
     switch (reason) {
@@ -206,32 +173,6 @@ void renderSurvivalStreetCrimes(
     }
 }
 
-int32_t findOperationsSectionIndex(const GamePanelVisibility& panelVisibility, int32_t sectionId) {
-    for (int32_t index = 0; index < OPERATIONS_PANEL_SECTION_COUNT; ++index) {
-        if (panelVisibility.operationsSectionOrder[index] == sectionId) {
-            return index;
-        }
-    }
-    return -1;
-}
-
-void renderOperationsSectionHeader(GamePanelVisibility& panelVisibility, int32_t sectionId, const char* label) {
-    const int32_t displayIndex = findOperationsSectionIndex(panelVisibility, sectionId);
-    ImGui::Separator();
-    ImGui::TextUnformatted(label);
-    if (displayIndex >= 0) {
-        ImGui::SameLine();
-        ImGui::PushID(label);
-        if (ImGui::SmallButton("↑") && displayIndex > 0) {
-            swapInt32(panelVisibility.operationsSectionOrder[displayIndex], panelVisibility.operationsSectionOrder[displayIndex - 1]);
-        }
-        ImGui::SameLine();
-        if (ImGui::SmallButton("↓") && displayIndex + 1 < OPERATIONS_PANEL_SECTION_COUNT) {
-            swapInt32(panelVisibility.operationsSectionOrder[displayIndex], panelVisibility.operationsSectionOrder[displayIndex + 1]);
-        }
-        ImGui::PopID();
-    }
-}
 
 void renderOperationsHousingSection(
     PlayerOperationsStore& playerOperationsStore,
@@ -322,11 +263,9 @@ void renderOperationsPowerSection(
     GameModalState& gameModalState,
     SimClock& simClock,
     ContextHelpState& contextHelpState) {
-    contextHelpSectionHeader(
-        "Power tier",
-        "Solo → Crew (street gang) → Organization (official enterprise).",
-        "power_tier",
-        contextHelpState);
+    if (!contextHelpSectionHeader("Power tier", "Solo → Crew (street gang) → Organization (official enterprise).", "power_tier", contextHelpState)) {
+        return;
+    }
     ImGui::Text("Tier: %s", playerPowerTierToString(playerOrganizationStore.powerTier));
     if (playerOrganizationStore.powerTier == PlayerPowerTier::Solo) {
         ImGui::Text("Recruits: %d / %d", playerOrganizationStore.crewMemberCount, MAX_CREW_MEMBER_COUNT);
@@ -360,11 +299,9 @@ void renderOperationsStreetCrimeSection(
     uint64_t tickCount,
     bool isAtWorkRestricted,
     ContextHelpState& contextHelpState) {
-    contextHelpSectionHeader(
-        "Street crime",
-        "Solo cash when broke; crew and organization jobs need trusted criminals and network.",
-        "street_crime_panel",
-        contextHelpState);
+    if (!contextHelpSectionHeader("Street crime", "Solo cash when broke; crew and organization jobs need trusted criminals and network.", "street_crime_panel", contextHelpState)) {
+        return;
+    }
     if (getPlayerCustodyPhase(playerCriminalJusticeStore) != CustodyPhase::Free) {
         ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.35f, 1.0f), "Custody: %s", custodyPhaseToString(getPlayerCustodyPhase(playerCriminalJusticeStore)));
         if (playerCriminalJusticeStore.lastCustodyLabel[0] != '\0') {
@@ -393,13 +330,17 @@ void renderOperationsStreetCrimeSection(
 }
 
 void renderOperationsInfoSection(const PlayerInformationFeedStore& informationFeedStore, ContextHelpState& contextHelpState) {
-    contextHelpSectionHeader("Information", "Newspapers, rumors, and network intel.", "law_intel", contextHelpState);
+    if (!contextHelpSectionHeader("Information", "Newspapers, rumors, and network intel.", "law_intel", contextHelpState)) {
+        return;
+    }
     ImGui::Text("Unread items: %d", getUnreadInformationFeedCount(informationFeedStore));
     ImGui::TextDisabled("Map alerts appear bottom-right; newspapers pause sim when opened.");
 }
 
 void renderOperationsNarrativeSection(const PlayerNarrativeArchiveStore& narrativeArchiveStore, ContextHelpState& contextHelpState) {
-    contextHelpSectionHeader("Narrative archive", "Logged motives for headlines and former-life collectibles.", "law_intel", contextHelpState);
+    if (!contextHelpSectionHeader("Narrative archive", "Logged motives for headlines and former-life collectibles.", "law_intel", contextHelpState)) {
+        return;
+    }
     ImGui::Text("Story beats recorded: %d", getNarrativeBeatCount(narrativeArchiveStore));
     const int32_t beatCount = getNarrativeBeatCount(narrativeArchiveStore);
     if (beatCount > 0) {
@@ -411,7 +352,9 @@ void renderOperationsLegalSection(
     PlayerLegalCounselStore& legalCounselStore,
     PlayerWallet& playerWallet,
     ContextHelpState& contextHelpState) {
-    contextHelpSectionHeader("Legal counsel", "Hire a lawyer before court for better outcomes.", "legal_counsel", contextHelpState);
+    if (!contextHelpSectionHeader("Legal counsel", "Hire a lawyer before court for better outcomes.", "legal_counsel", contextHelpState)) {
+        return;
+    }
     const LawyerTierDefinition* activeLawyer = getLawyerTierDefinition(legalCounselStore.hiredLawyerTier);
     ImGui::Text("Retained: %s", activeLawyer->displayName);
     for (int32_t tierIndex = 0; tierIndex < getLawyerTierCount(); ++tierIndex) {
@@ -424,51 +367,6 @@ void renderOperationsLegalSection(
         if (ImGui::Button(hireLabel)) {
             tryHireLawyer(legalCounselStore, playerWallet, tier);
         }
-    }
-}
-
-void renderOperationsTravelSection(
-    const WorldConfig& worldConfig,
-    const ChunkStore& chunkStore,
-    PlayerWallet& playerWallet,
-    PlayerWorldState& playerWorldState,
-    const ViewportPickState& viewportPickState,
-    GamePanelVisibility& panelVisibility,
-    uint64_t tickCount,
-    ContextHelpState& contextHelpState) {
-    contextHelpSectionHeader("Travel", "Move between boroughs with realistic time costs.", "travel_modes", contextHelpState);
-    ImGui::Text("Location: tile (%d, %d)", playerWorldState.currentTileX, playerWorldState.currentTileY);
-    if (playerWorldState.isTraveling) {
-        ImGui::TextDisabled("In transit...");
-    }
-    if (viewportPickState.hasSelection) {
-        panelVisibility.travelTargetX = viewportPickState.selectedCoord.x;
-        panelVisibility.travelTargetY = viewportPickState.selectedCoord.y;
-    }
-    ImGui::InputInt("Target X", &panelVisibility.travelTargetX);
-    ImGui::InputInt("Target Y", &panelVisibility.travelTargetY);
-    if (viewportPickState.hasSelection) {
-        ImGui::TextDisabled(
-            "Target from map click: (%d, %d)",
-            panelVisibility.travelTargetX,
-            panelVisibility.travelTargetY);
-    }
-    ImGui::Combo("Mode", &panelVisibility.travelModeIndex, "Walk\0Bicycle\0Car\0Train\0");
-    if (ImGui::Button("Plan / execute travel")) {
-        TravelPlan plan{};
-        const TravelMode mode = static_cast<TravelMode>(panelVisibility.travelModeIndex);
-        buildTravelPlan(
-            plan,
-            mode,
-            playerWorldState.currentTileX,
-            playerWorldState.currentTileY,
-            panelVisibility.travelTargetX,
-            panelVisibility.travelTargetY,
-            chunkStore,
-            worldConfig);
-        const WorldCoord targetCoord{panelVisibility.travelTargetX, panelVisibility.travelTargetY};
-        const RegionId targetRegion = chunkStore.getRegionAt(targetCoord);
-        tryExecuteTravelPlan(plan, playerWorldState, targetRegion, tickCount, playerWallet, chunkStore, worldConfig);
     }
 }
 
@@ -500,34 +398,22 @@ void renderOperationsSectionById(
     GamePanelVisibility& panelVisibility = frame.panelVisibility;
     switch (sectionId) {
     case OPERATIONS_SECTION_HOUSING:
-        renderOperationsSectionHeader(panelVisibility, sectionId, "Housing / HQ");
         renderOperationsHousingSection(playerOperationsStore, playerWorldState, characterAgentStore, playerWallet, tickCount, isAtWorkRestricted);
         break;
     case OPERATIONS_SECTION_POWER:
-        renderOperationsSectionHeader(panelVisibility, sectionId, "Power tier");
         renderOperationsPowerSection(playerOrganizationStore, playerCriminalJusticeStore, playerLawEnforcementStore, playerProfile, playerWallet, gameModalState, simClock, contextHelpState);
         break;
     case OPERATIONS_SECTION_STREET_CRIME:
-        renderOperationsSectionHeader(panelVisibility, sectionId, "Street crime");
         renderOperationsStreetCrimeSection(playerOperationsStore, playerOrganizationStore, playerStreetCrimeStore, playerLawEnforcementStore, playerCriminalJusticeStore, playerProfile, characterAgentStore, playerWallet, simEventQueue, tickCount, isAtWorkRestricted, contextHelpState);
         break;
     case OPERATIONS_SECTION_INFORMATION:
-        renderOperationsSectionHeader(panelVisibility, sectionId, "Information");
         renderOperationsInfoSection(informationFeedStore, contextHelpState);
         break;
     case OPERATIONS_SECTION_NARRATIVE:
-        renderOperationsSectionHeader(panelVisibility, sectionId, "Narrative archive");
         renderOperationsNarrativeSection(narrativeArchiveStore, contextHelpState);
         break;
     case OPERATIONS_SECTION_LEGAL:
-        renderOperationsSectionHeader(panelVisibility, sectionId, "Legal counsel");
         renderOperationsLegalSection(legalCounselStore, playerWallet, contextHelpState);
-        break;
-    case OPERATIONS_SECTION_TRAVEL:
-        if (!isAtWorkRestricted) {
-            renderOperationsSectionHeader(panelVisibility, sectionId, "Travel");
-            renderOperationsTravelSection(worldConfig, chunkStore, playerWallet, playerWorldState, viewportPickState, panelVisibility, tickCount, contextHelpState);
-        }
         break;
     default:
         break;
@@ -559,38 +445,17 @@ void renderOperationsPanelBody(
     }
 }
 
-int32_t findBusinessSectionIndex(const GamePanelVisibility& panelVisibility, int32_t sectionId) {
-    for (int32_t index = 0; index < BUSINESS_PANEL_SECTION_COUNT; ++index) {
-        if (panelVisibility.businessSectionOrder[index] == sectionId) {
-            return index;
-        }
-    }
-    return -1;
-}
-
 void renderBusinessSectionHeader(GamePanelVisibility& panelVisibility, int32_t sectionId, const char* label) {
-    const int32_t displayIndex = findBusinessSectionIndex(panelVisibility, sectionId);
+    (void)panelVisibility;
+    (void)sectionId;
     ImGui::Separator();
     ImGui::TextUnformatted(label);
-    if (displayIndex >= 0) {
-        ImGui::SameLine();
-        ImGui::PushID(label);
-        if (ImGui::SmallButton("↑") && displayIndex > 0) {
-            swapInt32(panelVisibility.businessSectionOrder[displayIndex], panelVisibility.businessSectionOrder[displayIndex - 1]);
-        }
-        ImGui::SameLine();
-        if (ImGui::SmallButton("↓") && displayIndex + 1 < BUSINESS_PANEL_SECTION_COUNT) {
-            swapInt32(panelVisibility.businessSectionOrder[displayIndex], panelVisibility.businessSectionOrder[displayIndex + 1]);
-        }
-        ImGui::PopID();
-    }
 }
 
 void renderBusinessCalendarSection(const GameUiFrameContext& frame) {
     const PlayerOperationsStore& playerOperationsStore = frame.playerOperationsStore;
     const GameCalendarStore& calendarStore = frame.gameplayStores.calendarStore;
     const PlayerWorkScheduleStore& workScheduleStore = frame.gameplayStores.workScheduleStore;
-    renderBusinessSectionHeader(frame.panelVisibility, BUSINESS_SECTION_CALENDAR, "Calendar / shift");
     char calendarLine[64];
     formatCalendarDateLabel(calendarStore, calendarLine, sizeof(calendarLine));
     ImGui::Text("Calendar: %s", calendarLine);
@@ -602,12 +467,13 @@ void renderBusinessCalendarSection(const GameUiFrameContext& frame) {
 
 void renderBusinessEmploymentSection(const GameUiFrameContext& frame) {
     PlayerOperationsStore& playerOperationsStore = frame.playerOperationsStore;
-    renderBusinessSectionHeader(frame.panelVisibility, BUSINESS_SECTION_EMPLOYMENT, "Current employment");
     if (!isPlayerEmployed(playerOperationsStore)) {
         ImGui::TextDisabled("Unemployed.");
         return;
     }
-    contextHelpSectionHeader("Current employment", "Your active jobs.", "employment_status", frame.contextHelpState);
+    if (!contextHelpSectionHeader("Current employment", "Your active jobs.", "employment_status", frame.contextHelpState)) {
+        return;
+    }
     for (int i = 0; i < 2; ++i) {
         if (playerOperationsStore.employedBusinessIndices[i] >= 0) {
             const BusinessNodeDefinition* job = getBusinessNodeDefinition(playerOperationsStore.employedBusinessIndices[i]);
@@ -629,7 +495,6 @@ void renderBusinessSelectedSection(const GameUiFrameContext& frame) {
     const ChunkStore& chunkStore = frame.chunkStore;
     const PlayerWorldState& playerWorldState = frame.playerWorldState;
     const ViewportPickState& viewportPickState = frame.viewportPickState;
-    renderBusinessSectionHeader(frame.panelVisibility, BUSINESS_SECTION_SELECTED, "Selected business");
     if (!viewportPickState.hasBusinessSelection || viewportPickState.selectedBusinessIndex < 0) {
         ImGui::TextDisabled("Click a blue business node on the map.");
         return;
@@ -662,7 +527,6 @@ void renderBusinessApplySection(
     const uint64_t tickCount = frame.tickCount;
     const uint64_t worldSeed = frame.worldSeed;
     SimClock& simClock = frame.simClock;
-    renderBusinessSectionHeader(panelVisibility, BUSINESS_SECTION_APPLY, "Apply / eligibility");
     if (!viewportPickState.hasBusinessSelection || viewportPickState.selectedBusinessIndex < 0) {
         return;
     }
@@ -699,7 +563,6 @@ void renderBusinessApplySection(
 }
 
 void renderBusinessStatusSection(const GameUiFrameContext& frame) {
-    renderBusinessSectionHeader(frame.panelVisibility, BUSINESS_SECTION_STATUS, "Status");
     if (isPlayerEmployed(frame.playerOperationsStore)) {
         ImGui::TextDisabled("Currently employed.");
     } else {
@@ -739,31 +602,11 @@ void renderBusinessPanelBody(const GameUiFrameContext& frame, GameModalState& ga
     }
 }
 
-int32_t findContactsSectionIndex(const GamePanelVisibility& panelVisibility, int32_t sectionId) {
-    for (int32_t index = 0; index < CONTACTS_PANEL_SECTION_COUNT; ++index) {
-        if (panelVisibility.contactsSectionOrder[index] == sectionId) {
-            return index;
-        }
-    }
-    return -1;
-}
-
 void renderContactsSectionHeader(GamePanelVisibility& panelVisibility, int32_t sectionId, const char* label) {
-    const int32_t displayIndex = findContactsSectionIndex(panelVisibility, sectionId);
+    (void)panelVisibility;
+    (void)sectionId;
     ImGui::Separator();
     ImGui::TextUnformatted(label);
-    if (displayIndex >= 0) {
-        ImGui::SameLine();
-        ImGui::PushID(label);
-        if (ImGui::SmallButton("↑") && displayIndex > 0) {
-            swapInt32(panelVisibility.contactsSectionOrder[displayIndex], panelVisibility.contactsSectionOrder[displayIndex - 1]);
-        }
-        ImGui::SameLine();
-        if (ImGui::SmallButton("↓") && displayIndex + 1 < CONTACTS_PANEL_SECTION_COUNT) {
-            swapInt32(panelVisibility.contactsSectionOrder[displayIndex], panelVisibility.contactsSectionOrder[displayIndex + 1]);
-        }
-        ImGui::PopID();
-    }
 }
 
 void renderContactHeaderSection(
@@ -772,7 +615,7 @@ void renderContactHeaderSection(
     const char* displayName,
     const char* roleLabel,
     GamePanelVisibility& panelVisibility) {
-    renderContactsSectionHeader(panelVisibility, CONTACTS_SECTION_HEADER, displayName);
+    ImGui::Text("%s", displayName);
     ImGui::Text("%s", roleLabel);
     ImGui::Text("Opinion: %d | Trust: %d | Respect: %d", state.opinionOfPlayer, state.trust, state.respect);
     ImGui::Text("Loyalty score: %d", computeAgentLoyaltyScore(state));

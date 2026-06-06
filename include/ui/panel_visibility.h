@@ -18,9 +18,6 @@ struct GamePanelVisibility {
     bool showOperations = true;
     bool showBusiness = true;
     bool showContacts = true;
-    int32_t travelTargetX = 240;
-    int32_t travelTargetY = 240;
-    int32_t travelModeIndex = 0;
     int32_t operationsSectionOrder[OPERATIONS_PANEL_SECTION_COUNT]{0, 1, 2, 3, 4, 5, 6, 7};
     int32_t businessSectionOrder[BUSINESS_PANEL_SECTION_COUNT]{0, 1, 2, 3, 4};
     int32_t contactsSectionOrder[CONTACTS_PANEL_SECTION_COUNT]{0, 1, 2, 3, 4, 5};
